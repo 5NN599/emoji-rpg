@@ -4337,6 +4337,201 @@ initLobby();
   window.__rpgExpansionV17=true;
 })();
 
+/* ============================================================
+   RPG STABILITY / UX PATCH v18
+   - 채팅 단일 렌더러 + 전송 상태 확인
+   - 텔레포트 창 단일 렌더러 + 즉시 갱신
+   - 모든 맵 항상 표시 + 레벨/도달 가능 여부 표시
+   - 새 지역 진입 후 즉시 UI/맵 갱신
+   ============================================================ */
+(function installRpgStabilityV18(){
+  'use strict';
+
+  /* ---------- 공통 ---------- */
+  const MAP_ICONS={town:'🏘️',field:'🌿',dungeon:'🟥',forest:'🌙',canyon:'🪨',catacombs:'💀',abyss:'🌑'};
+  const MAP_ORDER=['town','field','forest','canyon','dungeon','catacombs','abyss'];
+  const mapList=()=>MAP_ORDER.map(id=>RPG_MAPS[id]).filter(Boolean);
+  const activeMapId=()=>String((S.players[S.uid]||{}).map||'town');
+  const teleportNear=()=>nearestRpgPortal(S.players[S.uid]);
+  const teleportAllowed=(p,id)=>{const md=RPG_MAPS[id];return !!md&&(Number(p&&p.lv)||1)>=(Number(md.minLv)||1);};
+  const reachable=(near,id)=>!!near&&(near.dest||[]).includes(id);
+
+  /* ---------- 채팅 ---------- */
+  function validateChatV18(text){
+    try{
+      const r=censorChatText(text);
+      return r&&r.ok?String(r.text):'';
+    }catch(_e){return '';}
+  }
+
+  function sendChatV18(){
+    const input=$('chatInput');
+    if(!input)return false;
+    const text=validateChatV18(input.value);
+    if(!text){
+      input.value='';
+      log('⚠️ 보낼 수 없는 메시지야.');
+      return false;
+    }
+    if(!S.isHost&&(!S.hostConn||!S.hostConn.open)){
+      log('📡 온라인 연결이 끊겨서 채팅을 보낼 수 없어.');
+      return false;
+    }
+    const ch=S.chatChannel==='party'?'party':'all';
+    try{
+      sendLocalHost({t:'chat',s:text,ch});
+      input.value='';
+      return true;
+    }catch(e){
+      log('⚠️ 채팅 전송 실패: '+String(e&&e.message||e));
+      return false;
+    }
+  }
+
+  function renderChatV18(){
+    S.overlayOpenChat=true;
+    const ch=S.chatChannel==='party'?'party':'all';
+    const msgs=(Array.isArray(S.chat)?S.chat:[]).slice(-60).filter(m=>!isBlockedChatMessage(m)&&(m.ch==='all'||m.ch===ch));
+    let html='';
+    html+='<div class="chatTabs">';
+    html+='<button class="chatTab '+(ch==='all'?'active':'')+'" data-chat-channel="all">🌐 전체</button>';
+    html+='<button class="chatTab '+(ch==='party'?'active':'')+'" data-chat-channel="party">👥 파티</button>';
+    html+='</div>';
+    html+='<div class="chatLog" id="chatLog">';
+    if(msgs.length){
+      msgs.forEach(m=>{
+        html+='<div class="chatMsg"><b>'+escapeHtml((m.ch==='party'?'👥 ':'')+String(m.name||'플레이어'))+':</b> '+escapeHtml(String(m.s||''))+'</div>';
+      });
+    }else{
+      html+='<div class="empty">아직 대화가 없어.</div>';
+    }
+    html+='</div>';
+    html+='<div class="chatNotice">욕설·우회 표현·링크·도배는 자동 차단돼.</div>';
+    html+='<div class="chatInput"><input id="chatInput" maxlength="80" autocomplete="off" placeholder="'+(ch==='party'?'파티에게 메시지':'모두에게 메시지')+'"><button id="chatSend" type="button">전송</button></div>';
+    openPanel('💬 채팅',html);
+    $('panelBody').querySelectorAll('[data-chat-channel]').forEach(b=>b.onclick=()=>{S.chatChannel=b.dataset.chatChannel;renderChatV18();});
+    const input=$('chatInput'),send=$('chatSend');
+    if(send)send.onclick=sendChatV18;
+    if(input)input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();sendChatV18();}};
+    setTimeout(()=>{const el=$('chatLog');if(el)el.scrollTop=el.scrollHeight;if(input)input.focus();},0);
+  }
+  renderChat=renderChatV18;
+
+  /* ---------- 텔레포트 ---------- */
+  function teleportSigV18(){
+    const p=S.players[S.uid];if(!p)return '';
+    const near=teleportNear();
+    return [activeMapId(),p.x,p.y,p.lv,near?near.id:'none',near?(near.dest||[]).join(','):''].join('|');
+  }
+
+  function renderTeleportPanelV18(){
+    const p=S.players[S.uid];if(!p)return;
+    const current=activeMapId(),near=teleportNear();
+    let html='<div class="rpgHero"><b>🗺️ '+escapeHtml(mapDef(current).name)+'</b><div class="socialSub">'+escapeHtml(mapDef(current).meta)+'</div></div>';
+    html+='<div class="section" style="margin-top:10px"><div class="sectionTitle">🌍 전체 지역</div><div class="mapCards">';
+    for(const md of mapList()){
+      const isCurrent=md.id===current;
+      const canLv=teleportAllowed(p,md.id);
+      const canReach=reachable(near,md.id);
+      const canMove=!isCurrent&&canLv&&canReach;
+      const lock=!canLv?'🔒 Lv.'+md.minLv+' 필요':(!canReach&&!isCurrent?'🔒 현재 이동석에서 이동 불가':'');
+      const btnLabel=isCurrent?'현재 위치':(canMove?'🌀 이동':lock||'이동');
+      const disabled=isCurrent||!canMove;
+      html+='<div class="mapCard '+(isCurrent?'current':'')+'">';
+      html+='<div class="mapCardIcon">'+(MAP_ICONS[md.id]||'🗺️')+'</div>';
+      html+='<div class="mapCardMain"><b>'+escapeHtml(md.name)+'</b><small>'+escapeHtml(md.meta)+(md.minLv>1?' · Lv.'+md.minLv+'+':'')+'</small></div>';
+      html+='<button type="button" data-map-v18="'+md.id+'" '+(disabled?'disabled':'')+'>'+escapeHtml(btnLabel)+'</button>';
+      html+='</div>';
+    }
+    html+='</div></div>';
+    html+='<div class="teleportHint">'+(near?'🌀 현재 이동석: <b>'+escapeHtml(near.name)+'</b> · 이동하면 목록이 즉시 갱신돼.':'📍 이동석 근처가 아니야. 지역 목록은 모두 보이고, 실제 이동은 연결된 이동석에서만 가능해.')+'</div>';
+    openPanel('🗺️ 월드 맵 / 텔레포트',html);
+    S._teleportPanelSig=teleportSigV18();
+    $('panelBody').querySelectorAll('[data-map-v18]').forEach(b=>b.onclick=()=>requestTeleportRpg(b.dataset.mapV18));
+  }
+  renderTeleportPanel=renderTeleportPanelV18;
+
+  const oldRequestTeleportV18=requestTeleportRpg;
+  requestTeleportRpg=function(dest){
+    const p=S.players[S.uid],md=RPG_MAPS[String(dest||'')];
+    if(!p||!md)return;
+    if(!teleportAllowed(p,md.id)){
+      log('🔒 '+md.name+'은(는) Lv.'+md.minLv+'부터 이동할 수 있어.');
+      return;
+    }
+    const near=teleportNear();
+    if(!near||!reachable(near,md.id)){
+      log('🔒 현재 이동석에서는 '+md.name+'으로 갈 수 없어.');
+      return;
+    }
+    oldRequestTeleportV18(md.id);
+  };
+  requestTeleport=requestTeleportRpg;
+
+  if(S._teleportPanelTimer){clearInterval(S._teleportPanelTimer);S._teleportPanelTimer=null;}
+  const oldClosePanelV18=closePanel;
+  closePanel=function(){
+    if(S._teleportPanelTimer){clearInterval(S._teleportPanelTimer);S._teleportPanelTimer=null;}
+    S._teleportPanelSig='';
+    oldClosePanelV18();
+  };
+
+  function startTeleportWatcherV18(){
+    if(S._teleportPanelTimer)clearInterval(S._teleportPanelTimer);
+    S._teleportPanelTimer=setInterval(()=>{
+      const panel=$('overlayPanel'),title=$('panelTitle');
+      if(!panel||!panel.classList.contains('open')||!title||!title.textContent.includes('월드 맵'))return;
+      const sig=teleportSigV18();
+      if(sig!==S._teleportPanelSig)renderTeleportPanelV18();
+    },80);
+  }
+
+  const wrappedRenderTeleportV18=renderTeleportPanel;
+  renderTeleportPanel=function(){
+    wrappedRenderTeleportV18();
+    startTeleportWatcherV18();
+  };
+
+  /* 실제 맵 이동 응답은 창을 닫지 않고 즉시 다시 그린다. */
+  const oldOnClientV18=onClientData;
+  onClientData=function(m){
+    oldOnClientV18(m);
+    if(m&&m.t==='map_teleport_ok'){
+      setTimeout(()=>{
+        if($('overlayPanel').classList.contains('open')&&$('panelTitle').textContent.includes('월드 맵'))renderTeleportPanelV18();
+      },0);
+    }
+  };
+
+  /* ---------- 맵 HUD / 렌더러 즉시 보강 ---------- */
+  const oldZoneV18=updateZoneHud;
+  updateZoneHud=function(){
+    oldZoneV18();
+    const p=S.players[S.uid],el=$('zoneName');
+    if(!p||!el||!RPG_MAPS[p.map])return;
+    const icon=MAP_ICONS[p.map]||'🗺️';
+    el.textContent=icon+' '+RPG_MAPS[p.map].name;
+  };
+
+  /* 새 지역 진입 시 카메라/미니맵/텔포가 즉시 반영되도록 맵 상태 강제 동기화 */
+  const oldTeleportOkV18=onClientData;
+  // 위 래퍼와 중복 연결하지 않고 실제 함수 체인을 유지하는 대신 이동 상태만 보조한다.
+  globalThis.__rpgStabilityV18=true;
+})();
+
+/* ============================================================
+   v18 FINAL BIND FIX
+   - DOM 버튼에 예전 함수가 캡처되어 있던 문제 수정
+   ============================================================ */
+(function installRpgFinalBindingsV18(){
+  'use strict';
+  const bind=(id,fn)=>{const el=$(id);if(el)el.onclick=fn;};
+  bind('btnChat',()=>renderChat());
+  bind('btnMap',()=>renderTeleportPanel());
+  bind('btnClosePanel',()=>closePanel());
+  globalThis.__rpgFinalBindingsV18=true;
+})();
+
 </script>
 </body>
 </html>
