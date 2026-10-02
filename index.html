@@ -217,7 +217,9 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>if(typeof Peer==='undefined')document.write('<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');</script>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>if(typeof mqtt==='undefined')document.write('<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"><\/script>');</script>
 <script>
 'use strict';
 
@@ -286,6 +288,17 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 const maxHp = p => 50 + p.lv * 10;
 const hostId = (code, gen) => 'erpg-' + code + '-h' + gen;
+const PEER_OPTIONS = {
+  host:'0.peerjs.com',
+  port:443,
+  path:'/',
+  secure:true,
+  debug:0,
+  config:{iceServers:[
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun.cloudflare.com:3478'}
+  ],sdpSemantics:'unified-plan'}
+};
 function insideRect(x,y,r){ return x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h; }
 function regionAt(x,y){
   if(insideRect(x,y,MAP_REGIONS.safe)) return MAP_REGIONS.safe;
@@ -448,7 +461,7 @@ const S = {
   friendCode: '', friends: {}, blocked: {}, reports: [], reportGuard: {}, parties: {}, partyInvites: {},
   lastMove: 0, lastAtk: 0, walkTo: null, retry: 0, targetHid: '',
   moveSeq: 0, moveAck: {}, pendingMoves: [],
-  rooms: {}, mq: null, directoryReady: false, directorySubscribed: false, quickJoinPending: false, quickJoinTimer: null, quickFallbackUsed: false, fx: [], vis: {}, camera: {x:48,y:32}, walkPath: [], currentZone:'', minimapLast:0,
+  rooms: {}, mq: null, hostConnectTimer: null, directoryReady: false, directorySubscribed: false, directoryLastError: '', quickJoinPending: false, quickJoinTimer: null, quickFallbackUsed: false, fx: [], vis: {}, camera: {x:48,y:32}, walkPath: [], currentZone:'', minimapLast:0,
   gameTimers: [], hostTimer: null, hudTimer: null, roomTimer: null, moveTimer: null, roomPublishTimer: null,
   inputBound: false, drawStarted: false, netState: 'idle', drawError: '', renderFallback: false,
   peerWaiters: [], netErrorRetry: null, accountSnapshot: null, recoveryCode: '', recoveryIssued: [], recoveryLastIssuedAt: 0, recoveryNoticeShown: false, renderHealthTimer: null, recoverySession: null, recoveryResumePending: false
@@ -512,37 +525,49 @@ function initDirectory() {
   try {
     S.directoryReady = false;
     S.directorySubscribed = false;
+    S.directoryLastError = '';
+    const clientId = ('erpg_' + String(S.uid || rnd(999999)).slice(0, 20) + '_' + rnd(1000000)).replace(/[^A-Za-z0-9_-]/g,'_');
     S.mq = mqtt.connect(BROKER, {
-      clientId: 'erpg_' + S.uid + rnd(9999),
-      reconnectPeriod: 4000,
-      connectTimeout: 8000,
-      keepalive: 30
+      clientId,
+      reconnectPeriod: 2500,
+      connectTimeout: 10000,
+      keepalive: 25,
+      clean: true,
+      resubscribe: true
     });
     S.mq.on('connect', () => {
       S.directoryReady = true;
+      S.directoryLastError = '';
       S.directorySubscribed = false;
       setNetState(S.started ? 'connected' : 'ready');
-      S.mq.subscribe(TOPIC + '+', err => {
+      S.mq.subscribe(TOPIC + '+', {qos:0}, err => {
         if (err) {
           S.directorySubscribed = false;
-          if (!S.started) lobbyMsg('공개 방 목록 구독에 실패했습니다.');
+          S.directoryLastError = String(err.message || err);
+          if (!S.started) lobbyMsg('공개 방 목록 구독에 실패했어. 다시 연결하는 중…');
           return;
         }
         S.directorySubscribed = true;
         renderRooms();
+        if (S.isHost) publishRoom();
       });
     });
     S.mq.on('reconnect', () => {
       S.directoryReady = false;
       S.directorySubscribed = false;
-      if (!S.started) lobbyMsg('공개 방 목록에 다시 연결하는 중…');
+      if (!S.started) lobbyMsg('📡 공개 방 목록에 다시 연결하는 중…');
     });
     S.mq.on('close', () => {
       S.directoryReady = false;
       S.directorySubscribed = false;
     });
+    S.mq.on('offline', () => {
+      S.directoryReady = false;
+      S.directorySubscribed = false;
+    });
     S.mq.on('error', e => {
-      if (!S.started) lobbyMsg('공개 방 목록 연결 오류: ' + (e && e.message ? e.message : '알 수 없는 오류'));
+      S.directoryLastError = String(e && e.message ? e.message : e || 'unknown');
+      if (!S.started) lobbyMsg('공개 방 목록 연결 오류: ' + S.directoryLastError);
     });
     S.mq.on('message', (topic, buf) => {
       const code = topic.slice(TOPIC.length).trim().toUpperCase(), raw = buf.toString();
@@ -553,41 +578,54 @@ function initDirectory() {
         try {
           const r = JSON.parse(raw);
           const ts = Number(r && r.ts) || 0;
-          if (r && typeof r === 'object' && r.code && String(r.code).toUpperCase() === code && ts > 0 && Date.now() - ts < 30000) {
+          const peerId = String(r && r.peerId || '').trim();
+          const valid = r && typeof r === 'object' && r.public !== false && String(r.code || '').toUpperCase() === code && ts > 0 && Date.now() - ts < 45000;
+          if (valid) {
             S.rooms[code] = {
               code,
-              public: r.public !== false,
+              public: true,
               name: String(r.name || '이름 없는 방').slice(0, 16),
               gen: Math.max(0, +r.gen || 0),
-              host: String(r.host || '').slice(0, 10),
+              peerId: peerId || hostId(code, Math.max(0, +r.gen || 0)),
               count: clamp(+r.count || 0, 0, 12),
               ts
             };
           } else {
             delete S.rooms[code];
           }
-        } catch (e) { /* 잘못된 공개 메시지는 무시 */ }
+        } catch (e) {
+          delete S.rooms[code];
+        }
       }
       renderRooms();
     });
   } catch (e) {
     S.directoryReady = false;
     S.directorySubscribed = false;
-    lobbyMsg('공개 방 목록 서버에 연결할 수 없습니다.');
+    S.directoryLastError = String(e && e.message ? e.message : e || 'unknown');
+    lobbyMsg('공개 방 목록 서버에 연결할 수 없어.');
   }
 }
 
 function publishRoom() {
-  if (!S.mq || !S.isHost || !S.code || !S.mq.connected) return;
+  if (!S.mq || !S.isHost || !S.code || !S.mq.connected || !S.directorySubscribed) return;
+  const peerId = String((S.hostPeer && S.hostPeer.id) || '').trim();
+  if (!peerId) return;
   S.mq.publish(TOPIC + S.code, JSON.stringify({
-    v: 2, public: true, code: S.code, name: S.roomName, gen: S.gen, host: S.name,
-    count: clamp(Object.keys(S.players).length, 0, 12), ts: Date.now()
-  }), { retain: true });
+    v: 3,
+    public: true,
+    code: S.code,
+    name: S.roomName,
+    gen: S.gen,
+    peerId,
+    count: clamp(Object.keys(S.players).length, 0, 12),
+    ts: Date.now()
+  }), { retain: true, qos: 0 });
 }
 
 function unpublishRoom() {
   if (S.mq && S.isHost && S.code && S.mq.connected) {
-    S.mq.publish(TOPIC + S.code, '', { retain: true });
+    try { S.mq.publish(TOPIC + S.code, '', { retain: true, qos: 0 }); } catch (e) {}
   }
 }
 
@@ -613,7 +651,7 @@ function renderRooms() {
     info.appendChild(sub);
     const b = document.createElement('button'); b.textContent = '입장';
     b.disabled = r.code === S.code && S.started;
-    b.onclick = () => joinRoom(r.code, r.gen);
+    b.onclick = () => joinRoom(r.code, r.gen, r.peerId);
     row.appendChild(info); row.appendChild(b); box.appendChild(row);
   });
 }
@@ -871,7 +909,7 @@ function getLivePublicRooms(excludeCode='') {
   const now = Date.now();
   const excluded = String(excludeCode || '').trim().toUpperCase();
   return Object.values(S.rooms || {})
-    .filter(r => r && r.public !== false && r.code && r.code !== excluded && (now - Number(r.ts || 0) < 30000) && Number(r.count || 0) < 12)
+    .filter(r => r && r.public !== false && r.code && r.code !== excluded && (now - Number(r.ts || 0) < 45000) && Number(r.count || 0) < 12 && (r.peerId || hostId(r.code, r.gen)))
     .sort((a,b) => (Number(b.ts || 0) - Number(a.ts || 0)) || (Number(a.count || 0) - Number(b.count || 0)));
 }
 
@@ -888,9 +926,10 @@ function finishQuickJoinSearch() {
     S.code = String(picked.code).toUpperCase();
     S.gen = Math.max(0, Number(picked.gen) || 0);
     S.roomName = String(picked.name || '공개 방');
+    S.targetHid = String(picked.peerId || hostId(S.code, S.gen));
     S.retry = 3;
     lobbyMsg('공개 방을 찾았어. 접속 중…');
-    ensurePeer(() => connectToHost(hostId(S.code, S.gen)));
+    ensurePeer(() => connectToHost(String(picked.peerId || hostId(S.code, S.gen))));
     return;
   }
 
@@ -933,6 +972,10 @@ function quickJoin() {
 
 function createRoom(isPublic=false) {
   readProfile();
+  S.isHost = false;
+  S.targetHid = '';
+  S.hostUid = '';
+  S.quickFallbackUsed = !!S.quickFallbackUsed;
   S.quick = !!isPublic;
   S.code = Math.random().toString(36).slice(2, 7).toUpperCase();
   S.roomName = isPublic ? '🌍 공개 광장' : ($('roomName').value.trim() || S.name + '의 방').slice(0, 16);
@@ -943,19 +986,22 @@ function createRoom(isPublic=false) {
   becomeHost(0, true);
 }
 
-function joinRoom(code, gen) {
+function joinRoom(code, gen, peerId) {
   readProfile();
   code = String(code || '').trim().toUpperCase();
-  if (code.length !== 5) { lobbyMsg('세션 코드는 5자리입니다.'); return; }
+  if (code.length !== 5) { lobbyMsg('세션 코드가 올바르지 않아.'); return; }
   const known = S.rooms[code];
   S.quick = false;
   S.code = code;
   S.gen = known ? known.gen : (gen || 0);
   S.roomName = known ? known.name : '';
+  const target = String((known && known.peerId) || peerId || hostId(S.code, S.gen)).trim();
+  if (!target) { lobbyMsg('공개 방의 연결 주소를 찾지 못했어.'); return; }
+  S.targetHid = target;
   S.recoverySession={code:S.code,gen:S.gen,roomName:S.roomName,ts:Date.now()};
   S.moveSeq = 0; S.moveAck = {}; S.pendingMoves = [];
-  S.retry = 4; lobbyMsg('접속 중…');
-  ensurePeer(() => connectToHost(hostId(S.code, S.gen)));
+  S.retry = 4; lobbyMsg('📡 '+(S.roomName||'공개 방')+' 연결 중…');
+  ensurePeer(() => connectToHost(target));
 }
 
 /* ============================================================
@@ -977,7 +1023,7 @@ function ensurePeer(cb) {
   }
 
   S.peerWaiters = [cb];
-  S.peer = new Peer();
+  S.peer = new Peer(undefined, PEER_OPTIONS);
   S.peer.on('open', () => {
     setNetState('ready');
     const waiters = S.peerWaiters.splice(0);
@@ -1003,7 +1049,7 @@ function retryConnect() {
     S.retry--;
     setNetState('degraded');
     setTimeout(() => {
-      if (S.started || S.code) ensurePeer(() => connectToHost(S.targetHid));
+      if (S.started || S.code) ensurePeer(() => connectToHost(S.targetHid || hostId(S.code, S.gen)));
     }, 1200);
   } else {
     failJoin();
@@ -1025,6 +1071,7 @@ function cleanupGameTimers() {
 }
 
 function cleanupNetwork() {
+  if (S.hostConnectTimer) { clearTimeout(S.hostConnectTimer); S.hostConnectTimer = null; }
   if (S.quickJoinTimer) { clearTimeout(S.quickJoinTimer); S.quickJoinTimer = null; }
   S.quickJoinPending = false;
   cleanupGameTimers();
@@ -1116,25 +1163,42 @@ selfRecord=function(){
 };
 
 function connectToHost(hid) {
-  if (!hid || !S.peer || S.peer.destroyed) return;
+  hid = String(hid || '').trim();
+  if (!hid || !S.peer || S.peer.destroyed) { if(!hid) lobbyMsg('연결할 공개 방 주소가 없어.'); return; }
+  if (S.peer.id && hid === S.peer.id) { lobbyMsg('내가 만든 공개 방이야.'); return; }
   S.targetHid = hid;
   if (S.hostConn && S.hostConn.open) {
     try { S.hostConn.close(); } catch (e) {}
   }
+  if (S.hostConnectTimer) { clearTimeout(S.hostConnectTimer); S.hostConnectTimer = null; }
   if (S.peer.disconnected) { try { S.peer.reconnect(); } catch (e) {} }
   setNetState('connecting');
-  const c = S.peer.connect(hid, { reliable: true });
+  const c = S.peer.connect(hid, { reliable: true, serialization:'json' });
+  S.hostConnectTimer = setTimeout(() => {
+    S.hostConnectTimer = null;
+    if (!c.open && !S.started) {
+      try { c.close(); } catch (e) {}
+      lobbyMsg('📡 공개 방 응답이 없어서 다시 찾는 중…');
+      retryConnect();
+    }
+  }, 12000);
   c.on('open', () => {
+    if (S.hostConnectTimer) { clearTimeout(S.hostConnectTimer); S.hostConnectTimer = null; }
     if (S.hostConn && S.hostConn !== c) {
       try { S.hostConn.close(); } catch (e) {}
     }
     S.hostConn = c;
     setNetState('connected');
-    c.send({ t: 'hello', p: selfRecord() });
+    c.send({ t: 'hello', p: selfRecord(), peerTarget: hid });
   });
   c.on('data', onClientData);
-  c.on('close', () => { if (S.hostConn === c) onHostLost(); });
-  c.on('error', () => { /* close 이벤트에서 처리 */ });
+  c.on('close', () => {
+    if (S.hostConn === c) onHostLost();
+  });
+  c.on('error', e => {
+    if (S.hostConnectTimer) { clearTimeout(S.hostConnectTimer); S.hostConnectTimer = null; }
+    if (!S.started && (e && (e.type === 'peer-unavailable' || e.type === 'network' || e.type === 'socket-error'))) retryConnect();
+  });
 }
 
 const _baseOnClientData = onClientData;
@@ -1415,19 +1479,34 @@ function becomeHost(gen, fresh) {
   if (!S.moveAck || typeof S.moveAck !== 'object') S.moveAck = {};
   S.moveAck[S.uid] = S.moveSeq;
 
-  S.hostPeer = new Peer(hostId(S.code, gen));
+  S.hostPeer = new Peer(hostId(S.code, gen), PEER_OPTIONS);
   S.hostPeer.on('connection', acceptClient);
   S.hostPeer.on('error', e => {
-    if (fresh && !S.started && S.quick && e.type === 'unavailable-id') {
-      S.isHost = false; S.hostPeer = null; S.retry = 4;
-      ensurePeer(() => connectToHost(hostId(S.code, 0)));
+    const type = String(e && e.type || 'unknown');
+    if (fresh && !S.started && S.quick && type === 'unavailable-id') {
+      try { if (S.hostPeer && !S.hostPeer.destroyed) S.hostPeer.destroy(); } catch (_) {}
+      S.isHost = false; S.hostPeer = null;
+      S.code = Math.random().toString(36).slice(2, 7).toUpperCase();
+      S.gen = 0;
+      lobbyMsg('🔄 공개 방 주소가 충돌해서 새 방 주소를 발급하는 중…');
+      setTimeout(() => createRoom(true), 0);
       return;
     }
-    log('세션 채널 오류: ' + e.type);
-    if (fresh && !S.started) lobbyMsg('방을 만들 수 없습니다(' + e.type + '). 다시 시도해 주세요.');
+    log('세션 채널 오류: ' + type);
+    if (fresh && !S.started) {
+      S.isHost = false;
+      showConnectionError('⚠️ 공개 P2P 서버 연결 오류', '공개 P2P 신호 서버에 연결하지 못했어 (' + type + '). 네트워크를 확인하고 다시 시도해줘.', () => { hideConnectionError(); cleanupNetwork(); createRoom(true); });
+    }
   });
+  S.hostPeer.on('disconnected', () => {
+    if (S.isHost && S.hostPeer && !S.hostPeer.destroyed) {
+      try { S.hostPeer.reconnect(); } catch (_) {}
+    }
+  });
+
   S.hostPeer.on('open', () => {
     S.migrating = false;
+    if (S.players[S.uid]) S.players[S.uid].peerId = S.hostPeer.id;
     setNetState('connected');
     if (!S.started) enterGame();
     if (!fresh && S.hostConn && S.hostConn.open) {
@@ -1441,7 +1520,7 @@ function becomeHost(gen, fresh) {
     startCapabilityReporting();
     S.recoverySession={code:String(S.code||'').toUpperCase(),gen:Number(S.gen)||0,roomName:String(S.roomName||'').slice(0,16),ts:Date.now()};
     if (S.roomPublishTimer) clearInterval(S.roomPublishTimer);
-    S.roomPublishTimer = setInterval(publishRoom, 5000);
+    S.roomPublishTimer = setInterval(publishRoom, 4000);
     publishRoom();
     updateBadge();
   });
@@ -2278,7 +2357,7 @@ function enterGame() {
 function initLobby() {
   S.score = capabilityScore(S.caps);
   readProfile();
-  $('btnCreate').onclick=createRoom;
+  $('btnCreate').onclick=()=>createRoom(false);
   $('btnQuick').onclick=quickJoin;
   $('btnInv').onclick=renderInventory;$('btnTrade').onclick=openTradePanel;$('btnChat').onclick=renderChat;$('btnQuest').onclick=renderQuest;$('btnSocial').onclick=renderSocial;$('btnShop').onclick=()=>{if(!nearNpc(S.players[S.uid],NPCS.merchant)){log('🏪 상인 루루에게 2칸 이내로 이동해줘.');return;}renderShop();};$('btnMap').onclick=renderTeleportPanel;$('btnCharacter').onclick=renderCharacterPanel;$('btnGuide').onclick=renderGuide;$('btnRecovery').onclick=renderRecoveryPanel;$('btnClosePanel').onclick=closePanel;
   $('btnCopyRecovery').onclick=copyRecoveryCode;
@@ -2290,7 +2369,7 @@ function initLobby() {
   $('networkErrorLobby').onclick=()=>{hideConnectionError();cleanupNetwork();S.started=false;$('game').hidden=true;$('lobby').hidden=false;lobbyMsg('연결 오류로 방을 종료했어.');updateBadge();};
   window.addEventListener('keydown',e=>{if(!S.started||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;const k=e.key.toLowerCase();if(k==='i')renderInventory();else if(k==='t')openTradePanel();else if(k==='q')renderQuest();else if(k==='f')renderSocial();else if(k==='m')renderTeleportPanel();else if(k==='c')renderCharacterPanel();else if(k==='h')renderGuide();else if(k==='e'){const p=S.players[S.uid];if(nearNpc(p,NPCS.merchant))renderShop();else if(nearestTeleport(p))renderTeleportPanel();else if(nearNpc(p,NPCS.innkeeper))log('🏠 '+NPCS.innkeeper.name+': 따뜻한 침대가 준비되어 있어요. HP가 천천히 회복됩니다.');else if(nearNpc(p,NPCS.healer)){p.hp=maxHp(p);updateHud();log('⛪ '+NPCS.healer.name+': 회복 완료.');}else if(nearNpc(p,NPCS.guide))renderTeleportPanel();else if(nearNpc(p,NPCS.smith))log('⚒️ '+NPCS.smith.name+': 좋은 장비일수록 오래 살아남을 수 있지.');}else if(k==='b'){if(nearNpc(S.players[S.uid],NPCS.merchant))renderShop();else log('🏪 상인 루루에게 2칸 이내로 이동해줘.');}});
   initDirectory();
-  if (!S.roomTimer) S.roomTimer = setInterval(renderRooms, 3000);
+  if (!S.roomTimer) S.roomTimer = setInterval(()=>{ renderRooms(); if(S.isHost) publishRoom(); }, 3000);
   window.addEventListener('resize', () => {
     if (S.started) resizeCanvas();
   }, { passive: true });
