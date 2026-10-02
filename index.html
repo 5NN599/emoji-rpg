@@ -258,9 +258,10 @@ const RIVER = {x:64,y:0,w:3,h:64};
 const BROKER = 'wss://broker.emqx.io:8084/mqtt';
 const EMOJIS = ['⚔️', '🧙‍♂️', '🏹', '🥷', '🛡️', '🧝', '🧛', '🐱'];
 const MONS = {
-  '🦠': { hp: 20,  dmg: 3,  gold: 5,  xp: 8,  spd: 1400 },
-  '👺': { hp: 45,  dmg: 6,  gold: 12, xp: 20, spd: 1100 },
-  '🐉': { hp: 120, dmg: 12, gold: 40, xp: 60, spd: 900 }
+  '🦠': { hp:20,  dmg:3,  gold:5,  xp:8,  spd:1050, aggro:7,  leash:10, range:1, ai:'wander',  skillEvery:4, skill:'pounce' },
+  '👺': { hp:45,  dmg:6,  gold:12, xp:20, spd:850,  aggro:9,  leash:14, range:1, ai:'hunter', skillEvery:3, skill:'charge' },
+  '🐉': { hp:120, dmg:12, gold:40, xp:60, spd:700,  aggro:13, leash:20, range:4, ai:'ranged', skillEvery:3, skill:'breath' },
+  '👹': { hp:280, dmg:26, gold:140, xp:180, spd:780, aggro:15, leash:24, range:3, ai:'boss', skillEvery:3, skill:'roar' }
 };
 const ITEMS = {
   potion: { id:'potion', name:'회복 물약', icon:'🧪', type:'consumable', max:20, heal:30, price:15 },
@@ -2328,20 +2329,143 @@ renderTeleportPanel=renderTeleportPanelRpg;
 function tryMoveRpg(dx,dy){const p=S.players[S.uid],now=Date.now();if(!p||S.migrating||now-S.lastMove<85)return;dx=clamp(dx|0,-1,1);dy=clamp(dy|0,-1,1);if(Math.abs(dx)+Math.abs(dy)!==1)return;const md=mapDef(p.map);const nx=p.x+dx,ny=p.y+dy;if(nx<0||ny<0||nx>=md.w||ny>=md.h||isMapBlocked(p.map,nx,ny))return;const monster=S.mons.find(m=>m.map===p.map&&m.x===nx&&m.y===ny);if(monster){attack();return;}if(Object.values(S.players).some(q=>q.id!==S.uid&&sameMap(q,p)&&q.x===nx&&q.y===ny))return;S.lastMove=now;playSound('move');if(S.isHost){p.x=nx;p.y=ny;S.moveSeq++;S.moveAck[S.uid]=S.moveSeq;}else if(S.hostConn&&S.hostConn.open){const seq=++S.moveSeq;S.pendingMoves.push({s:seq,dx,dy});p.x=nx;p.y=ny;S.hostConn.send({t:'mv',s:seq,dx,dy});}}
 tryMove=tryMoveRpg;
 
-function findPathRpg(start,target,map){const md=mapDef(map);if(!start||!target||isMapBlocked(map,target.x,target.y))return[];const key=(x,y)=>x+','+y,startK=key(start.x,start.y),targetK=key(target.x,target.y),open=[{x:start.x,y:start.y,g:0,f:0}],came=new Map(),cost=new Map([[startK,0]]);const limit=map==='field'?180:120;while(open.length){open.sort((a,b)=>a.f-b.f);const cur=open.shift(),ck=key(cur.x,cur.y);if(ck===targetK){const path=[];let k=ck;while(k!==startK){const q=came.get(k);if(!q)break;path.push(q.step);k=q.from;}return path.reverse();}for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cur.x+dx,ny=cur.y+dy,nk=key(nx,ny);if(isMapBlocked(map,nx,ny))continue;const occ=Object.values(S.players).some(p=>p.map===map&&p.x===nx&&p.y===ny);if(occ)continue;const ng=cur.g+1;if(ng>limit)continue;if(cost.has(nk)&&ng>=cost.get(nk))continue;cost.set(nk,ng);const h=Math.abs(target.x-nx)+Math.abs(target.y-ny);open.push({x:nx,y:ny,g:ng,f:ng+h});came.set(nk,{from:ck,step:[dx,dy]});}}return[];}
+function findPathRpg(start,target,map){const md=mapDef(map);if(!start||!target||isMapBlocked(map,target.x,target.y))return[];const key=(x,y)=>x+','+y,startK=key(start.x,start.y),targetK=key(target.x,target.y),open=[{x:start.x,y:start.y,g:0,f:0}],came=new Map(),cost=new Map([[startK,0]]);const limit=map==='field'?180:120;while(open.length){open.sort((a,b)=>a.f-b.f);const cur=open.shift(),ck=key(cur.x,cur.y);if(ck===targetK){const path=[];let k=ck;while(k!==startK){const q=came.get(k);if(!q)break;path.push(q.step);k=q.from;}return path.reverse();}for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cur.x+dx,ny=cur.y+dy,nk=key(nx,ny);if(isMapBlocked(map,nx,ny))continue;const occ=Object.values(S.players).some(p=>p.map===map&&p.x===nx&&p.y===ny);if(occ&&!(nx===target.x&&ny===target.y))continue;const ng=cur.g+1;if(ng>limit)continue;if(cost.has(nk)&&ng>=cost.get(nk))continue;cost.set(nk,ng);const h=Math.abs(target.x-nx)+Math.abs(target.y-ny);open.push({x:nx,y:ny,g:ng,f:ng+h});came.set(nk,{from:ck,step:[dx,dy]});}}return[];}
 findPath=findPathRpg;
 setWalkTarget=function(x,y){const p=S.players[S.uid];if(!p)return;const md=mapDef(p.map);x=clamp(Math.floor(x),0,md.w-1);y=clamp(Math.floor(y),0,md.h-1);S.walkTo={x,y};S.walkPath=findPathRpg({x:p.x,y:p.y},{x,y},p.map);if(!S.walkPath.length&&(p.x!==x||p.y!==y))S.walkTo=null;};
 
 const _rpgSpawnMon=spawnMon;
-spawnMon=function(){if(!S.isHost)return;let countByMap=(map)=>S.mons.filter(m=>m.map===map).length;const roll=Math.random();const map=roll<0.22?'dungeon':'field';if(map==='field'&&countByMap('field')>=18)return;if(map==='dungeon'&&countByMap('dungeon')>=12)return;const md=mapDef(map);for(let i=0;i<120;i++){let x=1+rnd(md.w-2),y=1+rnd(md.h-2);if(map==='field'){if(x<14)continue;}if(isMapBlocked(map,x,y))continue;if(S.mons.some(m=>m.map===map&&m.x===x&&m.y===y))continue;if(Object.values(S.players).some(p=>p.map===map&&p.x===x&&p.y===y))continue;const e=map==='dungeon'?(Math.random()<0.08?'👹':Math.random()<0.50?'👺':Math.random()<0.72?'🐉':'🦠'):(Math.random()<0.7?'🦠':Math.random()<0.94?'👺':'🐉');S.mons.push({id:S.monSeq++,e,x,y,map,hp:MONS[e].hp,mx:MONS[e].hp,next:Date.now()+900,lastAtk:0});return;}};
-
+spawnMon=function(){
+  if(!S.isHost)return;
+  const countByMap=map=>S.mons.filter(m=>m.map===map).length;
+  const map=Math.random()<0.24?'dungeon':'field';
+  if(map==='field'&&countByMap('field')>=18)return;
+  if(map==='dungeon'&&countByMap('dungeon')>=12)return;
+  const md=mapDef(map),now=Date.now();
+  for(let i=0;i<160;i++){
+    let x=1+rnd(md.w-2),y=1+rnd(md.h-2);
+    if(map==='field'&&x<14)continue;
+    if(isMapBlocked(map,x,y))continue;
+    if(S.mons.some(m=>m.map===map&&m.x===x&&m.y===y))continue;
+    if(Object.values(S.players).some(pl=>pl.map===map&&pl.x===x&&pl.y===y))continue;
+    const r=Math.random();
+    const e=map==='dungeon'?(r<0.08?'👹':r<0.46?'👺':r<0.74?'🐉':'🦠'):(r<0.68?'🦠':r<0.94?'👺':'🐉');
+    const d=MONS[e];
+    S.mons.push({id:S.monSeq++,e,x,y,map,hp:d.hp,mx:d.hp,state:'idle',targetId:'',homeX:x,homeY:y,dirX:0,dirY:1,next:now+250+rnd(500),nextThink:now+300+rnd(500),lastAtk:0,attackCount:0,skillReadyAt:now+2200+rnd(2500),enraged:false,patrolUntil:now+1600+rnd(2200)});
+    return;
+  }
+};
 function awardXpRpg(p,amount){amount=Math.max(0,Math.floor(amount));p.xp+=amount;let leveled=0;while(p.lv<120&&p.xp>=p.lv*30){p.xp-=p.lv*30;p.lv++;p.hp=50+p.lv*10;leveled++;}if(leveled){broadcastEvent({k:'log',s:'✨ '+p.name+' 님이 Lv.'+p.lv+'로 레벨업!'});if(hasJobReady(p)){const stage=jobData(p).stage+1;sendTo(p.id,{t:'job_ready',stage,lv:p.lv});if(p.id===S.uid)renderJobPanel(true);}}}
 function partyMembersNearby(p){const pt=partyForPlayer(p.id);if(!pt)return[];return pt.members.map(id=>S.players[id]).filter(q=>q&&sameMap(q,p)&&cheb(q,p)<=10);}
 function doAttackRpg(uid){if(!S.isHost)return;const p=S.players[uid];if(!p||p.hp<=0)return;const now=Date.now();p._lastAttack=p._lastAttack||0;if(now-p._lastAttack<350)return;p._lastAttack=now;const target=S.mons.find(m=>m.map===p.map&&cheb(m,p)<=1);if(!target)return;const dmg=Math.max(1,effectiveAtkRpg(p)-Math.floor(Math.random()*3));target.hp-=dmg;broadcastEvent({k:'hit',id:p.id,x:target.x,y:target.y,dmg});if(target.hp<=0){S.mons=S.mons.filter(m=>m.id!==target.id);p.gold+=MONS[target.e].gold;awardXpRpg(p,MONS[target.e].xp);addMonsterReward(p,target.e);const allies=partyMembersNearby(p).filter(q=>q.id!==p.id);allies.forEach(q=>awardXpRpg(q,Math.max(1,Math.floor(MONS[target.e].xp*0.5))));broadcastEvent({k:'log',s:'⚔️ '+p.name+' 님이 '+target.e+' 처치! +'+MONS[target.e].xp+' XP'});}}
 var doAttack = doAttackRpg;
 
-function hostTickRpg(){if(!S.isHost)return;const now=Date.now();if(now%5<2){};if(now-S.nextSpawn>1400){S.nextSpawn=now;spawnMon();if(S.mons.filter(m=>m.map==='field').length<6)spawnMon();}
-  for(const mon of S.mons){if(now<(mon.next||0))continue;mon.next=now+(MONS[mon.e].spd||1200);const players=Object.values(S.players).filter(p=>p.map===mon.map&&p.hp>0);if(!players.length)continue;players.sort((a,b)=>cheb(a,mon)-cheb(b,mon));const t=players[0];if(cheb(mon,t)<=1){const dmg=Math.max(1,MONS[mon.e].dmg-effectiveDefRpg(t));t.hp=Math.max(0,t.hp-dmg);broadcastEvent({k:'hurt',id:t.id,dmg});if(t.hp<=0){t.hp=maxHp(t);const h=t.home&&RPG_MAPS[t.home.map]?t.home:{map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y};t.map=h.map;t.x=clamp(Math.floor(Number(h.x)||RPG_MAPS[t.map].spawn.x),0,RPG_MAPS[t.map].w-1);t.y=clamp(Math.floor(Number(h.y)||RPG_MAPS[t.map].spawn.y),0,RPG_MAPS[t.map].h-1);if(isMapBlocked(t.map,t.x,t.y)){t.x=RPG_MAPS[t.map].spawn.x;t.y=RPG_MAPS[t.map].spawn.y;}broadcastEvent({k:'log',s:'💫 '+t.name+' 님이 쓰러져 '+RPG_MAPS[t.map].name+'의 귀환 지점으로 돌아왔습니다.'});}}else{const path=findPathRpg({x:mon.x,y:mon.y},{x:t.x,y:t.y},mon.map);if(path.length){const st=path[0];const nx=mon.x+st[0],ny=mon.y+st[1];if(!isMapBlocked(mon.map,nx,ny)&&!S.mons.some(m=>m.id!==mon.id&&m.map===mon.map&&m.x===nx&&m.y===ny)){mon.x=nx;mon.y=ny;}}}}
+function monsterOccupied(mon,nx,ny){
+  return S.mons.some(m=>m.id!==mon.id&&m.map===mon.map&&m.x===nx&&m.y===ny)||Object.values(S.players).some(p=>p.map===mon.map&&p.x===nx&&p.y===ny&&p.hp>0);
+}
+function monsterStep(mon,dx,dy){
+  dx=clamp(dx|0,-1,1);dy=clamp(dy|0,-1,1);
+  if(Math.abs(dx)+Math.abs(dy)!==1)return false;
+  const nx=mon.x+dx,ny=mon.y+dy;
+  if(isMapBlocked(mon.map,nx,ny)||monsterOccupied(mon,nx,ny))return false;
+  mon.x=nx;mon.y=ny;mon.dirX=dx;mon.dirY=dy;return true;
+}
+function monsterStepPath(mon,target){
+  const path=findPathRpg({x:mon.x,y:mon.y},{x:target.x,y:target.y},mon.map);
+  if(!path.length)return false;
+  return monsterStep(mon,path[0][0],path[0][1]);
+}
+function monsterNearestTarget(mon){
+  const d=MONS[mon.e];
+  return Object.values(S.players).filter(p=>p.map===mon.map&&p.hp>0&&cheb(mon,p)<=d.aggro).sort((a,b)=>cheb(mon,a)-cheb(mon,b))[0]||null;
+}
+function monsterDefeatPlayer(target){
+  target.hp=maxHp(target);
+  const home=target.home&&RPG_MAPS[target.home.map]?target.home:{map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y};
+  target.map=home.map;
+  target.x=clamp(Math.floor(Number(home.x)||RPG_MAPS[target.map].spawn.x),0,RPG_MAPS[target.map].w-1);
+  target.y=clamp(Math.floor(Number(home.y)||RPG_MAPS[target.map].spawn.y),0,RPG_MAPS[target.map].h-1);
+  if(isMapBlocked(target.map,target.x,target.y)){target.x=RPG_MAPS[target.map].spawn.x;target.y=RPG_MAPS[target.map].spawn.y;}
+  broadcastEvent({k:'log',s:'💫 '+target.name+' 님이 쓰러져 '+RPG_MAPS[target.map].name+'의 귀환 지점으로 돌아왔습니다.'});
+}
+function monsterBasicAttack(mon,target,now,mult=1){
+  if(!target||target.hp<=0)return false;
+  const d=MONS[mon.e],cooldown=d.ai==='boss'?850:950;
+  if(now-(mon.lastAtk||0)<cooldown)return false;
+  mon.lastAtk=now;mon.attackCount=(mon.attackCount||0)+1;mon.state='attack';
+  const dmg=Math.max(1,Math.floor(d.dmg*mult)-effectiveDefRpg(target));
+  target.hp=Math.max(0,target.hp-dmg);
+  broadcastEvent({k:'hurt',id:target.id,dmg});
+  broadcastEvent({k:'monster_fx',x:mon.x,y:mon.y,s:d.ai==='boss'?'💥':'✦',c:d.ai==='boss'?'#ff6b6b':'#ffd166',life:520});
+  if(target.hp<=0)monsterDefeatPlayer(target);
+  return true;
+}
+function monsterSpecial(mon,target,now){
+  const d=MONS[mon.e];
+  if(!d.skill||now<(mon.skillReadyAt||0)||!target||target.hp<=0)return false;
+  mon.state='telegraph';mon.telegraphUntil=now+380;
+  broadcastEvent({k:'monster_fx',x:mon.x,y:mon.y,s:d.skill==='breath'?'🔥':d.skill==='roar'?'⚡':d.skill==='charge'?'💨':'💫',c:d.skill==='roar'?'#ff5b6e':'#ffb347',life:650});
+  mon.skillReadyAt=now+(d.ai==='boss'?4800:3400);
+  mon.attackCount=0;
+  if(d.skill==='pounce'){
+    if(cheb(mon,target)<=3){monsterStepPath(mon,target);monsterBasicAttack(mon,target,now,1.35);return true;} return false;
+  }
+  if(d.skill==='charge'){
+    if(cheb(mon,target)<=4){monsterStepPath(mon,target);if(cheb(mon,target)<=1)monsterBasicAttack(mon,target,now,1.7);return true;} return false;
+  }
+  if(d.skill==='breath'){
+    if(cheb(mon,target)<=d.range){
+      Object.values(S.players).filter(p=>p.map===mon.map&&p.hp>0&&cheb(p,target)<=2).forEach(p=>{const dmg=Math.max(2,Math.floor(d.dmg*1.15)-effectiveDefRpg(p));p.hp=Math.max(0,p.hp-dmg);broadcastEvent({k:'hurt',id:p.id,dmg});if(p.hp<=0)monsterDefeatPlayer(p);});
+      return true;
+    } return false;
+  }
+  if(d.skill==='roar'){
+    if(cheb(mon,target)<=4){
+      Object.values(S.players).filter(p=>p.map===mon.map&&p.hp>0&&cheb(p,mon)<=2).forEach(p=>{const dmg=Math.max(4,Math.floor(d.dmg*1.1)-Math.floor(effectiveDefRpg(p)*0.6));p.hp=Math.max(0,p.hp-dmg);broadcastEvent({k:'hurt',id:p.id,dmg});if(p.hp<=0)monsterDefeatPlayer(p);});
+      broadcastEvent({k:'monster_fx',x:mon.x,y:mon.y,s:'💥',c:'#c084fc',life:800});
+      return true;
+    } return false;
+  }
+  return false;
+}
+function monsterPatrol(mon,now){
+  if(now<(mon.patrolUntil||0))return;
+  mon.patrolUntil=now+1200+rnd(2200);
+  if(Math.random()<0.32){mon.state='idle';return;}
+  const homeDist=Math.abs(mon.x-mon.homeX)+Math.abs(mon.y-mon.homeY);
+  if(homeDist>Math.max(3,(MONS[mon.e].leash||10)-2)){monsterStepPath(mon,{x:mon.homeX,y:mon.homeY});mon.state='return';return;}
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]].sort(()=>Math.random()-0.5);
+  for(const [dx,dy] of dirs)if(monsterStep(mon,dx,dy)){mon.state='patrol';return;}
+  mon.state='idle';
+}
+function hostTickRpg(){
+  if(!S.isHost)return;
+  const now=Date.now();
+  if(now-S.nextSpawn>1400){S.nextSpawn=now;spawnMon();if(S.mons.filter(m=>m.map==='field').length<6)spawnMon();}
+  for(const mon of S.mons){
+    const d=MONS[mon.e];if(!d)continue;
+    if(now<(mon.nextThink||0))continue;
+    mon.nextThink=now+(mon.enraged?Math.max(300,d.spd*0.52):Math.max(450,d.spd*0.82));
+    if(!Number.isFinite(mon.homeX)){mon.homeX=mon.x;mon.homeY=mon.y;}
+    if(mon.hp<=d.hp*0.35&&!mon.enraged){mon.enraged=true;mon.state='enraged';broadcastEvent({k:'log',s:'⚠️ '+mon.e+'가 분노했습니다!'});broadcastEvent({k:'monster_fx',x:mon.x,y:mon.y,s:'‼️',c:'#ff5c5c',life:900});}
+    let target=mon.targetId?S.players[mon.targetId]:null;
+    if(!target||target.hp<=0||target.map!==mon.map||cheb(mon,target)>(d.leash||10)){target=monsterNearestTarget(mon);mon.targetId=target?target.id:'';}
+    if(!target){mon.targetId='';monsterPatrol(mon,now);continue;}
+    const dist=cheb(mon,target);
+    if(d.ai==='ranged'&&dist<3){
+      const ax=mon.x-target.x,ay=mon.y-target.y;
+      const dx=Math.abs(ax)>=Math.abs(ay)?Math.sign(ax):0,dy=Math.abs(ax)<Math.abs(ay)?Math.sign(ay):0;
+      if(monsterStep(mon,dx||1,dy))mon.state='retreat';else mon.state='chase';
+    }else if(mon.attackCount>0&&mon.attackCount%(d.skillEvery||3)===0&&monsterSpecial(mon,target,now)){
+    }else if(dist<=1&&d.range<=1){
+      monsterBasicAttack(mon,target,now,mon.enraged?1.22:1);
+    }else if(dist<=d.range){
+      if(!monsterSpecial(mon,target,now))monsterBasicAttack(mon,target,now,mon.enraged?1.12:.86);
+    }else if(dist<=d.aggro){
+      monsterStepPath(mon,target);mon.state='chase';
+    }else{
+      mon.targetId='';mon.state='return';monsterStepPath(mon,{x:mon.homeX,y:mon.homeY});
+    }
+  }
   bcast(snapshot());
 }
 var hostTick = hostTickRpg;
@@ -2638,7 +2762,7 @@ function drawSceneRpgBetter(){
   if(doorExit){const q=worldToScreen(interiorDefByMap(map).exit.x,interiorDefByMap(map).exit.y,m);ctx.strokeStyle=ok;ctx.lineWidth=2;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}
   if(S.walkTo){const q=worldToScreen(S.walkTo.x,S.walkTo.y,m);ctx.strokeStyle=acc;ctx.lineWidth=3;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}
   Object.values(RPG_NPCS).filter(n=>n.map===map).forEach(npc=>{const q=worldToScreen(npc.x,npc.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(npc.icon,cx,cy);drawNameplate(npc.role+' · '+npc.name,cx,q.y-2,m.unit,ok);});
-  S.mons.filter(mon=>mon.map===map).forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.fillText(mon.e,cx,cy);bar(q.x+4,q.y+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);});
+  S.mons.filter(mon=>mon.map===map).forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y,m),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,pulse=.5+.5*Math.sin(Date.now()/150+mon.id);if(mon.state==='telegraph'){ctx.strokeStyle=mon.e==='👹'?'#c084fc':'#ff9f43';ctx.lineWidth=2+2*pulse;ctx.globalAlpha=.45+.25*pulse;ctx.beginPath();ctx.arc(cx,cy,m.unit*(.45+.08*pulse),0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}if(mon.enraged){ctx.strokeStyle='#ff4d5d';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.42,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*(mon.enraged?.76:.68))+'px '+FONT;ctx.textAlign='center';ctx.fillText(mon.e,cx,cy);bar(q.x+4,q.y+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);if(mon.targetId&&mon.state==='chase'){ctx.fillStyle=bad;ctx.font='700 '+Math.max(10,m.unit*.2)+'px sans-serif';ctx.fillText('!',cx,q.y+1);}});
   Object.values(S.players).filter(q=>q.map===map).forEach(pl=>{const v=smooth('p'+pl.id,pl.x,pl.y,m),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,ap=sanitizeAppearance(pl.appearance),j=jobData(pl);if(pl.id===S.uid){ctx.strokeStyle=ap.aura;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.45,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(pl.emoji,cx,cy);if(ap.hat){ctx.font=(m.unit*.34)+'px '+FONT;ctx.fillText(ap.hat,cx,q.y);}drawNameplate((pl.id===S.hostUid?'👑 ':'')+j.icon+' '+pl.name,cx,q.y-m.th*.05,m.unit,pl.id===S.uid?ap.aura:fg);bar(q.x+4,q.y+m.th-8,Math.max(8,m.tw-8),pl.hp/(50+pl.lv*10),ok);});
   const now=Date.now();S.fx=S.fx.filter(f=>now-f.t0<f.life);S.fx.forEach(f=>{const a=(now-f.t0)/f.life;let x=f.x,y=f.y;if(f.id){const v=S.vis['p'+f.id];if(!v)return;x=v.x;y=v.y;}const q=worldToScreen(x,y,m);ctx.globalAlpha=1-a;ctx.font='700 '+clamp(m.unit*.33,13,22)+'px sans-serif';ctx.fillStyle=f.c;ctx.textAlign='center';ctx.fillText(f.s,q.x+m.tw/2,q.y+m.th/2-a*m.unit*.8);});ctx.globalAlpha=1;
   let prompt='';if(doorTown)prompt='E · '+doorTown.name+' 들어가기';else if(doorExit)prompt='E · 건물 밖으로 나가기';else if(portal)prompt='M · 텔레포트석 사용';drawPromptRpg(prompt,m);updateZoneHudRpgBetter();if(now-S.minimapLast>220){drawMinimapRpgBetter();S.minimapLast=now;}
@@ -2729,6 +2853,7 @@ function handleEvent(ev){
   if(ev.k==='log'&&ev.s)log(String(ev.s));
   else if(ev.k==='hit'&&ev.x!=null&&ev.y!=null&&ev.dmg!=null){S.fx.push({x:+ev.x,y:+ev.y,s:'-'+(+ev.dmg||0),c:'#ffca5c',t0:Date.now(),life:700});}
   else if(ev.k==='hurt'&&ev.id&&ev.dmg!=null){S.fx.push({id:String(ev.id),s:'-'+(+ev.dmg||0),c:'#ff6b7a',t0:Date.now(),life:700});}
+  else if(ev.k==='monster_fx'&&ev.x!=null&&ev.y!=null){S.fx.push({x:+ev.x,y:+ev.y,s:String(ev.s||'✦'),c:String(ev.c||'#ffd166'),t0:Date.now(),life:Math.max(300,+(ev.life||650))});}
   else if(ev.k==='appear'&&ev.id){log('👋 '+String(ev.name||'플레이어')+' 님이 들어왔습니다.');}
   else if(ev.k==='leave'&&ev.id){log('🚪 플레이어가 나갔습니다.');}
 }
