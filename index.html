@@ -163,6 +163,18 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 @keyframes battleBannerIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.82)}15%,72%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-56%) scale(1.04)}}
 .padHold{touch-action:none;user-select:none;-webkit-user-select:none}
 @media(prefers-reduced-motion:reduce){#battleBanner{animation:none!important;opacity:1;transform:translate(-50%,-50%)}}
+
+    #lobbyCharacterPanel{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--card) 96%,transparent);box-shadow:0 10px 30px var(--shadow)}
+    #lobbyCharacterPanel[hidden]{display:none}
+    .lobbyCustomHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+    .lobbyCustomPreview{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);margin-bottom:9px}
+    .lobbyCustomAvatar{font-size:44px;line-height:1}
+    .lobbyCustomGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .lobbyCustomGrid button{min-height:64px;padding:7px;text-align:left;background:var(--bg);color:var(--fg);border:1px solid var(--line)}
+    .lobbyCustomGrid button.active{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 22%,transparent) inset}
+.lobbyCustomCard{display:flex;align-items:center;gap:8px;text-align:left}
+    .lobbyCustomGrid button.locked{opacity:.45}
+    @media(max-width:520px){.lobbyCustomGrid{grid-template-columns:1fr}}
 </style>
 
 </head>
@@ -188,6 +200,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
     <input id="roomName" maxlength="16" placeholder="방 이름" aria-label="방 이름">
     <button id="btnCreate">방 만들기</button>
     <button id="btnQuick" type="button">⚡ 빠른 참가</button>
+    <button id="btnLobbyCharacter" type="button">🧑 캐릭터</button>
   </div>
   <h3>🌐 공개 방 목록</h3>
   <div id="rooms"><div class="empty">열려 있는 방을 찾는 중…</div></div>
@@ -199,6 +212,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
     <div class="recoveryWarn" style="margin-top:8px">⚠️ 복구 코드는 계정 복구에 필요한 비밀 정보야. 친구나 공개 채팅에 올리지 마. 이 코드는 서버 계정이 아니라 브라우저 복구용 백업이야.</div>
     <div id="recoverySessionHint" class="empty">복구 코드를 입력하면 계정 데이터를 복원하고, 마지막 온라인 세션이 있으면 자동으로 다시 연결해.</div>
   </div>
+  <div id="lobbyCharacterPanel" hidden></div>
   <div id="msg" role="alert"></div>
 </div>
 
@@ -882,24 +896,40 @@ newPlayer=function(id,name,emoji,score,friendCode){
 };
 
 /* 빠른 입장: 공개 방이 있으면 그 방으로, 없으면 즉시 공개 방을 생성한다. */
-function quickJoin() {
+function quickJoin(){
   readProfile();
-  const publicRoom = S.rooms.PUBLC;
-  const fresh = publicRoom && (Date.now() - Number(publicRoom.ts || 0) < 30000);
-  S.quick = true; S.quickTried = false;
-  S.code = 'PUBLC';
-  S.roomName = '🌍 공개 광장';
-  S.retry = 1;
-
-  if (!fresh) {
-    lobbyMsg('공개 방이 없어서 새 공개 방을 만들고 있어…');
-    createRoom('PUBLC');
+  const now=Date.now();
+  const rooms=Object.values(S.rooms||{})
+    .filter(r=>r&&r.code&&now-Number(r.ts||0)<30000)
+    .sort((a,b)=>Number(b.ts||0)-Number(a.ts||0));
+  S.quick=true;
+  S.quickTried=false;
+  S.quickFallbackUsed=false;
+  if(rooms.length){
+    const target=rooms[0];
+    S.code=String(target.code).toUpperCase();
+    S.gen=Number(target.gen)||0;
+    S.roomName=String(target.name||'공개 방').slice(0,16);
+    S.retry=2;
+    lobbyMsg('⚡ 공개 방을 찾았어. 바로 입장하는 중…');
+    ensurePeer(()=>connectToHost(hostId(S.code,S.gen)));
     return;
   }
+  createQuickPublicRoom();
+}
 
-  S.gen = Number(publicRoom.gen) || 0;
-  lobbyMsg('공개 광장 접속 중…');
-  ensurePeer(() => connectToHost(hostId(S.code, S.gen)));
+function createQuickPublicRoom(){
+  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code='';
+  for(let guard=0;guard<20;guard++){
+    code='';
+    for(let i=0;i<5;i++)code+=alphabet[rnd(alphabet.length)];
+    if(!S.rooms[code])break;
+  }
+  $('roomName').value='🌍 공개 광장';
+  S.quick=true;
+  lobbyMsg('🌍 공개 방이 없어서 새 공개 방을 만들고 있어…');
+  createRoom(code);
 }
 
 function createRoom(forcedCode) {
@@ -1021,26 +1051,41 @@ function showConnectionError(title, message, retryFn) {
   box.hidden = false;
 }
 function hideConnectionError() { if ($('networkError')) $('networkError').hidden = true; }
-function failJoin() {
-  const wasStarted = S.started;
-  const code = S.code;
+function failJoin(){
+  const wasStarted=S.started,code=S.code,isQuick=!!S.quick;
+  if(isQuick&&!S.quickFallbackUsed){
+    S.quickFallbackUsed=true;
+    cleanupNetwork();
+    S.started=false;
+    S.isHost=false;
+    S.migrating=false;
+    S.targetHid='';
+    S.hostUid='';
+    S.pendingMoves=[];
+    S.walkPath=[];S.walkTo=null;
+    $('game').hidden=true;$('lobby').hidden=false;
+    lobbyMsg('⚡ 공개 방에 연결하지 못해서 새 공개 방을 만들고 있어…');
+    createQuickPublicRoom();
+    return;
+  }
   cleanupNetwork();
-  S.isHost = false;
-  S.migrating = false;
-  S.targetHid = '';
-  S.hostUid = '';
-  S.pendingMoves = [];
-  S.walkPath = []; S.walkTo = null;
-  if (wasStarted) {
-    S.started = false;
-    $('game').hidden = true;
-    $('lobby').hidden = false;
+  S.isHost=false;
+  S.migrating=false;
+  S.targetHid='';
+  S.hostUid='';
+  S.pendingMoves=[];
+  S.walkPath=[];S.walkTo=null;
+  if(wasStarted){
+    S.started=false;
+    $('game').hidden=true;
+    $('lobby').hidden=false;
   }
   updateBadge();
-  showConnectionError('⚠️ 연결 오류', wasStarted ? 'P2P 연결과 재연결에 모두 실패했습니다.\n방 ' + code + ' 연결을 종료합니다.' : 'P2P 연결에 실패했습니다.\n방 코드 ' + code + ' 를 확인해 주세요.', () => {
+  showConnectionError('⚠️ 연결 오류',wasStarted?'방 연결과 재연결에 모두 실패했어.\n방 '+code+' 연결을 종료해.':'공개 방 연결에 실패했어.\n방 '+code+' 연결을 종료해.',()=>{
     hideConnectionError();
-    S.retry = 4;
-    ensurePeer(() => connectToHost(hostId(S.code, S.gen)));
+    S.retry=4;
+    S.quick=false;
+    ensurePeer(()=>connectToHost(hostId(S.code,S.gen)));
   });
 }
 
@@ -3479,6 +3524,8 @@ window.__rpgOverhaulReady=true;
     _qualityInitLobby();
     setupLobbyProfile();
     ensureSoundButton();
+    const lobbyChar=$('btnLobbyCharacter');
+    if(lobbyChar)lobbyChar.onclick=()=>window.openLobbyCharacterCustomize&&window.openLobbyCharacterCustomize();
     patchShopButton();
     patchMenuLabels();
   };
@@ -3711,6 +3758,65 @@ window.__rpgOverhaulReady=true;
     $('charSaveV6').onclick=()=>{p.name=String($('charNameV6').value||'모험가').trim().slice(0,10)||'모험가';S.name=p.name;syncCharacterSelection(p);log('✅ 이름을 저장했어.');renderCharacterPanelV6();};
   }
   renderCharacterPanel=renderCharacterPanelV6;
+
+  /* 로비에서도 게임 시작 전에 캐릭터를 고를 수 있게 한다. */
+  window.openLobbyCharacterCustomize=function(){
+    const panel=$('lobbyCharacterPanel');
+    if(!panel)return;
+    let p;
+    try{p=loadLocalAccountSnapshot()||starterPlayer(S.uid,S.name,S.emoji,S.score,S.friendCode);}catch(_e){p=starterPlayer(S.uid,S.name,S.emoji,S.score,S.friendCode);}
+    p.id=S.uid;
+    normalizePlayer(p);
+    evaluateUnlocks(p,false);
+    const c=ensureCustomization(p);
+    const ch=getChar(p),title=getTitle(p);
+    const card=(kind,d)=>{
+      const key=kind==='character'?'unlockedCharacters':kind==='title'?'unlockedTitles':kind==='aura'?'unlockedAuras':'unlockedHats';
+      const unlocked=c[key].includes(d.id);
+      const active=kind==='character'?c.characterId===d.id:kind==='title'?c.selectedTitle===d.id:kind==='aura'?(p.appearance?.aura===d.value):(p.appearance?.hat===d.value);
+      const icon=kind==='character'?d.emoji:kind==='title'?'🏷️':kind==='aura'?'✨':(d.value||'🙂');
+      const sub=kind==='character'?d.role:(unlocked?'해금 완료':(d.unlockText||'잠금'));
+      return '<button type="button" class="lobbyCustomCard '+(active?'active ':'')+(unlocked?'':'locked')+'" data-kind="'+kind+'" data-id="'+d.id+'" '+(unlocked?'':'disabled')+'><b style="font-size:22px">'+icon+'</b><span><strong>'+escapeHtml(d.name)+'</strong><small style="display:block;color:var(--sub);margin-top:2px">'+escapeHtml(sub)+'</small></span></button>';
+    };
+    panel.innerHTML='<div class="lobbyCustomHead"><b>🧑 캐릭터 꾸미기</b><button type="button" id="closeLobbyCharacter">닫기</button></div>'+
+      '<div class="lobbyCustomPreview"><div class="lobbyCustomAvatar" id="lobbyCustomAvatar">'+ch.emoji+(p.appearance?.hat||'')+'</div><div><b id="lobbyCustomName">'+escapeHtml(p.name)+'</b><div class="socialSub">'+escapeHtml(ch.name)+' · '+escapeHtml(ch.role)+'</div><div class="socialSub">🏷️ '+escapeHtml(title.name)+'</div></div></div>'+
+      '<div class="section"><div class="sectionTitle">🧑 캐릭터</div><div class="lobbyCustomGrid">'+CHARACTER_COLLECTION.map(d=>card('character',d)).join('')+'</div></div>'+
+      '<div class="section"><div class="sectionTitle">🏷️ 칭호</div><div class="lobbyCustomGrid">'+TITLE_COLLECTION.map(d=>card('title',d)).join('')+'</div></div>'+
+      '<div class="section"><div class="sectionTitle">🎨 오라</div><div class="lobbyCustomGrid">'+AURA_COLLECTION.map(d=>card('aura',d)).join('')+'</div></div>'+
+      '<div class="section"><div class="sectionTitle">🎩 장식</div><div class="lobbyCustomGrid">'+HAT_COLLECTION.map(d=>card('hat',d)).join('')+'</div></div>'+
+      '<div class="section"><input id="lobbyCustomNameInput" maxlength="10" value="'+escapeHtml(p.name)+'" placeholder="플레이어 이름"><button type="button" id="saveLobbyCharacter" style="width:100%;margin-top:7px">✅ 저장</button></div>';
+    panel.hidden=false;
+    const refresh=()=>window.openLobbyCharacterCustomize();
+    panel.querySelector('#closeLobbyCharacter').onclick=()=>{panel.hidden=true;panel.innerHTML='';};
+    panel.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{
+      const kind=b.dataset.kind,id=b.dataset.id,defs=kind==='character'?CHARACTER_COLLECTION:kind==='title'?TITLE_COLLECTION:kind==='aura'?AURA_COLLECTION:HAT_COLLECTION,d=defs.find(x=>x.id===id);if(!d)return;
+      const key=kind==='character'?'unlockedCharacters':kind==='title'?'unlockedTitles':kind==='aura'?'unlockedAuras':'unlockedHats';
+      if(!c[key].includes(id))return;
+      if(kind==='character'){c.characterId=id;p.emoji=d.emoji;}
+      if(kind==='title'){c.selectedTitle=id;p.appearance.title=d.name;}
+      if(kind==='aura')p.appearance.aura=d.value;
+      if(kind==='hat')p.appearance.hat=d.value;
+      saveLocalLobbyCharacter(p);
+      refresh();
+    });
+    panel.querySelector('#saveLobbyCharacter').onclick=()=>{
+      p.name=String(panel.querySelector('#lobbyCustomNameInput').value||'모험가').trim().slice(0,10)||'모험가';
+      saveLocalLobbyCharacter(p);
+      panel.hidden=true;panel.innerHTML='';
+      lobbyMsg('✅ 캐릭터 설정을 저장했어.');
+    };
+  };
+
+  window.saveLocalLobbyCharacter=function(p){
+    normalizePlayer(p);
+    S.name=p.name;S.emoji=p.emoji;S.characterStyle=sanitizeAppearance({...p.appearance,characterId:p.customization.characterId});
+    S.accountSnapshot=playerAccountData(p);
+    try{
+      localStorage.setItem('emoji-rpg-account',JSON.stringify(S.accountSnapshot));
+      localStorage.setItem('emoji-rpg-profile',JSON.stringify({n:S.name,e:S.emoji,fc:S.friendCode}));
+      localStorage.setItem('emoji-rpg-character',JSON.stringify(S.characterStyle));
+    }catch(_e){}
+  };
 
   /* 플레이 행동을 진행도에 연결한다. */
   const _prevAddMonsterRewardV6=addMonsterReward;
