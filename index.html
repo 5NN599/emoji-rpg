@@ -2221,15 +2221,19 @@ function drawEmergencyScene(){
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='34px "Segoe UI Emoji","Apple Color Emoji",sans-serif';ctx.fillStyle=fg;ctx.fillText(p.emoji||'⚔️',cx,cy);
   ctx.font='700 14px sans-serif';ctx.fillText(p.name||'모험가',cx,cy-32);
   ctx.font='12px sans-serif';ctx.fillStyle=css.getPropertyValue('--sub').trim()||'#667';ctx.fillText('맵 렌더링 복구 모드',cx,cy+34);
+  if(S.drawError){ctx.font='10px sans-serif';ctx.fillStyle=css.getPropertyValue('--bad').trim()||'#b44';ctx.fillText(String(S.drawError).slice(0,90),cx,cy+50);}
 }
 function draw(){
   if(!S.started){S.drawStarted=false;return;}
   try{
-    if(!S.renderFallback) drawScene();
-    else drawEmergencyScene();
+    if(!S.renderFallback){
+      drawScene();
+      S.renderErrorCount=0;
+    }else drawEmergencyScene();
   }catch(e){
-    S.renderFallback=true;
     S.drawError=String(e&&e.message||e||'unknown');
+    S.renderErrorCount=(S.renderErrorCount||0)+1;
+    if(S.renderErrorCount>=2)S.renderFallback=true;
     try{drawEmergencyScene();}catch(_e){
       try{
         const m=boardMetrics();
@@ -2343,15 +2347,9 @@ function enterGame() {
   try{issueRecoveryCode(true);}catch(e){log('복구 코드 발급 경고: '+(e&&e.message||e));}
   if(!S.recoveryNoticeShown){S.recoveryNoticeShown=true;log('🗝️ 새 계정 복구 코드는 🗝️ 복구 메뉴에서 확인할 수 있어.');}
   try{startCapabilityReporting();}catch(e){log('성능 측정 경고: '+(e&&e.message||e));}
-  if(S.renderHealthTimer)clearTimeout(S.renderHealthTimer);
-  S.renderHealthTimer=setTimeout(()=>{
-    try{
-      const rc=cv.getBoundingClientRect();
-      if(rc.width<=1||rc.height<=1){S.renderFallback=true;return;}
-      const px=ctx.getImageData(Math.max(0,Math.min(cv.width-1,Math.floor(cv.width/2))),Math.max(0,Math.min(cv.height-1,Math.floor(cv.height/2))),1,1).data;
-      if(!px||px[3]<10)S.renderFallback=true;
-    }catch(e){S.renderFallback=true;}
-  },700);
+  /* 렌더링 성공 여부를 중앙 픽셀 하나로 판단하지 않는다. 정상 맵도 중앙 픽셀이 투명할 수 있어 복구 모드로 오인될 수 있다. */
+  if(S.renderHealthTimer){clearTimeout(S.renderHealthTimer);S.renderHealthTimer=null;}
+  S.renderFallback=false;
 }
 
 function initLobby() {
@@ -3029,6 +3027,7 @@ function drawSceneRpgBetter(){
   S.mons.filter(mon=>mon.map===map).forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y,m),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,pulse=.5+.5*Math.sin(Date.now()/150+mon.id);if(mon.state==='telegraph'){ctx.strokeStyle=mon.e==='👹'?'#c084fc':'#ff9f43';ctx.lineWidth=2+2*pulse;ctx.globalAlpha=.45+.25*pulse;ctx.beginPath();ctx.arc(cx,cy,m.unit*(.45+.08*pulse),0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}if(mon.enraged){ctx.strokeStyle='#ff4d5d';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.42,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*(mon.enraged?.76:(mon.isBoss?.86:.68)))+'px '+FONT;ctx.textAlign='center';ctx.fillText(mon.e,cx,cy);if(mon.isBoss){ctx.font='900 '+Math.max(11,m.unit*.2)+'px sans-serif';ctx.fillStyle='#ffd166';ctx.fillText(mon.bossName||'던전 보스',cx,q.y-5);ctx.fillStyle=bad;}bar(q.x+4,q.y+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);if(mon.targetId&&mon.state==='chase'){ctx.fillStyle=bad;ctx.font='700 '+Math.max(10,m.unit*.2)+'px sans-serif';ctx.fillText('!',cx,q.y+1);}});
   Object.values(S.players).filter(q=>q.map===map).forEach(pl=>{const v=smooth('p'+pl.id,pl.x,pl.y,m),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,ap=sanitizeAppearance(pl.appearance),j=jobData(pl);if(pl.id===S.uid){ctx.strokeStyle=ap.aura;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.45,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(pl.emoji,cx,cy);if(ap.hat){ctx.font=(m.unit*.34)+'px '+FONT;ctx.fillText(ap.hat,cx,q.y);}drawNameplate(j.icon+' '+pl.name,cx,q.y-m.th*.05,m.unit,pl.id===S.uid?ap.aura:fg);bar(q.x+4,q.y+m.th-8,Math.max(8,m.tw-8),pl.hp/(50+pl.lv*10),ok);});
   const now=Date.now();S.fx=S.fx.filter(f=>now-f.t0<f.life);S.fx.forEach(f=>{const a=(now-f.t0)/f.life;let x=f.x,y=f.y;if(f.id){const v=S.vis['p'+f.id];if(!v)return;x=v.x;y=v.y;}const q=worldToScreen(x,y,m);ctx.globalAlpha=1-a;ctx.font='700 '+clamp(m.unit*.33,13,22)+'px sans-serif';ctx.fillStyle=f.c;ctx.textAlign='center';ctx.fillText(f.s,q.x+m.tw/2,q.y+m.th/2-a*m.unit*.8);});ctx.globalAlpha=1;
+  S.renderFallback=false;
   let prompt='';if(doorTown)prompt='E · '+doorTown.name+' 들어가기';else if(doorExit)prompt='E · 건물 밖으로 나가기';else if(portal)prompt='M · 텔레포트석 사용';drawPromptRpg(prompt,m);updateZoneHudRpgBetter();if(now-S.minimapLast>220){drawMinimapRpgBetter();S.minimapLast=now;}
 }
 drawSceneRpg=drawSceneRpgBetter;drawScene=drawSceneRpgBetter;
