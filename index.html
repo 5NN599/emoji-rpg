@@ -55,6 +55,44 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   #top { font-size:13px; }
 }
 @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto; } }
+
+#menu { position:absolute; z-index:6; top:64px; right:12px; display:flex; gap:6px; }
+#menu button { min-height:36px; padding:7px 10px; font-size:13px; background:color-mix(in srgb,var(--card) 88%,transparent); color:var(--fg); border:1px solid var(--line); backdrop-filter:blur(10px); }
+#overlayPanel { position:absolute; z-index:8; top:110px; right:12px; width:min(360px,calc(100vw - 24px)); max-height:calc(100dvh - 130px); overflow:auto; display:none; background:color-mix(in srgb,var(--card) 96%,transparent); border:1px solid var(--line); border-radius:14px; box-shadow:0 14px 40px rgba(0,0,0,.3); }
+#overlayPanel.open { display:block; }
+#networkError { position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.58); backdrop-filter:blur(5px); }
+#networkError[hidden] { display:none; }
+.netErrorCard { width:min(420px,100%); background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 18px 60px rgba(0,0,0,.35); }
+.netErrorCard h3 { margin:0 0 8px; }
+.netErrorCard p { margin:0; color:var(--sub); font-size:13px; line-height:1.5; white-space:pre-line; }
+.netErrorActions { display:flex; gap:8px; margin-top:14px; }
+.netErrorActions button { flex:1; }
+.panelHead { position:sticky; top:0; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px; background:color-mix(in srgb,var(--card) 97%,transparent); border-bottom:1px solid var(--line); }
+.panelBody { padding:12px 14px; }
+.panelGrid { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+.itemBtn { min-height:68px; padding:6px; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:12px; }
+.itemBtn strong { font-size:23px; line-height:1; }
+.itemBtn small { color:var(--sub); }
+.section { margin-bottom:14px; }
+.section:last-child { margin-bottom:0; }
+.sectionTitle { font-size:13px; font-weight:800; margin-bottom:7px; color:var(--sub); }
+.statGrid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.statBox { background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:7px 8px; font-size:12px; }
+.tradeTarget { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px; border:1px solid var(--line); border-radius:9px; margin-bottom:6px; }
+.tradeOffer { border:1px solid var(--line); border-radius:10px; padding:8px; background:var(--bg); }
+.tradeLine { display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:12px; margin:4px 0; }
+.tradeActions { display:flex; gap:6px; margin-top:8px; }
+.tradeActions button { flex:1; min-height:36px; padding:7px 8px; }
+.chatLog { max-height:190px; overflow:auto; background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:8px; font-size:12px; }
+.chatMsg { margin:3px 0; line-height:1.35; word-break:break-word; }
+.chatMsg b { color:var(--acc); }
+.chatNotice { margin-top:7px; padding:7px 9px; border-radius:8px; background:color-mix(in srgb,var(--tile2) 85%,transparent); color:var(--muted); font-size:11px; line-height:1.4; }
+.chatInput { display:flex; gap:6px; margin-top:7px; }
+.chatInput input { min-width:0; }
+.quest { background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:9px; font-size:12px; }
+.socialList{display:flex;flex-direction:column;gap:6px}.socialRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.socialMain{min-width:0}.socialMain b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.socialSub{color:var(--muted);font-size:10px}.socialActions{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}.socialActions button{min-height:30px;padding:5px 7px;font-size:11px}.partyBar{padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg);margin-bottom:8px}.partyMember{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);font-size:12px}.partyMember:first-child{border-top:0}.shopGrid{display:grid;gap:6px}.shopRow{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.shopIcon{font-size:23px;text-align:center}.shopInfo{min-width:0}.shopInfo b{display:block}.shopInfo small{color:var(--muted)}.npcHint{padding:8px 9px;border-radius:8px;background:color-mix(in srgb,var(--tile2) 85%,transparent);color:var(--muted);font-size:11px;line-height:1.4;margin-bottom:8px}.friendCodeBox{display:flex;gap:6px;margin-bottom:8px}.friendCodeBox input{min-width:0;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.quest progress { width:100%; height:7px; margin-top:7px; }
+@media(max-width:720px){ #menu { top:58px; right:8px; } #overlayPanel { top:100px; right:8px; width:min(390px,calc(100vw - 16px)); max-height:calc(100dvh - 112px); } }
 </style>
 </head>
 <body>
@@ -65,6 +103,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   <div class="row">
     <input id="roomName" maxlength="16" placeholder="방 이름" aria-label="방 이름">
     <button id="btnCreate">방 만들기</button>
+    <button id="btnQuick" type="button">⚡ 빠른 참가</button>
   </div>
   <h3>🌐 공개 방 목록</h3>
   <div id="rooms"><div class="empty">열려 있는 방을 찾는 중…</div></div>
@@ -76,7 +115,19 @@ button:disabled { opacity:.55; cursor:not-allowed; }
     <canvas id="cv" width="800" height="560"></canvas>
     <div id="top">
       <div>방 <b id="roomCode">-----</b> · <span id="roomTitle"></span></div>
-      <div id="badge"></div>
+      <div style="display:flex;align-items:center;gap:8px"><span id="miniHud">❤️ -- · 💰 --</span><div id="badge"></div></div>
+    </div>
+    <div id="menu">
+      <button id="btnInv">🎒 가방</button>
+      <button id="btnTrade">🤝 거래</button>
+      <button id="btnChat">💬 채팅</button>
+      <button id="btnQuest">📜 퀘스트</button>
+      <button id="btnSocial">👥 친구/파티</button>
+      <button id="btnShop">🏪 상점</button>
+    </div>
+    <div id="overlayPanel" aria-live="polite">
+      <div class="panelHead"><b id="panelTitle">온라인 RPG</b><button id="btnClosePanel">닫기</button></div>
+      <div class="panelBody" id="panelBody"></div>
     </div>
     <div id="pad">
       <button data-dx="-1" data-dy="0" aria-label="왼쪽">⬅️</button>
@@ -90,6 +141,17 @@ button:disabled { opacity:.55; cursor:not-allowed; }
     <div id="hud" class="card"></div>
     <div class="card"><b>👥 파티</b><div id="plist"></div></div>
     <div id="log" class="card"></div>
+  </div>
+</div>
+
+<div id="networkError" hidden aria-modal="true" role="dialog">
+  <div class="netErrorCard">
+    <h3 id="networkErrorTitle">⚠️ 연결 오류</h3>
+    <p id="networkErrorText">연결을 설정하지 못했습니다.</p>
+    <div class="netErrorActions">
+      <button id="networkErrorRetry">다시 연결</button>
+      <button id="networkErrorLobby">로비로</button>
+    </div>
   </div>
 </div>
 
@@ -110,6 +172,23 @@ const MONS = {
   '👺': { hp: 45,  dmg: 6,  gold: 12, xp: 20, spd: 1100 },
   '🐉': { hp: 120, dmg: 12, gold: 40, xp: 60, spd: 900 }
 };
+const ITEMS = {
+  potion: { id:'potion', name:'회복 물약', icon:'🧪', type:'consumable', max:20, heal:30, price:15 },
+  slimeGel: { id:'slimeGel', name:'슬라임 젤리', icon:'🟢', type:'material', max:99, price:4 },
+  fang: { id:'fang', name:'도깨비 송곳니', icon:'🦷', type:'material', max:99, price:9 },
+  scale: { id:'scale', name:'용의 비늘', icon:'🔴', type:'material', max:99, price:35 },
+  ironSword: { id:'ironSword', name:'철검', icon:'⚔️', type:'weapon', max:1, atk:5, price:60 },
+  leather: { id:'leather', name:'가죽 갑옷', icon:'🛡️', type:'armor', max:1, def:3, price:60 }
+};
+const MON_DROPS = {
+  '🦠': { item:'slimeGel', min:1, max:2, chance:0.85 },
+  '👺': { item:'fang', min:1, max:2, chance:0.75 },
+  '🐉': { item:'scale', min:1, max:2, chance:0.90 }
+};
+const QUESTS = {
+  slime_hunt: { id:'slime_hunt', name:'슬라임 토벌', text:'슬라임 5마리 처치', need:5, item:'potion', count:2, gold:30 }
+};
+const NPCS = { merchant: { id:'merchant', x:10, y:5, name:'상인 루루', icon:'🧑‍🍳' } };
 const $ = id => document.getElementById(id);
 const rnd = n => Math.floor(Math.random() * n);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -117,30 +196,81 @@ const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 const maxHp = p => 50 + p.lv * 10;
 const hostId = (code, gen) => 'erpg-' + code + '-h' + gen;
 
-/* 기기 사양 기반 우선순위 점수: 코어 수·메모리가 클수록 높고, 소량의 랜덤 가중치로 동급 기기 간 무작위성 부여 */
-function calcScore() {
-  const cores = navigator.hardwareConcurrency || 2;
-  const mem = navigator.deviceMemory || 4;
-  const jitter = Math.random() * 3;
-  return +(cores * 10 + mem * 5 + jitter).toFixed(2);
+/* 기기 성능/네트워크 측정
+   - CPU: 짧은 실제 연산 벤치마크 + 논리 코어 수
+   - RAM: navigator.deviceMemory(브라우저가 제공하는 대략적인 RAM 등급)
+   - Ping: 실제 PeerJS 데이터 채널 RTT를 호스트가 측정
+*/
+function runCpuBenchmark() {
+  try {
+    const samples = [];
+    let sink = 0;
+    for (let round = 0; round < 3; round++) {
+      const start = performance.now();
+      const end = start + 18;
+      let ops = 0;
+      while (performance.now() < end) {
+        for (let i = 0; i < 1200; i++) {
+          sink = Math.imul(sink ^ i, 1664525) + 1013904223;
+        }
+        ops += 1200;
+      }
+      const elapsed = Math.max(1, performance.now() - start);
+      samples.push(ops / elapsed);
+    }
+    samples.sort((a, b) => a - b);
+    window.__emojiRpgCpuSink = sink;
+    return samples[1] || samples[0] || 1;
+  } catch (e) {
+    return 1;
+  }
 }
+
+function detectCapabilities() {
+  const navConn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const cores = Math.max(1, Number(navigator.hardwareConcurrency) || 2);
+  const ram = Math.max(0.25, Number(navigator.deviceMemory) || 4);
+  const cpuPerf = Math.max(1, runCpuBenchmark());
+  const browserRtt = Math.max(1, Number(navConn && navConn.rtt) || 80);
+  return {
+    cores,
+    ram,
+    cpuPerf: +cpuPerf.toFixed(2),
+    browserRtt,
+    measuredRtt: null,
+    updatedAt: Date.now()
+  };
+}
+
+function capabilityScore(c) {
+  if (!c) return 0;
+  const cpuPart = Math.log2(Math.max(1, c.cpuPerf)) * 22;
+  const corePart = Math.log2(Math.max(1, c.cores)) * 14;
+  const ramPart = Math.log2(Math.max(0.25, c.ram) + 1) * 18;
+  return +(cpuPart + corePart + ramPart).toFixed(2);
+}
+
+const LOCAL_CAPS = detectCapabilities();
 
 /* ============================================================
    상태
    ============================================================ */
 const S = {
   uid: Math.random().toString(36).slice(2, 10),
-  name: '', emoji: EMOJIS[0], score: calcScore(),
+  name: '', emoji: EMOJIS[0], score: capabilityScore(LOCAL_CAPS), caps: LOCAL_CAPS,
   code: '', gen: 0, roomName: '', hostUid: '',
   isHost: false, migrating: false, started: false,
-  peer: null, hostPeer: null, hostConn: null, conns: {},
-  players: {}, mons: [], monSeq: 1, nextSpawn: 0, graceUntil: 0,
+  peer: null, hostPeer: null, hostConn: null, conns: {}, directConns: {}, directConnecting: {}, directFailures: {}, directPeerUids: {},
+  hostStats: {}, hostProbeTimer: null, hostElectionTimer: null, capReportTimer: null,
+  hostSwitchCooldownUntil: 0, betterHostSince: 0, betterHostUid: '', handoffBusy: false, handoffReady: false,
+  players: {}, mons: [], monSeq: 1, nextSpawn: 0, graceUntil: 0, trades: {}, tradeSeq: 1, activeTrades: [], chat: [], chatGuard: {},
+  friendCode: '', friends: {}, blocked: {}, reports: [], reportGuard: {}, parties: {}, partyInvites: {},
   lastMove: 0, lastAtk: 0, walkTo: null, retry: 0, targetHid: '',
   moveSeq: 0, moveAck: {}, pendingMoves: [],
   rooms: {}, mq: null, fx: [], vis: {},
   gameTimers: [], hostTimer: null, hudTimer: null, roomTimer: null, moveTimer: null, roomPublishTimer: null,
   inputBound: false, drawStarted: false, netState: 'idle',
-  peerWaiters: []
+  peerWaiters: [], netErrorRetry: null
 };
 
 /* ============================================================
@@ -286,18 +416,60 @@ function readProfile() {
   const saved = String(prof.n || '').trim();
   S.name = (saved || ('사용자' + String(rnd(1000)).padStart(3, '0'))).slice(0, 10);
   S.emoji = EMOJIS.includes(prof.e) ? prof.e : EMOJIS[0];
-  try { localStorage.setItem('emoji-rpg-profile', JSON.stringify({ n: S.name, e: S.emoji })); } catch (e) {}
+  const fc = String(prof.fc || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  S.friendCode = /^[A-Z0-9]{6,8}$/.test(fc) ? fc : Math.random().toString(36).slice(2, 10).toUpperCase();
+  try { localStorage.setItem('emoji-rpg-profile', JSON.stringify({ n: S.name, e: S.emoji, fc: S.friendCode })); } catch (e) {}
+  try { S.friends = JSON.parse(localStorage.getItem('emoji-rpg-friends') || '{}') || {}; } catch (e) { S.friends = {}; }
+  try { S.blocked = JSON.parse(localStorage.getItem('emoji-rpg-blocked') || '{}') || {}; } catch (e) { S.blocked = {}; }
 }
-function newPlayer(id, name, emoji, score) {
-  return { id, name, emoji, score, x: W >> 1, y: H >> 1, hp: 60, lv: 1, xp: 0, gold: 0 };
+function starterPlayer(id, name, emoji, score, friendCode) {
+  return { id, name, emoji, friendCode: String(friendCode || '').toUpperCase().slice(0,8), score, x: W >> 1, y: H >> 1,
+    hp: 60, lv: 1, xp: 0, gold: 40, atk: 10, def: 0,
+    inv: { potion: 3, ironSword: 1, leather: 1 }, equip: { weapon: 'ironSword', armor: 'leather' },
+    quest: { id:'slime_hunt', progress:0, claimed:false } };
+}
+function newPlayer(id, name, emoji, score, friendCode) { return starterPlayer(id, name, emoji, score, friendCode); }
+function itemCount(p, id) { return Math.max(0, Math.floor(Number((p && p.inv && p.inv[id]) || 0))); }
+function addItem(p, id, n) {
+  const def=ITEMS[id]; if(!def || !Number.isFinite(n) || n<=0) return 0;
+  const cur=itemCount(p,id), add=Math.max(0,Math.min(Math.floor(n),(def.max||99)-cur));
+  if(add) p.inv[id]=cur+add; return add;
+}
+function removeItem(p,id,n){
+  const cur=itemCount(p,id), take=Math.max(0,Math.min(cur,Math.floor(n)));
+  if(!take) return 0; p.inv[id]=cur-take; if(p.inv[id]<=0) delete p.inv[id]; return take;
+}
+function equipStats(p){ const w=p.equip&&ITEMS[p.equip.weapon],a=p.equip&&ITEMS[p.equip.armor]; return {atk:(w&&w.atk)||0,def:(a&&a.def)||0}; }
+function effectiveAtk(p){ return 10+p.lv*3+equipStats(p).atk; }
+function effectiveDef(p){ return equipStats(p).def; }
+function normalizePlayer(p){
+  p.friendCode=String(p.friendCode||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+  p.inv=p.inv&&typeof p.inv==='object'?p.inv:{}; p.equip=p.equip&&typeof p.equip==='object'?p.equip:{weapon:null,armor:null};
+  p.quest=p.quest&&typeof p.quest==='object'?p.quest:{id:'slime_hunt',progress:0,claimed:false};
+  p.gold=Math.max(0,Math.floor(Number(p.gold)||0)); p.lv=clamp(Math.floor(Number(p.lv)||1),1,99);
+  p.xp=Math.max(0,Math.floor(Number(p.xp)||0)); p.hp=clamp(Math.floor(Number(p.hp)||maxHp(p)),0,maxHp(p));
+  if(!ITEMS[p.equip.weapon]) p.equip.weapon=null; if(!ITEMS[p.equip.armor]) p.equip.armor=null;
+  Object.keys(p.inv).forEach(k=>{ if(!ITEMS[k]||itemCount(p,k)<=0) delete p.inv[k]; else p.inv[k]=Math.min(itemCount(p,k),ITEMS[k].max||99); });
+  return p;
 }
 
-/* 빠른 입장: 모두가 같은 고정 코드('PUBLC') 방으로 들어간다. 없으면 첫 사람이 만든다. */
+/* 빠른 입장: 공개 방이 있으면 그 방으로, 없으면 즉시 공개 방을 생성한다. */
 function quickJoin() {
   readProfile();
+  const publicRoom = S.rooms.PUBLC;
+  const fresh = publicRoom && (Date.now() - Number(publicRoom.ts || 0) < 30000);
   S.quick = true; S.quickTried = false;
-  S.code = 'PUBLC'; S.gen = S.rooms.PUBLC ? S.rooms.PUBLC.gen : 0;
-  S.roomName = '🌍 공개 광장'; S.retry = 1;
+  S.code = 'PUBLC';
+  S.roomName = '🌍 공개 광장';
+  S.retry = 1;
+
+  if (!fresh) {
+    lobbyMsg('공개 방이 없어서 새 공개 방을 만들고 있어…');
+    createRoom('PUBLC');
+    return;
+  }
+
+  S.gen = Number(publicRoom.gen) || 0;
   lobbyMsg('공개 광장 접속 중…');
   ensurePeer(() => connectToHost(hostId(S.code, S.gen)));
 }
@@ -307,9 +479,9 @@ function createRoom(forcedCode) {
   S.quick = !!forcedCode;
   S.code = forcedCode || Math.random().toString(36).slice(2, 7).toUpperCase();
   S.roomName = forcedCode ? '🌍 공개 광장' : ($('roomName').value.trim() || S.name + '의 방').slice(0, 16);
-  S.players = {}; S.mons = [];
+  S.players = {}; S.mons = []; S.trades = {}; S.tradeSeq = 1; S.chat = []; S.chatGuard = {}; S.parties = {}; S.partyInvites = {}; S.reports = []; S.reportGuard = {};
   S.moveSeq = 0; S.moveAck = {}; S.pendingMoves = [];
-  S.players[S.uid] = newPlayer(S.uid, S.name, S.emoji, S.score);
+  S.players[S.uid] = newPlayer(S.uid, S.name, S.emoji, S.score, S.friendCode);
   becomeHost(0, true);
 }
 
@@ -351,7 +523,10 @@ function ensurePeer(cb) {
     setNetState('ready');
     const waiters = S.peerWaiters.splice(0);
     waiters.forEach(fn => { try { fn(); } catch (e) { log('연결 준비 오류: ' + e.message); } });
+    if (S.players[S.uid]) S.players[S.uid].peerId = S.peer.id;
+    ensureDirectLinks();
   });
+  S.peer.on('connection', acceptDirectConnection);
   S.peer.on('error', e => {
     if (e.type === 'peer-unavailable') retryConnect();
     else {
@@ -383,12 +558,21 @@ function cleanupGameTimers() {
   if (S.hudTimer) { clearInterval(S.hudTimer); S.hudTimer = null; }
   if (S.moveTimer) { clearInterval(S.moveTimer); S.moveTimer = null; }
   if (S.roomPublishTimer) { clearInterval(S.roomPublishTimer); S.roomPublishTimer = null; }
+  if (S.hostProbeTimer) { clearInterval(S.hostProbeTimer); S.hostProbeTimer = null; }
+  if (S.hostElectionTimer) { clearInterval(S.hostElectionTimer); S.hostElectionTimer = null; }
+  if (S.capReportTimer) { clearInterval(S.capReportTimer); S.capReportTimer = null; }
 }
 
 function cleanupNetwork() {
   cleanupGameTimers();
   try { if (S.hostPeer && !S.hostPeer.destroyed) S.hostPeer.destroy(); } catch (e) {}
   try { if (S.peer && !S.peer.destroyed) S.peer.destroy(); } catch (e) {}
+  Object.values(S.directConns || {}).forEach(c => { try { c.close(); } catch (e) {} });
+  Object.values(S.directConnecting || {}).forEach(c => { try { c.close(); } catch (e) {} });
+  S.directConns = {};
+  S.directConnecting = {};
+  S.directFailures = {};
+  S.directPeerUids = {};
   S.hostPeer = null;
   S.peer = null;
   S.hostConn = null;
@@ -396,26 +580,49 @@ function cleanupNetwork() {
   S.peerWaiters = [];
 }
 
+function showConnectionError(title, message, retryFn) {
+  const box = $('networkError');
+  if (!box) return;
+  $('networkErrorTitle').textContent = title || '⚠️ 연결 오류';
+  $('networkErrorText').textContent = message || '연결을 설정하지 못했습니다.';
+  S.netErrorRetry = typeof retryFn === 'function' ? retryFn : null;
+  box.hidden = false;
+}
+function hideConnectionError() { if ($('networkError')) $('networkError').hidden = true; }
 function failJoin() {
+  const wasStarted = S.started;
+  const code = S.code;
   cleanupNetwork();
   S.isHost = false;
   S.migrating = false;
   S.targetHid = '';
   S.hostUid = '';
   S.pendingMoves = [];
-  if (S.started) {
+  if (wasStarted) {
     S.started = false;
     $('game').hidden = true;
     $('lobby').hidden = false;
-    lobbyMsg('방장 연결에 실패했습니다. 게임이 종료되었습니다.');
-  } else {
-    lobbyMsg('방을 찾을 수 없습니다. 코드를 확인해 주세요.');
   }
   updateBadge();
+  showConnectionError('⚠️ 연결 오류', wasStarted ? '방장과의 P2P 연결과 재연결에 모두 실패했습니다.\n방 ' + code + ' 연결을 종료합니다.' : '방장 P2P 연결에 실패했습니다.\n방 코드 ' + code + ' 를 확인해 주세요.', () => {
+    hideConnectionError();
+    S.retry = 4;
+    ensurePeer(() => connectToHost(hostId(S.code, S.gen)));
+  });
 }
 
 function selfRecord() {
-  return S.players[S.uid] || newPlayer(S.uid, S.name, S.emoji, S.score);
+  const p = S.players[S.uid] || newPlayer(S.uid, S.name, S.emoji, S.score, S.friendCode);
+  p.friendCode = S.friendCode;
+  p.score = S.score;
+  p.peerId = (S.peer && !S.peer.destroyed && S.peer.open) ? S.peer.id : String(p.peerId || '');
+  p.caps = {
+    cores: S.caps.cores,
+    ram: S.caps.ram,
+    cpuPerf: S.caps.cpuPerf,
+    browserRtt: S.caps.browserRtt
+  };
+  return p;
 }
 
 function connectToHost(hid) {
@@ -471,6 +678,10 @@ function onClientData(m) {
     S.gen = Math.max(0, +m.g || 0);
     S.hostUid = String(m.h || '');
     S.moveAck = m.a && typeof m.a === 'object' ? m.a : {};
+    if (m.hs && typeof m.hs === 'object') S.hostStats = m.hs;
+    if (m.pt && typeof m.pt === 'object') S.parties = m.pt;
+    ensureDirectLinks();
+    if (Array.isArray(m.chat)) S.chat = m.chat.slice(-40);
     if (serverMe) {
       const pos = applyPendingFrom(
         clamp(+serverMe.x | 0, 0, W - 1),
@@ -488,9 +699,157 @@ function onClientData(m) {
     setNetState('connected');
   } else if (m.t === 'ack') {
     handleMoveAck(m);
+  } else if (m.t === 'trade_request') {
+    const who=String(m.from||''), nm=String(m.name||'플레이어');
+    const ok=confirm('🤝 '+nm+' 님이 거래를 요청했습니다. 수락할까요?');
+    if(ok){ const msg={t:'trade_accept',from:who}; if(S.isHost) hostRecv({uid:S.uid,open:true,send:()=>{}},msg); else if(S.hostConn&&S.hostConn.open) S.hostConn.send(msg); }
+  } else if (m.t === 'trade_state') { S.activeTrades=[m.trade]; renderTradeFromEvent();
+  } else if (m.t === 'trade_end') { S.activeTrades=[]; closePanel(); log(m.reason||'거래 종료');
+  } else if (m.t === 'chat') { if(m.m&&!isBlockedChatMessage(m.m)){ S.chat.push(m.m); if(S.chat.length>60) S.chat.shift(); } if($('overlayPanel').classList.contains('open')&&$('panelTitle').textContent.includes('채팅')) renderChat();
+  } else if (m.t === 'party_invite') {
+    const from=String(m.from||''),nm=String(m.name||'플레이어');
+    if(!isBlockedUid(from)&&confirm('👥 '+nm+' 님이 파티에 초대했습니다. 참가할까요?')) sendLocalHost({t:'party_accept',from});
+  } else if (m.t === 'party_state'||m.t === 'party_end') {
+    S.parties=m.parties&&typeof m.parties==='object'?m.parties:{}; if(m.reason)log(m.reason); renderSocialIfOpen(); updateHud();
+  } else if (m.t === 'report_ack') { log(m.s||'🚩 신고가 접수되었습니다.');
+  } else if (m.t === 'shop_result') { log(m.s||'상점 처리 완료'); updateHud(); if($('overlayPanel').classList.contains('open')&&$('panelTitle').textContent.includes('상점')) renderShop();
+  } else if (m.t === 'ping') {
+    if (S.hostConn && S.hostConn.open) {
+      try { S.hostConn.send({ t: 'pong', ts: m.ts }); } catch (e) {}
+    }
+  } else if (m.t === 'handoff_state') {
+    S.players = m.p || S.players;
+    S.mons = Array.isArray(m.m) ? m.m : S.mons;
+    S.moveAck = m.a && typeof m.a === 'object' ? m.a : S.moveAck;
+    S.monSeq = Math.max(1, +m.ms || S.monSeq);
+    S.nextSpawn = +m.ns || Date.now() + 1500;
+    S.trades = m.tr && typeof m.tr === 'object' ? m.tr : S.trades;
+    S.tradeSeq = Math.max(1, +m.tq || S.tradeSeq);
+    S.chat = Array.isArray(m.ch) ? m.ch.slice(-60) : S.chat; S.activeTrades = Object.values(S.trades).filter(t=>t.a===S.uid||t.b===S.uid);
+    S.parties = m.pt && typeof m.pt === 'object' ? m.pt : S.parties;
+    S.reports = Array.isArray(m.rp) ? m.rp.slice(-100) : S.reports;
+    S.hostUid = String(m.h || S.uid);
+    S.gen = Math.max(S.gen, +m.g || S.gen);
+    S.handoffBusy = true;
+    if (String(m.h) === S.uid) becomeHost(S.gen, false);
   } else if (m.t === 'ev') {
+    if (m.k === 'handoff') {
+      const target = String(m.to || '');
+      const gen = Math.max(S.gen, +m.g || S.gen);
+      S.gen = gen;
+      if (target !== S.uid) {
+        S.migrating = true;
+        S.hostUid = target;
+        if (S.hostConn && S.hostConn.open) { try { S.hostConn.close(); } catch (e) {} }
+        S.hostConn = null;
+        ensurePeer(() => connectToHost(hostId(S.code, gen)));
+      }
+    }
     handleEvent(m);
   }
+}
+
+/* ============================================================
+   직접 P2P 메시망 + 호스트 릴레이 폴백
+   - 가능한 경우 플레이어끼리 직접 연결
+   - 직접 연결이 없거나 실패하면 호스트 P2P로 릴레이
+   - 두 경로가 모두 실패하면 연결 오류 창 표시
+   ============================================================ */
+const DIRECT_REQUEST_TYPES = new Set(['trade_request', 'party_invite']);
+const DIRECT_HOST_TYPES = new Set(['trade_state', 'trade_end', 'party_state', 'party_end', 'chat', 'report_ack', 'shop_result']);
+
+function expectedUidForPeer(peerId) {
+  const id = String(peerId || '');
+  const found = Object.values(S.players || {}).find(p => p && p.id !== S.uid && String(p.peerId || '') === id);
+  return found ? found.id : '';
+}
+function rememberDirect(uid, c) {
+  if (!uid || !c) return false;
+  const p = S.players[uid];
+  if (!p || String(p.peerId || '') !== String(c.peer || '')) return false;
+  const old = S.directConns[uid];
+  if (old && old !== c) { try { old.close(); } catch (e) {} }
+  c._uid = uid;
+  S.directConns[uid] = c;
+  delete S.directConnecting[uid];
+  delete S.directFailures[uid];
+  return true;
+}
+function bindDirectConnection(c, outgoingUid) {
+  if (!c) return;
+  c.on('open', () => {
+    try { c.send({ t:'direct_hello', code:S.code, gen:S.gen, uid:S.uid, peerId:S.peer && S.peer.id }); } catch (e) {}
+  });
+  c.on('data', m => onDirectData(c, m));
+  c.on('close', () => {
+    const uid = c._uid || outgoingUid || expectedUidForPeer(c.peer);
+    if (uid && S.directConns[uid] === c) delete S.directConns[uid];
+    if (uid) { delete S.directConnecting[uid]; S.directFailures[uid] = Date.now(); }
+  });
+  c.on('error', () => {
+    const uid = c._uid || outgoingUid || expectedUidForPeer(c.peer);
+    if (uid) S.directFailures[uid] = Date.now();
+  });
+}
+function acceptDirectConnection(c) { bindDirectConnection(c, ''); }
+function onDirectData(c, m) {
+  if (!m || typeof m !== 'object') return;
+  if (m.t === 'direct_hello') {
+    if (String(m.code || '') !== String(S.code || '') || String(m.gen || S.gen) !== String(S.gen)) return;
+    const uid = String(m.uid || '');
+    const known = S.players[uid];
+    if (!known || uid === S.uid || String(known.peerId || '') !== String(c.peer || '')) return;
+    if (!rememberDirect(uid, c)) return;
+    try { c.send({ t:'direct_hello_ack', uid:S.uid, code:S.code, gen:S.gen }); } catch (e) {}
+    return;
+  }
+  const uid = c._uid || expectedUidForPeer(c.peer);
+  if (!uid || !S.players[uid]) return;
+  if (m.t === 'direct_hello_ack') return;
+  if (DIRECT_REQUEST_TYPES.has(m.t)) {
+    if (String(m.from || '') !== uid || String(m.to || '') !== S.uid) return;
+    if (isBlockedUid(uid)) return;
+    if (m.t === 'trade_request') {
+      const nm = String(m.name || S.players[uid].name || '플레이어');
+      if (confirm('🤝 ' + nm + ' 님이 거래를 요청했습니다. 수락할까요?')) sendLocalHost({ t:'trade_accept', from:uid });
+    } else if (m.t === 'party_invite') {
+      const nm = String(m.name || S.players[uid].name || '플레이어');
+      if (confirm('👥 ' + nm + ' 님이 파티에 초대했습니다. 참가할까요?')) sendLocalHost({ t:'party_accept', from:uid });
+    }
+    return;
+  }
+  if (DIRECT_HOST_TYPES.has(m.t) && uid === S.hostUid) onClientData(m);
+}
+function ensureDirectLinks() {
+  if (!S.peer || S.peer.destroyed || !S.peer.open || !S.players[S.uid]) return;
+  S.players[S.uid].peerId = S.peer.id;
+  Object.values(S.players).forEach(p => {
+    if (!p || p.id === S.uid || !p.peerId) return;
+    if (String(S.uid) > String(p.id)) return;
+    if (S.directConns[p.id] && S.directConns[p.id].open) return;
+    if (S.directConnecting[p.id]) return;
+    if (Date.now() - (S.directFailures[p.id] || 0) < 5000) return;
+    try {
+      const c = S.peer.connect(String(p.peerId), { reliable:true });
+      S.directConnecting[p.id] = c;
+      bindDirectConnection(c, p.id);
+    } catch (e) { S.directFailures[p.id] = Date.now(); }
+  });
+}
+function relayThroughHost(targetUid, msg) {
+  if (S.isHost) return !!sendTo(targetUid, msg);
+  if (!S.hostConn || !S.hostConn.open) return false;
+  try { S.hostConn.send({ t:'relay', to:String(targetUid), msg }); return true; } catch (e) { return false; }
+}
+function sendPeerOrHost(targetUid, msg) {
+  const uid = String(targetUid || '');
+  if (!uid || uid === S.uid) return false;
+  const direct = S.directConns[uid];
+  if (direct && direct.open) { try { direct.send(msg); return true; } catch (e) {} }
+  ensureDirectLinks();
+  if (relayThroughHost(uid, msg)) return true;
+  showConnectionError('⚠️ 플레이어 연결 오류', '상대 플레이어와 직접 P2P 연결에 실패했고\n방장 릴레이 연결도 사용할 수 없습니다.');
+  return false;
 }
 
 /* 방장 이탈 → 우선순위 점수 기반 결정론적 선출 (모든 클라이언트가 같은 결과 도출) */
@@ -507,7 +866,13 @@ function onHostLost() {
     .filter(p => p && p.id !== S.hostUid);
   if (!cands.find(p => p.id === S.uid)) cands.push(selfRecord());
 
-  cands.sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : 1));
+  cands.sort((a, b) => {
+    const ca = a.caps || {};
+    const cb = b.caps || {};
+    const sa = capabilityScore(ca);
+    const sb = capabilityScore(cb);
+    return (sb - sa) || (a.id < b.id ? -1 : 1);
+  });
   const winner = cands[0];
   const gen = S.gen + 1;
   const next = {};
@@ -531,6 +896,10 @@ function onHostLost() {
    방장(호스트) 로직
    ============================================================ */
 function becomeHost(gen, fresh) {
+  ensurePeer(() => {
+    if (S.players[S.uid]) S.players[S.uid].peerId = S.peer.id;
+    ensureDirectLinks();
+  });
   if (S.hostPeer && !S.hostPeer.destroyed) {
     try { S.hostPeer.destroy(); } catch (e) {}
   }
@@ -540,6 +909,12 @@ function becomeHost(gen, fresh) {
   S.gen = gen;
   S.hostUid = S.uid;
   S.graceUntil = fresh ? 0 : Date.now() + 10000;
+  S.migrating = false;
+  S.handoffBusy = false;
+  S.handoffReady = false;
+  S.betterHostUid = '';
+  S.betterHostSince = 0;
+  S.hostSwitchCooldownUntil = Date.now() + (fresh ? 5000 : 30000);
   if (!S.moveAck || typeof S.moveAck !== 'object') S.moveAck = {};
   S.moveAck[S.uid] = S.moveSeq;
 
@@ -558,9 +933,15 @@ function becomeHost(gen, fresh) {
     S.migrating = false;
     setNetState('connected');
     if (!S.started) enterGame();
+    if (!fresh && S.hostConn && S.hostConn.open) {
+      try { S.hostConn.send({ t: 'handoff_ready', g: S.gen }); } catch (e) {}
+    }
     if (!fresh) broadcastEvent({ k: 'host', s: '👑 ' + S.name + ' 님이 새 방장이 되었습니다.' });
     else log('🏰 방을 열었습니다. 코드 ' + S.code + ' 를 친구에게 알려주세요.');
     S.hostTimer = setInterval(hostTick, 100);
+    startHostMonitoring();
+    if (S.capReportTimer) clearInterval(S.capReportTimer);
+    startCapabilityReporting();
     if (S.roomPublishTimer) clearInterval(S.roomPublishTimer);
     S.roomPublishTimer = setInterval(publishRoom, 5000);
     publishRoom();
@@ -576,16 +957,151 @@ function acceptClient(c) {
       delete S.conns[c.uid];
       delete S.players[c.uid];
       delete S.moveAck[c.uid];
+      delete S.hostStats[c.uid];
+      const tr=tradeForPlayer(c.uid);if(tr)clearTrade(tr,'상대방이 나가 거래가 취소되었습니다.');
+      partyLeaveHost(c.uid, '👥 '+(p?p.name:'유저')+' 님이 나가 파티가 변경되었습니다.');
+      Object.keys(S.partyInvites||{}).forEach(k=>{const inv=S.partyInvites[k];if(k===c.uid||(inv&&inv.from===c.uid))delete S.partyInvites[k];});
       broadcastEvent({ k: 'log', s: '👋 ' + (p ? p.name : '유저') + ' 님이 퇴장했습니다.' });
       publishRoom();
     }
   });
 }
 
+function sendTo(uid,msg){
+  const d=S.directConns[uid];
+  if(d&&d.open){try{d.send(msg);return true;}catch(e){}}
+  const c=S.conns[uid];
+  if(c&&c.open){try{c.send(msg);return true;}catch(e){}}
+  return false;
+}
+function tradeForPlayer(uid){ return Object.values(S.trades).find(t=>t.a===uid||t.b===uid)||null; }
+function sanitizeTrade(t){ return {id:t.id,a:t.a,b:t.b,ai:{...t.ai},bi:{...t.bi},ag:t.ag,bg:t.bg,ar:!!t.ar,br:!!t.br}; }
+function pushTrade(t){ if(!t)return; const clean=sanitizeTrade(t), msg={t:'trade_state',trade:clean}; S.activeTrades=S.activeTrades||[]; if(t.a===S.uid){S.activeTrades=[clean];renderTradeFromEvent();} else sendTo(t.a,msg); if(t.b===S.uid){S.activeTrades=[clean];renderTradeFromEvent();} else sendTo(t.b,msg); }
+function clearTrade(t,reason){ if(!t)return; delete S.trades[t.id]; if(t.a===S.uid) {closePanel();log(reason||'거래가 종료되었습니다.');} else sendTo(t.a,{t:'trade_end',reason:reason||'거래가 종료되었습니다.'}); if(t.b===S.uid) {closePanel();log(reason||'거래가 종료되었습니다.');} else sendTo(t.b,{t:'trade_end',reason:reason||'거래가 종료되었습니다.'}); }
+function tradeValidateOffers(t){ const a=S.players[t.a],b=S.players[t.b]; if(!a||!b)return false; for(const [id,n] of Object.entries(t.ai)){if(!ITEMS[id]||n<0||n>itemCount(a,id))return false;} for(const [id,n] of Object.entries(t.bi)){if(!ITEMS[id]||n<0||n>itemCount(b,id))return false;} return t.ag>=0&&t.ag<=a.gold&&t.bg>=0&&t.bg<=b.gold; }
+function executeTrade(t){ if(!tradeValidateOffers(t)){clearTrade(t,'거래 조건이 변경되어 취소되었습니다.');return;} const a=S.players[t.a],b=S.players[t.b]; Object.entries(t.ai).forEach(([id,n])=>{removeItem(a,id,n);addItem(b,id,n);}); Object.entries(t.bi).forEach(([id,n])=>{removeItem(b,id,n);addItem(a,id,n);}); a.gold-=t.ag;b.gold-=t.bg;a.gold+=t.bg;b.gold+=t.ag; delete S.trades[t.id]; if(t.a===S.uid||t.b===S.uid){closePanel();log('✅ 거래 완료');} if(t.a!==S.uid)sendTo(t.a,{t:'trade_end',reason:'✅ 거래 완료'}); if(t.b!==S.uid)sendTo(t.b,{t:'trade_end',reason:'✅ 거래 완료'}); broadcastEvent({k:'log',s:'🤝 '+a.name+' ↔ '+b.name+' 거래 완료!'}); }
+function claimQuest(p){ const q=p.quest||{},d=QUESTS[q.id]; if(!d||q.claimed||q.progress<d.need)return false; q.claimed=true;p.gold+=d.gold;addItem(p,d.item,d.count);return true; }
+function addMonsterReward(p,e){ const drop=MON_DROPS[e]; if(drop&&Math.random()<drop.chance){const n=drop.min+rnd(drop.max-drop.min+1),got=addItem(p,drop.item,n);if(got)broadcastEvent({k:'log',s:'📦 '+p.name+' 님이 '+ITEMS[drop.item].icon+' '+ITEMS[drop.item].name+' x'+got+' 획득'});} if(e==='🦠'&&p.quest&&!p.quest.claimed){p.quest.progress=Math.min(QUESTS.slime_hunt.need,(p.quest.progress||0)+1);if(p.quest.progress>=QUESTS.slime_hunt.need)broadcastEvent({k:'log',s:'📜 '+p.name+' 님의 퀘스트 완료!'});} }
+const CHAT_BAD_WORDS = [
+  '씨발','시발','ㅆㅂ','ㅅㅂ','병신','ㅂㅅ','븅신','등신','개새끼','개새키','ㄱㅅㄲ','새끼','미친놈','미친년','ㅁㅊㄴ','꺼져','닥쳐','좆','ㅈㄴ','존나','졸라','섹스','sex','fuck','shit','bitch','asshole','nigger','retard'
+];
+const CHAT_LINK_RE = /(https?:\/\/|www\.|[a-z0-9-]+\.(com|net|org|kr|io|gg|me|tv)(?:\/|$))/i;
+const CHAT_SPAM_WINDOW = 5000;
+const CHAT_SPAM_LIMIT = 4;
+const CHAT_REPEAT_LIMIT = 3;
+
+function normalizeChatForFilter(text){
+  return String(text||'')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\u200b-\u200f\u202a-\u202e\ufeff]/g,'')
+    .replace(/[\s._\-~`!@#$%^&*()=+\[\]{}<>|\\/\:;,'\"`·•…]+/g,'')
+    .replace(/0/g,'o').replace(/1/g,'i').replace(/3/g,'e').replace(/4/g,'a').replace(/5/g,'s').replace(/7/g,'t')
+    .replace(/ㅆ+/g,'ㅆ').replace(/ㅅ+/g,'ㅅ').replace(/ㅂ+/g,'ㅂ').replace(/ㅈ+/g,'ㅈ');
+}
+
+function censorChatText(text){
+  let clean=String(text||'').replace(/\s+/g,' ').trim().slice(0,80);
+  if(!clean)return {ok:false,text:''};
+  if(CHAT_LINK_RE.test(clean))return {ok:false,text:''};
+  const normalized=normalizeChatForFilter(clean);
+  for(const bad of CHAT_BAD_WORDS){
+    const b=normalizeChatForFilter(bad);
+    if(b && normalized.includes(b)) return {ok:false,text:''};
+  }
+  // 반복 문자 도배 완화: 같은 글자/기호가 과도하게 반복되면 축약
+  clean=clean.replace(/(.)\1{5,}/gu,'$1$1$1');
+  // 과도한 이모지/기호 도배 방지
+  if((clean.match(/[!！?？]{5,}/g)||[]).length) clean=clean.replace(/[!！?？]{4,}/g,'!!!');
+  return {ok:true,text:clean};
+}
+
+function allowChatMessage(uid,text){
+  const now=Date.now();
+  const g=S.chatGuard[uid]||(S.chatGuard[uid]={times:[],last:'',repeat:0});
+  g.times=g.times.filter(t=>now-t<CHAT_SPAM_WINDOW);
+  if(g.times.length>=CHAT_SPAM_LIMIT)return false;
+  if(text===g.last){g.repeat++;if(g.repeat>=CHAT_REPEAT_LIMIT)return false;}else{g.last=text;g.repeat=1;}
+  g.times.push(now);
+  return true;
+}
+
+function publicChatText(text){ return censorChatText(text).ok ? censorChatText(text).text : ''; }
+
+function partyForPlayer(uid){ return Object.values(S.parties||{}).find(pt=>Array.isArray(pt.members)&&pt.members.includes(uid)) || null; }
+function partySnapshot(){ const out={}; Object.values(S.parties||{}).forEach(pt=>{ out[pt.id]={id:pt.id,leader:pt.leader,members:pt.members.slice(0,4)}; }); return out; }
+function broadcastPartyState(reason){ const payload={t:reason?'party_end':'party_state',parties:partySnapshot()}; if(reason)payload.reason=reason; bcast(payload); renderSocialIfOpen(); updateHud(); }
+function makeParty(leaderUid, memberUid){ const id='pt_'+Math.random().toString(36).slice(2,9); const pt={id,leader:leaderUid,members:[leaderUid,memberUid].filter(Boolean).slice(0,4)}; S.parties[id]=pt; return pt; }
+function partyLeaveHost(uid, reason){ const pt=partyForPlayer(uid); if(!pt)return; pt.members=pt.members.filter(id=>id!==uid); if(pt.leader===uid)pt.leader=pt.members[0]||''; if(!pt.members.length)delete S.parties[pt.id]; else Object.keys(S.partyInvites||{}).forEach(k=>{if(S.partyInvites[k]&&S.partyInvites[k].from===uid)delete S.partyInvites[k];}); broadcastPartyState(reason||'파티가 변경되었습니다.'); }
+function isBlockedUid(uid){ const p=S.players[uid]; return !!(p&&p.friendCode&&S.blocked[String(p.friendCode).toUpperCase()]); }
+function isBlockedChatMessage(m){ const fc=String(m&&m.fc||'').toUpperCase(); return !!(fc&&S.blocked[fc]) || isBlockedUid(String(m&&m.uid||'')); }
+function saveSocial(){ try{localStorage.setItem('emoji-rpg-friends',JSON.stringify(S.friends||{}));localStorage.setItem('emoji-rpg-blocked',JSON.stringify(S.blocked||{}));}catch(e){} }
+function findPlayerByFriendCode(code){ const fc=String(code||'').toUpperCase(); return Object.values(S.players).find(p=>String(p.friendCode||'').toUpperCase()===fc)||null; }
+function addFriend(uid){ const p=S.players[uid];if(!p||uid===S.uid||!p.friendCode)return;const fc=p.friendCode.toUpperCase();S.friends[fc]={name:p.name,emoji:p.emoji};saveSocial();log('⭐ '+p.name+' 님을 친구로 추가했습니다.');renderSocial(); }
+function removeFriend(fc){ delete S.friends[String(fc||'').toUpperCase()];saveSocial();renderSocial(); }
+function addFriendCode(){ const input=$('friendCodeInput');const fc=String(input&&input.value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);if(!/^[A-Z0-9]{6,8}$/.test(fc)){log('친구 코드는 6~8자리 영문/숫자야.');return;}if(fc===S.friendCode){log('자기 자신은 친구로 추가할 수 없어.');return;}const p=findPlayerByFriendCode(fc);S.friends[fc]={name:p?p.name:'친구 '+fc,emoji:p?p.emoji:'👤'};saveSocial();if(input)input.value='';log('⭐ 친구 코드 '+fc+' 를 저장했습니다.');renderSocial(); }
+function toggleBlock(uid){ const p=S.players[uid];if(!p||uid===S.uid||!p.friendCode)return;const fc=p.friendCode.toUpperCase();if(S.blocked[fc]){delete S.blocked[fc];log('차단 해제: '+p.name);}else{S.blocked[fc]=true;log('🚫 '+p.name+' 님을 차단했습니다. 채팅이 보이지 않습니다.');}saveSocial();renderSocial();if($('overlayPanel').classList.contains('open')&&$('panelTitle').textContent.includes('채팅'))renderChat(); }
+function reportPlayer(uid){ const p=S.players[uid];if(!p||uid===S.uid)return;const reason=prompt('신고 사유를 입력해줘. (욕설/괴롭힘/스팸/사칭/기타)','');const r=String(reason||'').trim().slice(0,80);if(!r)return;sendLocalHost({t:'report',to:uid,reason:r});log('🚩 신고를 접수했습니다.'); }
+function partyInvite(uid){if(!uid||uid===S.uid)return;const p=S.players[uid];if(!p)return;sendPeerOrHost(uid,{t:'party_invite',to:uid,from:S.uid,name:S.name,emoji:S.emoji});}
+function partyLeave(){sendLocalHost({t:'party_leave'});}
+function partyKick(uid){sendLocalHost({t:'party_kick',target:uid});}
+function partyPromote(uid){sendLocalHost({t:'party_promote',target:uid});}
+function renderSocialIfOpen(){if($('overlayPanel').classList.contains('open')&&$('panelTitle').textContent.includes('친구/파티'))renderSocial();}
+function renderSocial(){
+  const party=partyForPlayer(S.uid);
+  let html='<div class="friendCodeBox"><input id="friendCodeInput" maxlength="8" placeholder="친구 코드 추가"><button id="addFriendBtn">추가</button></div>';
+  html+='<div class="npcHint">내 친구 코드: <b>'+escapeHtml(S.friendCode)+'</b> · 이 코드를 친구에게 알려주면 다음 접속에도 친구로 저장할 수 있어.</div>';
+  html+='<div class="section"><div class="sectionTitle">👥 파티 '+(party?'· '+party.members.length+'/4':'· 없음')+'</div>';
+  if(party){const leader=S.players[party.leader];html+='<div class="partyBar"><b>👑 '+escapeHtml(leader?leader.name:'파티장')+'</b>';party.members.forEach(uid=>{const q=S.players[uid];if(!q)return;html+='<div class="partyMember"><span>'+(uid===party.leader?'👑 ':'')+escapeHtml(q.emoji+' '+q.name)+' · Lv.'+q.lv+'</span><span class="socialActions">'+(S.uid===party.leader&&uid!==S.uid?'<button data-promote="'+uid+'">파티장</button><button data-kick="'+uid+'">추방</button>':'')+'</span></div>';});html+='<button id="partyLeaveBtn" style="margin-top:7px;width:100%">파티 나가기</button></div>';}else{html+='<div class="npcHint">플레이어에게 파티 초대를 보내면 2인 파티가 시작되고, 최대 4명까지 초대할 수 있어.</div>';}
+  html+='</div><div class="section"><div class="sectionTitle">⭐ 친구 목록</div><div class="socialList">';
+  const friends=Object.entries(S.friends||{});if(!friends.length)html+='<div class="empty">아직 저장한 친구가 없어.</div>';
+  friends.forEach(([fc,f])=>{const q=findPlayerByFriendCode(fc);html+='<div class="socialRow"><div class="socialMain"><b>'+escapeHtml((q?q.emoji:f.emoji||'👤')+' '+(q?q.name:f.name||fc))+'</b><span class="socialSub">'+escapeHtml(fc)+' · '+(q?'온라인':'오프라인')+'</span></div><div class="socialActions">'+(q&&q.id!==S.uid?'<button data-friend-party="'+q.id+'">파티</button><button data-friend-trade="'+q.id+'">거래</button>':'')+'<button data-friend-remove="'+fc+'">삭제</button></div></div>';});
+  html+='</div></div><div class="section"><div class="sectionTitle">🧑‍🤝‍🧑 현재 온라인 플레이어</div><div class="socialList">';
+  Object.values(S.players).filter(q=>q.id!==S.uid).forEach(q=>{html+='<div class="socialRow"><div class="socialMain"><b>'+escapeHtml(q.emoji+' '+q.name)+(q.friendCode&&S.friends[q.friendCode]?' ⭐':'')+'</b><span class="socialSub">'+escapeHtml(q.friendCode||'')+' · Lv.'+q.lv+(isBlockedUid(q.id)?' · 차단됨':'')+'</span></div><div class="socialActions"><button data-add-friend="'+q.id+'">친구</button><button data-party="'+q.id+'">파티</button><button data-report="'+q.id+'">신고</button><button data-block="'+q.id+'">'+(isBlockedUid(q.id)?'차단해제':'차단')+'</button></div></div>';});
+  html+='</div></div>';
+  if(S.isHost){html+='<div class="section"><div class="sectionTitle">🚩 최근 신고 '+S.reports.length+'건</div><div class="npcHint">이 방의 신고는 현재 방 세션 동안 방장이 보관해. 방이 닫히면 사라져.</div>';S.reports.slice(-8).reverse().forEach(r=>{const a=S.players[r.reporter],b=S.players[r.target];html+='<div class="socialSub" style="margin:5px 0">'+escapeHtml((a?a.name:'유저')+' → '+(b?b.name:'유저')+' · '+r.reason)+'</div>';});html+='</div>';}
+  openPanel('👥 친구/파티',html);
+  $('addFriendBtn').onclick=addFriendCode;
+  $('panelBody').querySelectorAll('[data-add-friend]').forEach(b=>b.onclick=()=>addFriend(b.dataset.addFriend));
+  $('panelBody').querySelectorAll('[data-party]').forEach(b=>b.onclick=()=>partyInvite(b.dataset.party));
+  $('panelBody').querySelectorAll('[data-friend-party]').forEach(b=>b.onclick=()=>partyInvite(b.dataset.friendParty));
+  $('panelBody').querySelectorAll('[data-friend-trade]').forEach(b=>b.onclick=()=>requestTrade(b.dataset.friendTrade));
+  $('panelBody').querySelectorAll('[data-friend-remove]').forEach(b=>b.onclick=()=>removeFriend(b.dataset.friendRemove));
+  $('panelBody').querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>reportPlayer(b.dataset.report));
+  $('panelBody').querySelectorAll('[data-block]').forEach(b=>b.onclick=()=>toggleBlock(b.dataset.block));
+  $('panelBody').querySelectorAll('[data-promote]').forEach(b=>b.onclick=()=>partyPromote(b.dataset.promote));
+  $('panelBody').querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>partyKick(b.dataset.kick));
+  if($('partyLeaveBtn'))$('partyLeaveBtn').onclick=partyLeave;
+}
+function nearNpc(p,npc){return !!p&&cheb(p,npc)<=2;}
+function shopSellPrice(def){return Math.max(1,Math.floor((def.price||1)*0.5));}
+function renderShop(){
+  const p=S.players[S.uid];if(!p)return;const npc=NPCS.merchant;
+  let html='<div class="npcHint"><b>'+npc.icon+' '+escapeHtml(npc.name)+'</b><br>“필요한 물건 있으면 말만 해!”<br>'+(nearNpc(p,npc)?'✅ 상인 근처야. 거래 가능.':'❌ 상인에게 2칸 이내로 이동해야 해.')+'</div>';
+  html+='<div class="section"><div class="sectionTitle">🛒 구매</div><div class="shopGrid">';
+  ['potion','ironSword','leather','slimeGel','fang','scale'].forEach(id=>{const d=ITEMS[id];html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+'</b><small>💰 '+d.price+' · 보유 x'+itemCount(p,id)+'</small></div><button data-buy="'+id+'" '+(!nearNpc(p,npc)||p.gold<d.price||itemCount(p,id)>=d.max?'disabled':'')+'>구매</button></div>';});
+  html+='</div></div><div class="section"><div class="sectionTitle">💰 판매 · 구매가의 50%</div><div class="shopGrid">';
+  Object.entries(p.inv||{}).forEach(([id,n])=>{const d=ITEMS[id];if(!d||!n)return;const equipped=p.equip.weapon===id||p.equip.armor===id;html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+' x'+n+'</b><small>판매 '+shopSellPrice(d)+' 골드 / 1개'+(equipped?' · 장착중':'')+'</small></div><button data-sell="'+id+'" '+(!nearNpc(p,npc)||equipped?'disabled':'')+'>1개 판매</button></div>';});
+  if(!Object.keys(p.inv||{}).length)html+='<div class="empty">판매할 아이템이 없어.</div>';
+  html+='</div></div><div class="tradeActions"><button id="shopTalk">💬 대화</button><button id="shopRefresh">새로고침</button></div>';
+  openPanel('🏪 상점',html);
+  $('panelBody').querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>sendLocalHost({t:'shop_buy',id:b.dataset.buy}));
+  $('panelBody').querySelectorAll('[data-sell]').forEach(b=>b.onclick=()=>sendLocalHost({t:'shop_sell',id:b.dataset.sell}));
+  $('shopTalk').onclick=()=>log('🧑‍🍳 '+npc.name+': 좋은 장비는 오래 쓰는 법이야.');
+  $('shopRefresh').onclick=renderShop;
+}
+
 function hostRecv(c, m) {
   if (!m || typeof m !== 'object') return;
 
-  if (m.t === 'hello' && m.p) {
+  if (m.t === 'relay' && c.uid) {
+    const target = String(m.to || '');
+    const inner = m.msg && typeof m.msg === 'object' ? { ...m.msg } : null;
+    if (!target || !inner || !S.players[target] || target === c.uid) return;
+    if (!DIRECT_REQUEST_TYPES.has(inner.t)) return;
+    inner.from = c.uid; inner.to = target;
+    sendTo(target, inner);
+  } else if (m.t === 'hello' && m.p) {
     if (Object.keys(S.players).length >= 12 && !S.players[String(m.p.id)]) {
       c.close(); return;
     }
@@ -601,25 +1117,42 @@ function hostRecv(c, m) {
     }
 
     const old = S.players[id];
+    const rawCaps = m.p.caps && typeof m.p.caps === 'object' ? m.p.caps : {};
+    const caps = {
+      cores: clamp(+rawCaps.cores || 2, 1, 256),
+      ram: clamp(+rawCaps.ram || 4, 0.25, 1024),
+      cpuPerf: clamp(+rawCaps.cpuPerf || 1, 1, 1e9),
+      browserRtt: clamp(+rawCaps.browserRtt || 80, 1, 5000),
+      measuredRtt: null,
+      lastPongAt: 0,
+      updatedAt: Date.now()
+    };
+    const incomingFriendCode = String(m.p.friendCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,8);
+    const safeFriendCode = /^[A-Z0-9]{6,8}$/.test(incomingFriendCode) ? incomingFriendCode : ('FC' + id.slice(0,6).toUpperCase());
     const p = old ? { ...old } : newPlayer(
       id,
       String(m.p.name || '모험가').slice(0, 10),
       EMOJIS.includes(m.p.emoji) ? m.p.emoji : EMOJIS[0],
-      Number.isFinite(+m.p.score) ? +m.p.score : 0
+      capabilityScore(caps),
+      safeFriendCode
     );
+
+    p.caps = caps;
+    p.score = capabilityScore(caps);
+    S.hostStats[id] = caps;
 
     // 진행 상태(HP/XP/골드)는 클라이언트가 임의로 올려 보내지 못하도록 서버 값을 사용한다.
     if (!old) {
-      p.x = W >> 1;
-      p.y = H >> 1;
-      p.hp = maxHp(p);
-      p.xp = 0;
-      p.gold = 0;
-      p.lv = 1;
+      Object.assign(p, starterPlayer(id, String(m.p.name || '모험가').slice(0,10), EMOJIS.includes(m.p.emoji) ? m.p.emoji : EMOJIS[0], capabilityScore(caps), safeFriendCode));
     } else {
       p.name = String(p.name || '모험가').slice(0, 10);
       p.emoji = EMOJIS.includes(p.emoji) ? p.emoji : EMOJIS[0];
+      p.friendCode = /^[A-Z0-9]{6,8}$/.test(String(p.friendCode || '')) ? String(p.friendCode).toUpperCase() : safeFriendCode;
+      normalizePlayer(p);
     }
+    p.friendCode = /^[A-Z0-9]{6,8}$/.test(String(p.friendCode || '')) ? String(p.friendCode).toUpperCase() : safeFriendCode;
+    p.peerId = String(m.p.peerId || '').slice(0, 160);
+    normalizePlayer(p);
 
     c.uid = id;
     c.lastMoveSeq = 0;
@@ -630,6 +1163,31 @@ function hostRecv(c, m) {
     c.send(snapshot());
     if (!old) broadcastEvent({ k: 'log', s: '✨ ' + p.emoji + ' ' + p.name + ' 님이 입장했습니다.' });
     publishRoom();
+  } else if (m.t === 'caps' && c.uid && S.players[c.uid]) {
+    const rawCaps = m.c && typeof m.c === 'object' ? m.c : {};
+    const caps = {
+      cores: clamp(+rawCaps.cores || 2, 1, 256),
+      ram: clamp(+rawCaps.ram || 4, 0.25, 1024),
+      cpuPerf: clamp(+rawCaps.cpuPerf || 1, 1, 1e9),
+      browserRtt: clamp(+rawCaps.browserRtt || 80, 1, 5000),
+      measuredRtt: S.hostStats[c.uid] && Number.isFinite(S.hostStats[c.uid].measuredRtt) ? S.hostStats[c.uid].measuredRtt : null,
+      lastPongAt: S.hostStats[c.uid] && Number.isFinite(S.hostStats[c.uid].lastPongAt) ? S.hostStats[c.uid].lastPongAt : 0,
+      updatedAt: Date.now()
+    };
+    S.hostStats[c.uid] = caps;
+    S.players[c.uid].caps = caps;
+    S.players[c.uid].score = capabilityScore(caps);
+  } else if (m.t === 'handoff_ready' && c.uid && S.handoffBusy) {
+    const g = Math.max(0, +m.g || 0);
+    if (c.uid === S.betterHostUid && g === S.gen + 1) S.handoffReady = true;
+  } else if (m.t === 'pong' && c.uid && S.hostStats[c.uid]) {
+    const ts = +m.ts;
+    if (Number.isFinite(ts)) {
+      const rtt = clamp(Date.now() - ts, 1, 5000);
+      S.hostStats[c.uid].measuredRtt = rtt;
+      S.hostStats[c.uid].lastPongAt = Date.now();
+      S.hostStats[c.uid].updatedAt = Date.now();
+    }
   } else if (m.t === 'mv' && c.uid && S.players[c.uid]) {
     const p = S.players[c.uid];
     const seq = Math.floor(+m.s || 0);
@@ -648,6 +1206,9 @@ function hostRecv(c, m) {
       return;
     }
 
+    if (Object.values(S.players).some(q => q.id !== c.uid && q.x === nx && q.y === ny)) {
+      S.moveAck[c.uid] = seq; c.send({t:'ack',s:seq,x:p.x,y:p.y}); return;
+    }
     const monster = S.mons.find(mn => mn.x === nx && mn.y === ny);
     if (monster) {
       S.moveAck[c.uid] = seq;
@@ -662,11 +1223,56 @@ function hostRecv(c, m) {
     c.send({ t: 'ack', s: seq, x: p.x, y: p.y });
   } else if (m.t === 'atk' && c.uid) {
     doAttack(c.uid);
+  } else if (m.t === 'use_item' && c.uid && S.players[c.uid]) {
+    const p=S.players[c.uid], id=String(m.id||''), def=ITEMS[id];
+    if(!def||def.type!=='consumable'||!itemCount(p,id))return;
+    removeItem(p,id,1);p.hp=Math.min(maxHp(p),p.hp+(def.heal||0));broadcastEvent({k:'heal',id:c.uid,d:def.heal||0});
+  } else if (m.t === 'equip_item' && c.uid && S.players[c.uid]) {
+    const p=S.players[c.uid], id=String(m.id||''), def=ITEMS[id];
+    if(!def||(def.type!=='weapon'&&def.type!=='armor')||!itemCount(p,id))return;
+    if(def.type==='weapon')p.equip.weapon=id;else p.equip.armor=id;broadcastEvent({k:'log',s:'🛡️ '+p.name+' 님이 '+def.icon+' '+def.name+' 장착'});
+  } else if (m.t === 'trade_request' && c.uid && S.players[c.uid]) {
+    const to=String(m.to||''); if(to===c.uid||!S.players[to]||tradeForPlayer(c.uid)||tradeForPlayer(to))return; sendTo(to,{t:'trade_request',from:c.uid,name:S.players[c.uid].name,emoji:S.players[c.uid].emoji});
+  } else if (m.t === 'trade_accept' && c.uid) {
+    const from=String(m.from||''); if(from===c.uid||!S.players[from]||tradeForPlayer(c.uid)||tradeForPlayer(from))return;
+    const t={id:S.tradeSeq++,a:from,b:c.uid,ai:{},bi:{},ag:0,bg:0,ar:false,br:false}; S.trades[t.id]=t;pushTrade(t);
+  } else if (m.t === 'trade_offer' && c.uid) {
+    const t=tradeForPlayer(c.uid);if(!t||t.ar||t.br)return; const mine=t.a===c.uid?'ai':'bi',goldKey=t.a===c.uid?'ag':'bg',p=S.players[c.uid];
+    const list=m.items&&typeof m.items==='object'?m.items:{};const next={};Object.entries(list).forEach(([id,n])=>{if(ITEMS[id]){const q=Math.max(0,Math.min(itemCount(p,id),Math.floor(Number(n)||0)));if(q)next[id]=q;}});
+    t[mine]=next;t[goldKey]=Math.max(0,Math.min(p.gold,Math.floor(Number(m.gold)||0)));t.a===c.uid?(t.ar=false):(t.br=false);pushTrade(t);
+  } else if (m.t === 'trade_ready' && c.uid) {
+    const t=tradeForPlayer(c.uid);if(!t||!tradeValidateOffers(t))return clearTrade(t,'거래 조건이 변경되어 취소되었습니다.');if(t.a===c.uid)t.ar=!!m.ready;else t.br=!!m.ready;pushTrade(t);if(t.ar&&t.br)executeTrade(t);
+  } else if (m.t === 'trade_cancel' && c.uid) {
+    const t=tradeForPlayer(c.uid);if(t)clearTrade(t,'거래가 취소되었습니다.');
+  } else if (m.t === 'chat' && c.uid) {
+    const filtered=censorChatText(m.s);
+    if(!filtered.ok||!allowChatMessage(c.uid,filtered.text))return;
+    const p=S.players[c.uid],msg={id:Math.random().toString(36).slice(2,9),uid:c.uid,fc:p.friendCode,name:p.name,s:filtered.text,ts:Date.now()};
+    S.chat.push(msg);if(S.chat.length>60)S.chat.shift();
+    bcast({t:'chat',m:msg});if(S.overlayOpenChat)renderChat();
+  } else if (m.t === 'party_invite' && c.uid && S.players[c.uid]) {
+    const to=String(m.to||'');if(to===c.uid||!S.players[to])return;const own=partyForPlayer(c.uid);if(own&&own.leader!==c.uid)return;const tp=partyForPlayer(to);if(tp)return;if(own&&own.members.length>=4)return;S.partyInvites[to]={from:c.uid,ts:Date.now()};sendTo(to,{t:'party_invite',from:c.uid,name:S.players[c.uid].name});
+  } else if (m.t === 'party_accept' && c.uid && S.players[c.uid]) {
+    const from=String(m.from||''),inv=S.partyInvites[c.uid];if(!inv||inv.from!==from||Date.now()-inv.ts>30000||!S.players[from])return delete S.partyInvites[c.uid];delete S.partyInvites[c.uid];if(partyForPlayer(c.uid))return;const existing=partyForPlayer(from);if(existing){if(existing.leader!==from||existing.members.length>=4)return;existing.members.push(c.uid);}else makeParty(from,c.uid);broadcastPartyState();
+  } else if (m.t === 'party_leave' && c.uid) {
+    partyLeaveHost(c.uid,'👥 파티가 변경되었습니다.');
+  } else if (m.t === 'party_kick' && c.uid) {
+    const pt=partyForPlayer(c.uid),target=String(m.target||'');if(!pt||pt.leader!==c.uid||target===c.uid||!pt.members.includes(target))return;pt.members=pt.members.filter(id=>id!==target);sendTo(target,{t:'party_end',parties:partySnapshot(),reason:'👥 파티장에서 제외되었습니다.'});broadcastPartyState();
+  } else if (m.t === 'party_promote' && c.uid) {
+    const pt=partyForPlayer(c.uid),target=String(m.target||'');if(!pt||pt.leader!==c.uid||!pt.members.includes(target))return;pt.leader=target;broadcastPartyState();
+  } else if (m.t === 'report' && c.uid && S.players[c.uid]) {
+    const target=String(m.to||'');if(target===c.uid||!S.players[target])return;const key=c.uid+'|'+target,now=Date.now();if(S.reportGuard[key]&&now-S.reportGuard[key]<30000)return;S.reportGuard[key]=now;const reason=String(m.reason||'기타').replace(/[\r\n]+/g,' ').slice(0,100);S.reports.push({id:Math.random().toString(36).slice(2,9),reporter:c.uid,target,reason,ts:now});if(S.reports.length>100)S.reports.shift();sendTo(c.uid,{t:'report_ack',s:'🚩 신고가 접수됐습니다.'});
+  } else if (m.t === 'shop_buy' && c.uid && S.players[c.uid]) {
+    const p=S.players[c.uid],id=String(m.id||''),d=ITEMS[id],npc=NPCS.merchant;if(!d||p.gold<d.price||itemCount(p,id)>=d.max||!nearNpc(p,npc))return;if(!addItem(p,id,1))return;p.gold-=d.price;sendTo(c.uid,{t:'shop_result',s:'🛒 '+d.icon+' '+d.name+' 구매 완료 (-'+d.price+'💰)'});broadcastEvent({k:'log',s:'🛒 '+p.name+' 님이 '+d.icon+' '+d.name+' 구매'});
+  } else if (m.t === 'shop_sell' && c.uid && S.players[c.uid]) {
+    const p=S.players[c.uid],id=String(m.id||''),d=ITEMS[id],npc=NPCS.merchant;if(!d||!itemCount(p,id)||p.equip.weapon===id||p.equip.armor===id||!nearNpc(p,npc))return;if(!removeItem(p,id,1))return;const gain=shopSellPrice(d);p.gold+=gain;sendTo(c.uid,{t:'shop_result',s:'💰 '+d.icon+' '+d.name+' 판매 완료 (+'+gain+'💰)'});broadcastEvent({k:'log',s:'💰 '+p.name+' 님이 '+d.name+' 판매'});
+  } else if (m.t === 'quest_claim' && c.uid && S.players[c.uid]) {
+    const p=S.players[c.uid];if(claimQuest(p))broadcastEvent({k:'log',s:'🎁 '+p.name+' 님이 퀘스트 보상을 받았습니다.'});
   }
 }
 
 function snapshot() {
-  return { t: 'snap', p: S.players, m: S.mons, g: S.gen, h: S.uid, a: S.moveAck };
+  return {t:'snap',p:S.players,m:S.mons,g:S.gen,h:S.uid,a:S.moveAck,hs:S.hostStats,chat:S.chat.slice(-40),tr:Object.values(S.trades).map(sanitizeTrade),pt:S.parties};
 }
 
 function bcast(msg) {
@@ -698,9 +1304,8 @@ function spawnMon() {
   }
 }
 
-function hurtPlayer(p, d) {
-  p.hp -= d;
-  broadcastEvent({ k: 'hurt', id: p.id, d });
+function hurtPlayer(p,d){ const actual=Math.max(1,d-effectiveDef(p)); p.hp-=actual;
+  broadcastEvent({ k:'hurt', id:p.id, d:actual });
   if (p.hp <= 0) {
     p.hp = maxHp(p); p.x = W >> 1; p.y = H >> 1;
     broadcastEvent({ k: 'respawn', id: p.id, x: p.x, y: p.y });
@@ -708,7 +1313,145 @@ function hurtPlayer(p, d) {
   }
 }
 
+function effectiveRtt(stats) {
+  if (!stats) return 80;
+  const fresh = Number.isFinite(stats.lastPongAt) && (Date.now() - stats.lastPongAt < 6500);
+  if (fresh && Number.isFinite(stats.measuredRtt)) return clamp(stats.measuredRtt, 1, 5000);
+  return clamp(Number(stats.browserRtt) || 80, 1, 5000);
+}
+
+function median(values) {
+  const a = values.filter(Number.isFinite).slice().sort((x, y) => x - y);
+  if (!a.length) return 80;
+  const i = Math.floor(a.length / 2);
+  return a.length % 2 ? a[i] : (a[i - 1] + a[i]) / 2;
+}
+
+function compareCandidateToHost(uid) {
+  const c = S.hostStats[uid];
+  if (!c) return 0;
+  const host = S.caps;
+  const peerRtts = Object.keys(S.hostStats)
+    .filter(id => id !== S.uid && id !== uid)
+    .map(id => effectiveRtt(S.hostStats[id]));
+  const hostNet = peerRtts.length ? median(peerRtts) : effectiveRtt(host);
+  const candidateNet = effectiveRtt(c);
+
+  const cpuRatio = clamp((c.cpuPerf || 1) / Math.max(1, host.cpuPerf || 1), 0.35, 3);
+  const ramRatio = clamp((c.ram || 4) / Math.max(0.25, host.ram || 4), 0.35, 3);
+  const netRatio = clamp(hostNet / candidateNet, 0.35, 3);
+
+  // CPU 55% + RAM 20% + 네트워크 25%.
+  return Math.pow(cpuRatio, 0.55) * Math.pow(ramRatio, 0.20) * Math.pow(netRatio, 0.25);
+}
+
+function chooseBetterHost() {
+  if (!S.isHost || S.migrating || S.handoffBusy || Date.now() < S.hostSwitchCooldownUntil) return;
+
+  const now = Date.now();
+  const candidates = Object.keys(S.conns)
+    .filter(id => id !== S.uid)
+    .map(id => ({ id, adv: compareCandidateToHost(id), rtt: effectiveRtt(S.hostStats[id]) }))
+    .filter(x => x.adv >= 1.12); // 12% 이상 지속 우위일 때만 후보
+
+  if (!candidates.length) {
+    S.betterHostUid = '';
+    S.betterHostSince = 0;
+    return;
+  }
+
+  candidates.sort((a, b) => (b.adv - a.adv) || (a.id < b.id ? -1 : 1));
+  const best = candidates[0];
+
+  if (S.betterHostUid !== best.id) {
+    S.betterHostUid = best.id;
+    S.betterHostSince = now;
+    return;
+  }
+
+  // 순간적인 벤치/핑 변동으로 방장이 계속 바뀌지 않도록 12초 이상 유지.
+  if (now - S.betterHostSince < 12000) return;
+  beginHostHandoff(best.id, best.adv);
+}
+
+function beginHostHandoff(targetUid, advantage) {
+  if (!S.isHost || S.handoffBusy || !S.conns[targetUid]) return;
+  S.handoffBusy = true;
+  S.handoffReady = false;
+  S.migrating = true;
+  const newGen = S.gen + 1;
+  const target = S.conns[targetUid];
+  const handoffState = {
+    t: 'handoff_state',
+    g: newGen, h: targetUid,
+    p: S.players, m: S.mons, a: S.moveAck,
+    ms: S.monSeq, ns: S.nextSpawn, tr: S.trades, tq: S.tradeSeq, ch: S.chat, pt: S.parties, rp: S.reports
+  };
+
+  try {
+    target.send(handoffState);
+    bcast({ t: 'ev', k: 'handoff', to: targetUid, g: newGen, n: S.players[targetUid] ? S.players[targetUid].name : '새 방장' });
+    log('🔄 더 높은 성능의 참가자에게 방장을 넘기는 중… (' + Math.round(advantage * 100) + '%)');
+  } catch (e) {
+    S.handoffBusy = false;
+    S.migrating = false;
+    return;
+  }
+
+  const handoffStarted = Date.now();
+  const finishHandoff = () => {
+    if (!S.handoffBusy || S.gen !== newGen - 1) return;
+    if (!S.handoffReady && Date.now() - handoffStarted < 6000) {
+      setTimeout(finishHandoff, 150);
+      return;
+    }
+    S.hostSwitchCooldownUntil = Date.now() + 30000;
+    S.isHost = false;
+    S.hostUid = targetUid;
+    S.gen = newGen;
+    S.handoffBusy = false;
+    S.migrating = true;
+    if (S.hostPeer && !S.hostPeer.destroyed) { try { S.hostPeer.destroy(); } catch (e) {} }
+    S.hostPeer = null;
+    Object.values(S.conns).forEach(c => { try { c.close(); } catch (e) {} });
+    S.conns = {};
+    if (S.hostConn && S.hostConn.open) { try { S.hostConn.close(); } catch (e) {} }
+    S.hostConn = null;
+    ensurePeer(() => connectToHost(hostId(S.code, newGen)));
+  };
+  setTimeout(finishHandoff, 150);
+}
+
+function startHostMonitoring() {
+  if (S.hostProbeTimer) clearInterval(S.hostProbeTimer);
+  if (S.hostElectionTimer) clearInterval(S.hostElectionTimer);
+  S.hostProbeTimer = setInterval(() => {
+    if (!S.isHost || S.migrating) return;
+    const now = Date.now();
+    Object.values(S.conns).forEach(c => {
+      if (!c.open) return;
+      try { c.send({ t: 'ping', ts: now }); } catch (e) {}
+    });
+  }, 2000);
+  S.hostElectionTimer = setInterval(() => {
+    if (S.isHost && !S.migrating) chooseBetterHost();
+  }, 3000);
+}
+
+function startCapabilityReporting() {
+  if (S.capReportTimer) clearInterval(S.capReportTimer);
+  S.capReportTimer = setInterval(() => {
+    const navConn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    S.caps.browserRtt = Math.max(1, Number(navConn && navConn.rtt) || S.caps.browserRtt || 80);
+    S.caps.updatedAt = Date.now();
+    if (!S.isHost && S.hostConn && S.hostConn.open) {
+      try { S.hostConn.send({ t: 'caps', c: { ...S.caps } }); } catch (e) {}
+    }
+  }, 8000);
+}
+
 function hostTick() {
+  if (S.handoffBusy) return;
   const now = Date.now(), ids = Object.keys(S.players);
   if (now > S.graceUntil) ids.forEach(id => { if (id !== S.uid && !S.conns[id]) { delete S.players[id]; delete S.moveAck[id]; } });
   const liveCount = Object.keys(S.players).length;
@@ -745,20 +1488,16 @@ function doAttack(uid) {
   const near = S.mons.filter(m => cheb(m, p) <= 1).sort((a, b) => cheb(a, p) - cheb(b, p));
   const t = near[0];
   if (!t) return;
-  const dmg = 8 + p.lv * 3 + rnd(5);
+  const dmg = effectiveAtk(p) + rnd(5);
   t.hp -= dmg;
   broadcastEvent({ k: 'hit', x: t.x, y: t.y, d: dmg });
   if (t.hp > 0) return;
   S.mons = S.mons.filter(m => m !== t);
   const def = MONS[t.e];
-  broadcastEvent({ k: 'log', s: '⚔️ ' + p.name + ' 님이 ' + t.e + ' 격파! 전원 +' + def.gold + '💰 +' + def.xp + 'XP' });
-  Object.values(S.players).forEach(q => {
-    q.gold += def.gold; q.xp += def.xp;
-    while (q.xp >= q.lv * 30) {
-      q.xp -= q.lv * 30; q.lv++; q.hp = maxHp(q);
-      broadcastEvent({ k: 'lvl', id: q.id, lv: q.lv, n: q.name });
-    }
-  });
+  addMonsterReward(p,t.e);
+  p.gold += def.gold; p.xp += def.xp;
+  broadcastEvent({ k:'log', s:'⚔️ '+p.name+' 님이 '+t.e+' 격파! +'+def.gold+'💰 +'+def.xp+'XP' });
+  while(p.xp>=p.lv*30){p.xp-=p.lv*30;p.lv++;p.hp=maxHp(p);broadcastEvent({k:'lvl',id:p.id,lv:p.lv,n:p.name});}
 }
 
 /* ============================================================
@@ -769,6 +1508,8 @@ function handleEvent(ev) {
   if (ev.k === 'hit') {
     addFx({ x: ev.x, y: ev.y, s: '-' + ev.d, c: '#ffd34d', life: 700 });
     playSound('attack');
+  } else if (ev.k === 'heal') {
+    const p=S.players[ev.id]; if(p){ addFx({id:ev.id,s:'+'+ev.d,c:'#7dffb0',life:700}); playSound('lvl'); }
   } else if (ev.k === 'hurt') {
     const p = S.players[ev.id];
     if (p) {
@@ -949,6 +1690,8 @@ function draw() {
     ctx.strokeRect(S.walkTo.x * tw + 2, S.walkTo.y * th + 2, tw - 4, th - 4);
   }
 
+  Object.values(NPCS).forEach(npc=>{const cx=npc.x*tw+tw/2,cy=npc.y*th+th/2;ctx.font=(unit*0.72)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(npc.icon,cx,cy);drawNameplate('🏪 '+npc.name,cx,npc.y*th-2,unit,ok);});
+
   S.mons.forEach(m => {
     const v = smooth('m' + m.id, m.x, m.y);
     const px = v.x * tw, py = v.y * th;
@@ -1029,26 +1772,31 @@ function updateBadge() {
   $('badge').innerHTML = role + '<span class="net">· ' + net + '</span>';
 }
 
-function updateHud() {
-  const me = S.players[S.uid];
-  if (!me) return;
-  $('hud').textContent = '';
-  const lines = [me.emoji + ' ' + me.name + '  Lv.' + me.lv,
-    '❤️ ' + Math.max(0, me.hp) + ' / ' + maxHp(me),
-    '✨ XP ' + me.xp + ' / ' + me.lv * 30,
-    '💰 ' + me.gold,
-    '📡 우선순위 점수 ' + S.score];
-  lines.forEach(l => { const d = document.createElement('div'); d.textContent = l; $('hud').appendChild(d); });
-  const pl = $('plist'); pl.textContent = '';
-  Object.values(S.players).sort((a, b) => b.lv - a.lv).forEach(p => {
-    const d = document.createElement('div');
-    const l = document.createElement('span'), r = document.createElement('span');
-    l.textContent = (p.id === S.hostUid ? '👑' : '') + p.emoji + ' ' + p.name;
-    r.textContent = 'Lv.' + p.lv + ' 💰' + p.gold;
-    d.appendChild(l); d.appendChild(r); pl.appendChild(d);
-  });
-  $('roomTitle').textContent = S.roomName;
+function updateHud(){
+  const me=S.players[S.uid];if(!me)return;normalizePlayer(me);$('hud').textContent='';const party=partyForPlayer(S.uid);
+  const lines=[me.emoji+' '+me.name+'  Lv.'+me.lv,'❤️ '+Math.max(0,me.hp)+' / '+maxHp(me),'⚔️ 공격 '+effectiveAtk(me)+' · 🛡️ 방어 '+effectiveDef(me),'✨ XP '+me.xp+' / '+me.lv*30,'💰 '+me.gold,'🎒 아이템 '+Object.values(me.inv||{}).reduce((a,b)=>a+b,0),'🪪 친구코드 '+S.friendCode,'⚙️ 성능점수 '+S.score+(S.isHost?' · 자동 방장 선택':'')];
+  if(party)lines.push('👥 파티 '+party.members.length+'/4');lines.forEach(l=>{const d=document.createElement('div');d.textContent=l;$('hud').appendChild(d);});
+  const pl=$('plist');pl.textContent='';Object.values(S.players).sort((a,b)=>b.lv-a.lv).forEach(p=>{const d=document.createElement('div');d.className='tradeTarget';const l=document.createElement('span');l.textContent=(p.id===S.hostUid?'👑 ':'')+(party&&party.members.includes(p.id)?'👥 ':'')+p.emoji+' '+p.name+' · Lv.'+p.lv;d.appendChild(l);if(p.id!==S.uid){const b=document.createElement('button');b.textContent='🤝';b.style.minHeight='30px';b.style.padding='4px 8px';b.onclick=()=>requestTrade(p.id);d.appendChild(b);}pl.appendChild(d);});
+  $('roomTitle').textContent=S.roomName;$('miniHud').textContent='❤️ '+Math.max(0,me.hp)+'/'+maxHp(me)+' · 💰 '+me.gold+' · Lv.'+me.lv+(party?' · 👥 '+party.members.length:'');
 }
+function openPanel(title,html){$('panelTitle').textContent=title;$('panelBody').innerHTML=html;$('overlayPanel').classList.add('open');S.overlayOpenChat=title.includes('채팅');}
+function closePanel(){$('overlayPanel').classList.remove('open');S.overlayOpenChat=false;}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+function sendLocalHost(msg){ if(S.isHost)hostRecv({uid:S.uid,open:true,send:()=>{}},msg); else if(S.hostConn&&S.hostConn.open)S.hostConn.send(msg); }
+function renderInventory(){ const p=S.players[S.uid];if(!p)return;let html='<div class="section"><div class="sectionTitle">장비</div><div class="statGrid"><div class="statBox">무기: '+(p.equip.weapon?ITEMS[p.equip.weapon].icon+' '+ITEMS[p.equip.weapon].name:'없음')+'</div><div class="statBox">방어구: '+(p.equip.armor?ITEMS[p.equip.armor].icon+' '+ITEMS[p.equip.armor].name:'없음')+'</div></div></div><div class="section"><div class="sectionTitle">소지품 · 클릭하면 사용/장착</div><div class="panelGrid">';Object.entries(p.inv||{}).forEach(([id,n])=>{if(n&&ITEMS[id])html+='<button class="itemBtn" data-item="'+id+'"><strong>'+ITEMS[id].icon+'</strong><span>'+ITEMS[id].name+'</span><small>x'+n+'</small></button>';});html+='</div></div><div class="statGrid"><div class="statBox">💰 '+p.gold+' 골드</div><div class="statBox">⚔️ '+effectiveAtk(p)+' / 🛡️ '+effectiveDef(p)+'</div></div>';openPanel('🎒 인벤토리',html);$('panelBody').querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>useOrEquip(b.dataset.item));}
+function useOrEquip(id){const d=ITEMS[id];if(!d)return;sendLocalHost({t:d.type==='consumable'?'use_item':'equip_item',id});setTimeout(renderInventory,80);}
+function requestTrade(uid){if(!uid||uid===S.uid)return;const ok=sendPeerOrHost(uid,{t:'trade_request',to:uid,from:S.uid,name:S.name,emoji:S.emoji});if(ok)log('🤝 거래 요청 전송');}
+function renderTradeFromEvent(){if($('overlayPanel').classList.contains('open'))openTradePanel();}
+function openTradePanel(){
+  const p=S.players[S.uid],t=tradeForPlayerClient(S.uid);
+  if(!t){let html='<div class="section"><div class="sectionTitle">거래할 플레이어</div>';Object.values(S.players).filter(x=>x.id!==S.uid).forEach(x=>html+='<div class="tradeTarget"><span>'+x.emoji+' '+x.name+' · Lv.'+x.lv+'</span><button data-trade="'+x.id+'">요청</button></div>');html+='</div>';openPanel('🤝 거래',html);$('panelBody').querySelectorAll('[data-trade]').forEach(b=>b.onclick=()=>requestTrade(b.dataset.trade));return;}
+  const mine=t.a===S.uid?t.ai:t.bi,other=t.a===S.uid?t.bi:t.ai,mg=t.a===S.uid?t.ag:t.bg,og=t.a===S.uid?t.bg:t.ag,otherP=S.players[t.a===S.uid?t.b:t.a];
+  let html='<div class="section"><div class="sectionTitle">상대방</div><div class="tradeOffer">'+otherP.emoji+' '+otherP.name+'</div></div><div class="section"><div class="sectionTitle">내 제안 · 아이템 클릭으로 수량 선택</div><div class="panelGrid">';Object.entries(p.inv||{}).forEach(([id,n])=>{html+='<button class="itemBtn" data-item="'+id+'"><strong>'+ITEMS[id].icon+'</strong><span>'+ITEMS[id].name+'</span><small>x'+(mine[id]||0)+'</small></button>';});html+='</div><div class="tradeLine">💰 골드 <input id="tradeGold" type="number" min="0" value="'+mg+'"></div></div><div class="section"><div class="sectionTitle">상대방 제안</div><div class="tradeOffer">';Object.entries(other).forEach(([id,n])=>{if(ITEMS[id])html+='<div class="tradeLine"><span>'+ITEMS[id].icon+' '+ITEMS[id].name+'</span><b>x'+n+'</b></div>';});html+='<div class="tradeLine"><span>💰 골드</span><b>'+og+'</b></div></div></div><div class="tradeActions"><button id="tradeSend">제안 갱신</button><button id="tradeReady">'+((t.a===S.uid?t.ar:t.br)?'확정 취소':'✅ 확정')+'</button><button id="tradeCancel">취소</button></div>';
+  openPanel('🤝 거래',html);let selected={...mine};$('panelBody').querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const id=b.dataset.item,cur=selected[id]||0,max=itemCount(p,id);selected[id]=cur>=max?0:cur+1;b.querySelector('small').textContent='x'+selected[id];if(!selected[id])delete selected[id];});$('tradeSend').onclick=()=>sendLocalHost({t:'trade_offer',items:selected,gold:Number($('tradeGold').value)||0});$('tradeReady').onclick=()=>sendLocalHost({t:'trade_ready',ready:!(t.a===S.uid?t.ar:t.br)});$('tradeCancel').onclick=()=>sendLocalHost({t:'trade_cancel'});
+}
+function tradeForPlayerClient(uid){if(!S.activeTrades)return null;return S.activeTrades.find(t=>t.a===uid||t.b===uid)||null;}
+function renderChat(){S.overlayOpenChat=true;let html='<div class="chatLog" id="chatLog">';(S.chat||[]).slice(-40).filter(m=>!isBlockedChatMessage(m)).forEach(m=>html+='<div class="chatMsg"><b>'+escapeHtml(m.name)+':</b> '+escapeHtml(m.s)+'</div>');html+='</div><div class="chatNotice">자동 검열: 욕설·우회 표현·링크·도배 메시지는 전송되지 않아. 차단한 사용자의 채팅도 숨겨져.</div><div class="chatInput"><input id="chatInput" maxlength="80" placeholder="메시지 입력"><button id="chatSend">전송</button></div>';openPanel('💬 채팅',html);const send=()=>{const r=publicChatTextClient($('chatInput').value);if(!r.ok){$('chatInput').value='';return;}sendLocalHost({t:'chat',s:r.text});$('chatInput').value='';};$('chatSend').onclick=send;$('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')send();});setTimeout(()=>{const el=$('chatLog');if(el)el.scrollTop=el.scrollHeight;},0);}
+function renderQuest(){const p=S.players[S.uid],q=p&&p.quest,d=q&&QUESTS[q.id];if(!p||!d)return;const done=q.progress>=d.need;let html='<div class="quest"><b>'+d.name+'</b><div style="margin-top:5px">'+d.text+'</div><progress max="'+d.need+'" value="'+Math.min(q.progress,d.need)+'"></progress><div style="margin-top:6px">'+q.progress+' / '+d.need+'</div><div style="margin-top:7px">보상: 💰 '+d.gold+' + '+ITEMS[d.item].icon+' '+ITEMS[d.item].name+' x'+d.count+'</div>';if(done&&!q.claimed)html+='<button id="questClaim" style="margin-top:8px">🎁 보상 받기</button>';else if(q.claimed)html+='<div style="margin-top:8px;color:var(--ok)">보상 완료</div>';html+='</div>';openPanel('📜 퀘스트',html);if($('questClaim'))$('questClaim').onclick=()=>sendLocalHost({t:'quest_claim'});}
 
 /* ============================================================
    게임 진입 / 초기화
@@ -1059,8 +1807,11 @@ function enterGame() {
   $('roomCode').textContent = S.code;
   updateBadge();
   bindInput();
+  if (S.peer && S.peer.open && S.players[S.uid]) S.players[S.uid].peerId = S.peer.id;
+  ensureDirectLinks();
   updateHud();
   if (!S.hudTimer) S.hudTimer = setInterval(updateHud, 400);
+  startCapabilityReporting();
   if (!S.drawStarted) {
     S.drawStarted = true;
     requestAnimationFrame(draw);
@@ -1068,8 +1819,14 @@ function enterGame() {
 }
 
 function initLobby() {
+  S.score = capabilityScore(S.caps);
   readProfile();
-  $('btnCreate').onclick = createRoom;
+  $('btnCreate').onclick=createRoom;
+  $('btnQuick').onclick=quickJoin;
+  $('btnInv').onclick=renderInventory;$('btnTrade').onclick=openTradePanel;$('btnChat').onclick=renderChat;$('btnQuest').onclick=renderQuest;$('btnSocial').onclick=renderSocial;$('btnShop').onclick=()=>{if(!nearNpc(S.players[S.uid],NPCS.merchant)){log('🏪 상인 루루에게 2칸 이내로 이동해줘.');return;}renderShop();};$('btnClosePanel').onclick=closePanel;
+  $('networkErrorRetry').onclick=()=>{hideConnectionError();if(S.netErrorRetry){const fn=S.netErrorRetry;S.netErrorRetry=null;fn();}};
+  $('networkErrorLobby').onclick=()=>{hideConnectionError();cleanupNetwork();S.started=false;$('game').hidden=true;$('lobby').hidden=false;lobbyMsg('연결 오류로 방을 종료했어.');updateBadge();};
+  window.addEventListener('keydown',e=>{if(!S.started||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;const k=e.key.toLowerCase();if(k==='i')renderInventory();else if(k==='t')openTradePanel();else if(k==='q')renderQuest();else if(k==='f')renderSocial();else if(k==='b'){if(nearNpc(S.players[S.uid],NPCS.merchant))renderShop();else log('🏪 상인 루루에게 2칸 이내로 이동해줘.');}});
   initDirectory();
   if (!S.roomTimer) S.roomTimer = setInterval(renderRooms, 3000);
   window.addEventListener('resize', () => {
