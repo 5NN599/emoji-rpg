@@ -1,25 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<script>
-/* minig-theme: 미니지 오락실 테마 동기화 (white / beige / dark) */
-(function () {
-  try {
-    var t = localStorage.getItem('minig-theme');
-    if (!['white', 'beige', 'dark'].includes(t)) t = 'dark';
-    document.documentElement.setAttribute('data-theme', t);
-  } catch (e) {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>이모지 RPG · P2P 멀티플레이</title>
 <style>
- :root { --bg:#12162b; --card:#1c2240; --fg:#eef0ff; --sub:#9aa3d0; --line:#313a6b; --acc:#ffb347; --btnfg:#1b1200; --tile1:#232a4d; --tile2:#1f2645; --ok:#5fe39b; --bad:#ff6b7a; --shadow:rgba(0,0,0,.14); }
-[data-theme="white"] { --bg:#f2f4fa; --card:#ffffff; --fg:#1b2033; --sub:#5b6484; --line:#ccd2e6; --acc:#e07b00; --btnfg:#241400; --tile1:#e6ebf7; --tile2:#dde3f2; --ok:#1f9d5b; --bad:#d63a4c; --shadow:rgba(38,46,74,.12); }
-[data-theme="beige"] { --bg:#efe4cf; --card:#f8f0e0; --fg:#3b2f1e; --sub:#7b6a50; --line:#d2c19f; --acc:#b5541c; --btnfg:#fff8ec; --tile1:#e8dcc0; --tile2:#e1d3b3; --ok:#2f8a4f; --bad:#b83232; --shadow:rgba(78,54,20,.12); }
+ :root { color-scheme:light dark; --bg:#f5f7fb; --card:#ffffff; --fg:#1b2033; --sub:#65708f; --line:#d8deeb; --acc:#2f68d8; --btnfg:#ffffff; --tile1:#edf1f7; --tile2:#e5eaf3; --ok:#1f9d5b; --bad:#d63a4c; --shadow:rgba(38,46,74,.12); }
+@media (prefers-color-scheme:dark) { :root { --bg:#12162b; --card:#1c2240; --fg:#eef0ff; --sub:#9aa3d0; --line:#313a6b; --acc:#6ea1ff; --btnfg:#07111f; --tile1:#232a4d; --tile2:#1f2645; --ok:#5fe39b; --bad:#ff6b7a; --shadow:rgba(0,0,0,.24); } }
 * { box-sizing: border-box; }
 html, body { width:100%; height:100%; margin:0; }
 body { background:var(--bg); color:var(--fg); font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif; overflow:hidden; transition:background .2s ease,color .2s ease; }
@@ -41,6 +28,13 @@ input { background:var(--bg); border:1px solid var(--line); border-radius:8px; p
 #stage { position:absolute; inset:0; width:100%; height:100%; padding:0; border:0; border-radius:0; background:var(--bg); box-shadow:none; }
 #cv { position:absolute; inset:0; width:100%; height:100%; display:block; border-radius:0; touch-action:none; background:var(--tile1); }
 #top { position:absolute; z-index:4; top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); right:max(10px,env(safe-area-inset-right)); min-height:0; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 11px; border-radius:12px; background:color-mix(in srgb,var(--card) 82%,transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:0 6px 18px rgba(0,0,0,.18); }
+#zoneHud { position:absolute; z-index:4; top:64px; left:max(10px,env(safe-area-inset-left)); display:flex; flex-direction:column; gap:2px; max-width:min(360px,70vw); padding:8px 11px; border-radius:11px; background:color-mix(in srgb,var(--card) 86%,transparent); border:1px solid color-mix(in srgb,var(--line) 70%,transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:0 6px 18px rgba(0,0,0,.14); pointer-events:none; }
+#zoneName { font-weight:800; font-size:14px; }
+#zoneMeta { color:var(--sub); font-size:11px; }
+#minimapWrap { position:absolute; z-index:5; top:64px; right:12px; width:196px; padding:6px; border-radius:12px; background:color-mix(in srgb,var(--card) 88%,transparent); border:1px solid color-mix(in srgb,var(--line) 75%,transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:0 8px 22px rgba(0,0,0,.16); }
+#minimap { width:100%; height:auto; display:block; image-rendering:pixelated; border-radius:8px; background:var(--bg); }
+#minimapLegend { display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:5px; color:var(--sub); font-size:10px; }
+@media(max-width:720px){ #minimapWrap { width:154px; right:8px; top:100px; } #zoneHud { top:58px; left:8px; } }
 #roomTitle { color:var(--sub); }
 #badge { font-weight:700; color:var(--acc); white-space:nowrap; }
 #badge .net { color:var(--sub); font-weight:600; margin-left:8px; }
@@ -117,6 +111,8 @@ button:disabled { opacity:.55; cursor:not-allowed; }
       <div>방 <b id="roomCode">-----</b> · <span id="roomTitle"></span></div>
       <div style="display:flex;align-items:center;gap:8px"><span id="miniHud">❤️ -- · 💰 --</span><div id="badge"></div></div>
     </div>
+    <div id="zoneHud"><div id="zoneName">🗺️ 루미나 마을</div><div id="zoneMeta">안전구역 · 전투 불가</div></div>
+    <div id="minimapWrap"><canvas id="minimap" width="192" height="128"></canvas><div id="minimapLegend"><span>🟩 마을</span><span>🟦 물</span><span>🟥 던전</span><span>🟡 나</span></div></div>
     <div id="menu">
       <button id="btnInv">🎒 가방</button>
       <button id="btnTrade">🤝 거래</button>
@@ -163,8 +159,20 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 /* ============================================================
    상수 / 유틸
    ============================================================ */
-const W = 20, H = 14, T = 40;
+const W = 96, H = 64, T = 40;
 const TOPIC = 'emoji-rpg-kro/rooms/';
+const MAP_REGIONS = {
+  town:    { key:'town',    x:34, y:21, w:28, h:22, name:'루미나 마을', meta:'안전구역 · 전투 불가', safe:true },
+  safe:    { key:'safe',    x:39, y:25, w:18, h:14, name:'루미나 마을 중앙광장', meta:'안전구역 · 회복과 거래', safe:true },
+  dungeon: { key:'dungeon', x:70, y:17, w:22, h:32, name:'잊힌 광산 던전', meta:'던전 · 몬스터 출현', danger:true },
+  field:   { key:'field',   x:0,  y:0,  w:96, h:64, name:'바람초원', meta:'일반 필드 · 몬스터 출현' }
+};
+const DUNGEON_ENTRANCE = { x:69, y:32, name:'잊힌 광산 입구' };
+const MAP_PATHS = [
+  {x:0,y:31,w:34,h:3}, {x:34,y:30,w:36,h:5}, {x:62,y:31,w:8,h:3}, {x:56,y:0,w:4,h:21}, {x:48,y:39,w:4,h:25}
+];
+const LAKE = {x:8,y:7,w:18,h:13};
+const RIVER = {x:64,y:0,w:3,h:64};
 const BROKER = 'wss://broker.emqx.io:8084/mqtt';
 const EMOJIS = ['⚔️', '🧙‍♂️', '🏹', '🥷', '🛡️', '🧝', '🧛', '🐱'];
 const MONS = {
@@ -188,13 +196,65 @@ const MON_DROPS = {
 const QUESTS = {
   slime_hunt: { id:'slime_hunt', name:'슬라임 토벌', text:'슬라임 5마리 처치', need:5, item:'potion', count:2, gold:30 }
 };
-const NPCS = { merchant: { id:'merchant', x:10, y:5, name:'상인 루루', icon:'🧑‍🍳' } };
+const NPCS = { merchant: { id:'merchant', x:49, y:29, name:'상인 루루', icon:'🧑‍🍳' } };
 const $ = id => document.getElementById(id);
 const rnd = n => Math.floor(Math.random() * n);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 const maxHp = p => 50 + p.lv * 10;
 const hostId = (code, gen) => 'erpg-' + code + '-h' + gen;
+function insideRect(x,y,r){ return x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h; }
+function regionAt(x,y){
+  if(insideRect(x,y,MAP_REGIONS.safe)) return MAP_REGIONS.safe;
+  if(insideRect(x,y,MAP_REGIONS.town)) return MAP_REGIONS.town;
+  if(insideRect(x,y,MAP_REGIONS.dungeon)) return MAP_REGIONS.dungeon;
+  return MAP_REGIONS.field;
+}
+function isRoad(x,y){ return MAP_PATHS.some(r=>insideRect(x,y,r)); }
+function isForest(x,y){ return x>=4&&x<30&&y>=40&&y<60; }
+function isLake(x,y){ return insideRect(x,y,LAKE); }
+function isWater(x,y){
+  if(isLake(x,y)) return true;
+  if(insideRect(x,y,RIVER)) return !(y>=29&&y<=35);
+  return false;
+}
+function isDungeonWall(x,y){
+  const r=MAP_REGIONS.dungeon;
+  if(!insideRect(x,y,r)) return false;
+  const left=x===r.x, right=x===r.x+r.w-1, top=y===r.y, bottom=y===r.y+r.h-1;
+  if(!(left||right||top||bottom)) return false;
+  return !(left && y>=29 && y<=35);
+}
+function isTownWall(x,y){
+  const r=MAP_REGIONS.town;
+  if(!insideRect(x,y,r)) return false;
+  const wall = x===r.x || x===r.x+r.w-1 || y===r.y || y===r.y+r.h-1;
+  if(!wall) return false;
+  // 서쪽·동쪽 통로와 남쪽 광장 출입구를 열어둔다.
+  if((x===r.x || x===r.x+r.w-1) && y>=30 && y<=34) return false;
+  if(y===r.y && x>=46 && x<=50) return false;
+  if(y===r.y+r.h-1 && x>=46 && x<=50) return false;
+  return true;
+}
+function hash2(x,y){ let n=(x*374761393+y*668265263)|0; n=(n^(n>>>13))*1274126177; return (n^(n>>>16))>>>0; }
+function isBlocked(x,y){
+  if(x<0||y<0||x>=W||y>=H) return true;
+  if(isWater(x,y)) return true;
+  if(isTownWall(x,y)||isDungeonWall(x,y)) return true;
+  if(isForest(x,y) && (hash2(x,y)%100)<31 && !isRoad(x,y)) return true;
+  // 바람초원 곳곳의 바위·나무는 결정적으로 생성된다.
+  if(!isRoad(x,y) && !insideRect(x,y,MAP_REGIONS.town) && !insideRect(x,y,MAP_REGIONS.dungeon) && (hash2(x+17,y+41)%100)<4) return true;
+  // 던전 내부는 통로와 방 형태로 일부 장애물을 만든다.
+  if(insideRect(x,y,MAP_REGIONS.dungeon) && !isDungeonWall(x,y)){
+    const rx=x-MAP_REGIONS.dungeon.x, ry=y-MAP_REGIONS.dungeon.y;
+    if((rx===6||rx===14) && ry>3 && ry<28) return true;
+    if((ry===9||ry===21) && rx>2 && rx<19) return true;
+    if((rx===6||rx===14) && (ry===9||ry===21)) return false;
+  }
+  return false;
+}
+function isSafeZone(x,y){ return !!regionAt(x,y).safe; }
+function zoneTextForPlayer(p){ return regionAt(p.x,p.y); }
 
 /* 기기 성능/네트워크 측정
    - CPU: 짧은 실제 연산 벤치마크 + 논리 코어 수
@@ -267,7 +327,7 @@ const S = {
   friendCode: '', friends: {}, blocked: {}, reports: [], reportGuard: {}, parties: {}, partyInvites: {},
   lastMove: 0, lastAtk: 0, walkTo: null, retry: 0, targetHid: '',
   moveSeq: 0, moveAck: {}, pendingMoves: [],
-  rooms: {}, mq: null, fx: [], vis: {},
+  rooms: {}, mq: null, fx: [], vis: {}, camera: {x:48,y:32}, walkPath: [], currentZone:'', minimapLast:0,
   gameTimers: [], hostTimer: null, hudTimer: null, roomTimer: null, moveTimer: null, roomPublishTimer: null,
   inputBound: false, drawStarted: false, netState: 'idle',
   peerWaiters: [], netErrorRetry: null
@@ -423,7 +483,7 @@ function readProfile() {
   try { S.blocked = JSON.parse(localStorage.getItem('emoji-rpg-blocked') || '{}') || {}; } catch (e) { S.blocked = {}; }
 }
 function starterPlayer(id, name, emoji, score, friendCode) {
-  return { id, name, emoji, friendCode: String(friendCode || '').toUpperCase().slice(0,8), score, x: W >> 1, y: H >> 1,
+  return { id, name, emoji, friendCode: String(friendCode || '').toUpperCase().slice(0,8), score, x: 48, y: 32,
     hp: 60, lv: 1, xp: 0, gold: 40, atk: 10, def: 0,
     inv: { potion: 3, ironSword: 1, leather: 1 }, equip: { weapon: 'ironSword', armor: 'leather' },
     quest: { id:'slime_hunt', progress:0, claimed:false } };
@@ -598,6 +658,7 @@ function failJoin() {
   S.targetHid = '';
   S.hostUid = '';
   S.pendingMoves = [];
+  S.walkPath = []; S.walkTo = null;
   if (wasStarted) {
     S.started = false;
     $('game').hidden = true;
@@ -1206,6 +1267,9 @@ function hostRecv(c, m) {
       return;
     }
 
+    if (isBlocked(nx,ny)) {
+      S.moveAck[c.uid] = seq; c.send({t:'ack',s:seq,x:p.x,y:p.y}); return;
+    }
     if (Object.values(S.players).some(q => q.id !== c.uid && q.x === nx && q.y === ny)) {
       S.moveAck[c.uid] = seq; c.send({t:'ack',s:seq,x:p.x,y:p.y}); return;
     }
@@ -1291,280 +1355,69 @@ function broadcastEvent(ev) {
 
 function spawnMon() {
   const r = Math.random();
-  const e = r < 0.6 ? '🦠' : (r < 0.9 ? '👺' : '🐉');
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const edge = rnd(4);
-    const x = edge === 0 ? 0 : edge === 1 ? W - 1 : rnd(W);
-    const y = edge === 2 ? 0 : edge === 3 ? H - 1 : rnd(H);
-    const playerBusy = Object.values(S.players).some(p => p.x === x && p.y === y);
-    const monsterBusy = S.mons.some(m => m.x === x && m.y === y);
-    if (playerBusy || monsterBusy) continue;
-    S.mons.push({ id: S.monSeq++, e, x, y, hp: MONS[e].hp, mx: MONS[e].hp, next: Date.now() + 1200 });
+  for (let attempt = 0; attempt < 80; attempt++) {
+    let x, y, e;
+    if(r < 0.18){
+      const dr=MAP_REGIONS.dungeon; x=dr.x+1+rnd(dr.w-2); y=dr.y+1+rnd(dr.h-2);
+      e = Math.random()<0.55 ? '👺' : (Math.random()<0.75 ? '🐉' : '🦠');
+    } else {
+      x=4+rnd(W-8); y=3+rnd(H-6);
+      const zone=regionAt(x,y); if(zone.safe||zone.key==='dungeon') continue;
+      e = Math.random()<0.6 ? '🦠' : (Math.random()<0.9 ? '👺' : '🐉');
+    }
+    if(isBlocked(x,y)||isSafeZone(x,y)) continue;
+    const playerBusy=Object.values(S.players).some(p=>p.x===x&&p.y===y);
+    const monsterBusy=S.mons.some(m=>m.x===x&&m.y===y);
+    if(playerBusy||monsterBusy) continue;
+    S.mons.push({id:S.monSeq++,e,x,y,hp:MONS[e].hp,mx:MONS[e].hp,next:Date.now()+1200});
     return;
   }
 }
 
-function hurtPlayer(p,d){ const actual=Math.max(1,d-effectiveDef(p)); p.hp-=actual;
-  broadcastEvent({ k:'hurt', id:p.id, d:actual });
-  if (p.hp <= 0) {
-    p.hp = maxHp(p); p.x = W >> 1; p.y = H >> 1;
-    broadcastEvent({ k: 'respawn', id: p.id, x: p.x, y: p.y });
-    broadcastEvent({ k: 'log', s: '💀 ' + p.name + ' 님이 쓰러졌다가 부활했습니다.' });
-  }
-}
-
-function effectiveRtt(stats) {
-  if (!stats) return 80;
-  const fresh = Number.isFinite(stats.lastPongAt) && (Date.now() - stats.lastPongAt < 6500);
-  if (fresh && Number.isFinite(stats.measuredRtt)) return clamp(stats.measuredRtt, 1, 5000);
-  return clamp(Number(stats.browserRtt) || 80, 1, 5000);
-}
-
-function median(values) {
-  const a = values.filter(Number.isFinite).slice().sort((x, y) => x - y);
-  if (!a.length) return 80;
-  const i = Math.floor(a.length / 2);
-  return a.length % 2 ? a[i] : (a[i - 1] + a[i]) / 2;
-}
-
-function compareCandidateToHost(uid) {
-  const c = S.hostStats[uid];
-  if (!c) return 0;
-  const host = S.caps;
-  const peerRtts = Object.keys(S.hostStats)
-    .filter(id => id !== S.uid && id !== uid)
-    .map(id => effectiveRtt(S.hostStats[id]));
-  const hostNet = peerRtts.length ? median(peerRtts) : effectiveRtt(host);
-  const candidateNet = effectiveRtt(c);
-
-  const cpuRatio = clamp((c.cpuPerf || 1) / Math.max(1, host.cpuPerf || 1), 0.35, 3);
-  const ramRatio = clamp((c.ram || 4) / Math.max(0.25, host.ram || 4), 0.35, 3);
-  const netRatio = clamp(hostNet / candidateNet, 0.35, 3);
-
-  // CPU 55% + RAM 20% + 네트워크 25%.
-  return Math.pow(cpuRatio, 0.55) * Math.pow(ramRatio, 0.20) * Math.pow(netRatio, 0.25);
-}
-
-function chooseBetterHost() {
-  if (!S.isHost || S.migrating || S.handoffBusy || Date.now() < S.hostSwitchCooldownUntil) return;
-
-  const now = Date.now();
-  const candidates = Object.keys(S.conns)
-    .filter(id => id !== S.uid)
-    .map(id => ({ id, adv: compareCandidateToHost(id), rtt: effectiveRtt(S.hostStats[id]) }))
-    .filter(x => x.adv >= 1.12); // 12% 이상 지속 우위일 때만 후보
-
-  if (!candidates.length) {
-    S.betterHostUid = '';
-    S.betterHostSince = 0;
-    return;
-  }
-
-  candidates.sort((a, b) => (b.adv - a.adv) || (a.id < b.id ? -1 : 1));
-  const best = candidates[0];
-
-  if (S.betterHostUid !== best.id) {
-    S.betterHostUid = best.id;
-    S.betterHostSince = now;
-    return;
-  }
-
-  // 순간적인 벤치/핑 변동으로 방장이 계속 바뀌지 않도록 12초 이상 유지.
-  if (now - S.betterHostSince < 12000) return;
-  beginHostHandoff(best.id, best.adv);
-}
-
-function beginHostHandoff(targetUid, advantage) {
-  if (!S.isHost || S.handoffBusy || !S.conns[targetUid]) return;
-  S.handoffBusy = true;
-  S.handoffReady = false;
-  S.migrating = true;
-  const newGen = S.gen + 1;
-  const target = S.conns[targetUid];
-  const handoffState = {
-    t: 'handoff_state',
-    g: newGen, h: targetUid,
-    p: S.players, m: S.mons, a: S.moveAck,
-    ms: S.monSeq, ns: S.nextSpawn, tr: S.trades, tq: S.tradeSeq, ch: S.chat, pt: S.parties, rp: S.reports
-  };
-
-  try {
-    target.send(handoffState);
-    bcast({ t: 'ev', k: 'handoff', to: targetUid, g: newGen, n: S.players[targetUid] ? S.players[targetUid].name : '새 방장' });
-    log('🔄 더 높은 성능의 참가자에게 방장을 넘기는 중… (' + Math.round(advantage * 100) + '%)');
-  } catch (e) {
-    S.handoffBusy = false;
-    S.migrating = false;
-    return;
-  }
-
-  const handoffStarted = Date.now();
-  const finishHandoff = () => {
-    if (!S.handoffBusy || S.gen !== newGen - 1) return;
-    if (!S.handoffReady && Date.now() - handoffStarted < 6000) {
-      setTimeout(finishHandoff, 150);
-      return;
-    }
-    S.hostSwitchCooldownUntil = Date.now() + 30000;
-    S.isHost = false;
-    S.hostUid = targetUid;
-    S.gen = newGen;
-    S.handoffBusy = false;
-    S.migrating = true;
-    if (S.hostPeer && !S.hostPeer.destroyed) { try { S.hostPeer.destroy(); } catch (e) {} }
-    S.hostPeer = null;
-    Object.values(S.conns).forEach(c => { try { c.close(); } catch (e) {} });
-    S.conns = {};
-    if (S.hostConn && S.hostConn.open) { try { S.hostConn.close(); } catch (e) {} }
-    S.hostConn = null;
-    ensurePeer(() => connectToHost(hostId(S.code, newGen)));
-  };
-  setTimeout(finishHandoff, 150);
-}
-
-function startHostMonitoring() {
-  if (S.hostProbeTimer) clearInterval(S.hostProbeTimer);
-  if (S.hostElectionTimer) clearInterval(S.hostElectionTimer);
-  S.hostProbeTimer = setInterval(() => {
-    if (!S.isHost || S.migrating) return;
-    const now = Date.now();
-    Object.values(S.conns).forEach(c => {
-      if (!c.open) return;
-      try { c.send({ t: 'ping', ts: now }); } catch (e) {}
-    });
-  }, 2000);
-  S.hostElectionTimer = setInterval(() => {
-    if (S.isHost && !S.migrating) chooseBetterHost();
-  }, 3000);
-}
-
-function startCapabilityReporting() {
-  if (S.capReportTimer) clearInterval(S.capReportTimer);
-  S.capReportTimer = setInterval(() => {
-    const navConn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    S.caps.browserRtt = Math.max(1, Number(navConn && navConn.rtt) || S.caps.browserRtt || 80);
-    S.caps.updatedAt = Date.now();
-    if (!S.isHost && S.hostConn && S.hostConn.open) {
-      try { S.hostConn.send({ t: 'caps', c: { ...S.caps } }); } catch (e) {}
-    }
-  }, 8000);
-}
-
-function hostTick() {
-  if (S.handoffBusy) return;
-  const now = Date.now(), ids = Object.keys(S.players);
-  if (now > S.graceUntil) ids.forEach(id => { if (id !== S.uid && !S.conns[id]) { delete S.players[id]; delete S.moveAck[id]; } });
-  const liveCount = Object.keys(S.players).length;
-  const cap = Math.min(12, 3 + liveCount * 2);
-  if (now > S.nextSpawn && S.mons.length < cap) { spawnMon(); S.nextSpawn = now + 2500; }
-  S.mons.forEach(m => {
-    if (now < m.next) return;
-    let tgt = null, best = 99;
-    Object.values(S.players).forEach(p => { const d = cheb(m, p); if (d < best) { best = d; tgt = p; } });
-    if (!tgt) return;
-    m.next = now + MONS[m.e].spd;
-    if (best <= 1) hurtPlayer(tgt, MONS[m.e].dmg);
-    else {
-      const dx = Math.sign(tgt.x - m.x), dy = Math.sign(tgt.y - m.y);
-      const steps = Math.abs(tgt.x - m.x) >= Math.abs(tgt.y - m.y)
-        ? [[dx, 0], [0, dy]]
-        : [[0, dy], [dx, 0]];
-      for (const [sx, sy] of steps) {
-        if (!sx && !sy) continue;
-        const nx = m.x + sx, ny = m.y + sy;
-        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
-        if (S.mons.some(o => o !== m && o.x === nx && o.y === ny)) continue;
-        m.x = nx; m.y = ny;
-        break;
-      }
-    }
-  });
-  bcast(snapshot());
-}
-
-function doAttack(uid) {
-  const p = S.players[uid];
-  if (!p) return;
-  const near = S.mons.filter(m => cheb(m, p) <= 1).sort((a, b) => cheb(a, p) - cheb(b, p));
-  const t = near[0];
-  if (!t) return;
-  const dmg = effectiveAtk(p) + rnd(5);
-  t.hp -= dmg;
-  broadcastEvent({ k: 'hit', x: t.x, y: t.y, d: dmg });
-  if (t.hp > 0) return;
-  S.mons = S.mons.filter(m => m !== t);
-  const def = MONS[t.e];
-  addMonsterReward(p,t.e);
-  p.gold += def.gold; p.xp += def.xp;
-  broadcastEvent({ k:'log', s:'⚔️ '+p.name+' 님이 '+t.e+' 격파! +'+def.gold+'💰 +'+def.xp+'XP' });
-  while(p.xp>=p.lv*30){p.xp-=p.lv*30;p.lv++;p.hp=maxHp(p);broadcastEvent({k:'lvl',id:p.id,lv:p.lv,n:p.name});}
-}
-
-/* ============================================================
-   이벤트 처리 (전원 공통 연출)
-   ============================================================ */
-function addFx(o) { o.t0 = Date.now(); S.fx.push(o); }
-function handleEvent(ev) {
-  if (ev.k === 'hit') {
-    addFx({ x: ev.x, y: ev.y, s: '-' + ev.d, c: '#ffd34d', life: 700 });
-    playSound('attack');
-  } else if (ev.k === 'heal') {
-    const p=S.players[ev.id]; if(p){ addFx({id:ev.id,s:'+'+ev.d,c:'#7dffb0',life:700}); playSound('lvl'); }
-  } else if (ev.k === 'hurt') {
-    const p = S.players[ev.id];
-    if (p) {
-      const bad = getComputedStyle(document.documentElement).getPropertyValue('--bad').trim() || '#ff6b7a';
-      addFx({ id: ev.id, s: '-' + ev.d, c: bad, life: 700 });
-      playSound('attack');
-    }
-  } else if (ev.k === 'respawn') {
-    if (ev.id === S.uid && S.players[S.uid]) { S.players[S.uid].x = ev.x; S.players[S.uid].y = ev.y; }
-  } else if (ev.k === 'lvl') {
-    addFx({ id: ev.id, s: 'LEVEL UP! Lv.' + ev.lv, c: '#7dffb0', life: 1400, ring: true });
-    playSound('lvl');
-    log('🎉 ' + ev.n + ' 님이 Lv.' + ev.lv + ' 달성!');
-  } else if (ev.k === 'host') {
-    playSound('sys'); log(ev.s); updateBadge();
-  } else if (ev.k === 'log') {
-    log(ev.s);
-  }
-}
 
 /* ============================================================
    입력 / 이동 / 공격
    ============================================================ */
 function tryMove(dx, dy) {
   const p = S.players[S.uid], now = Date.now();
-  if (!p || S.migrating || now - S.lastMove < 100) return;
-
-  dx = clamp(dx | 0, -1, 1);
-  dy = clamp(dy | 0, -1, 1);
+  if (!p || S.migrating || now - S.lastMove < 85) return;
+  dx = clamp(dx | 0, -1, 1); dy = clamp(dy | 0, -1, 1);
   if (Math.abs(dx) + Math.abs(dy) !== 1) return;
-
-  const nx = clamp(p.x + dx, 0, W - 1);
-  const ny = clamp(p.y + dy, 0, H - 1);
+  const nx = clamp(p.x + dx, 0, W - 1), ny = clamp(p.y + dy, 0, H - 1);
   if (nx === p.x && ny === p.y) return;
-
-  if (S.mons.find(m => m.x === nx && m.y === ny)) {
-    attack();
-    return;
+  if (isBlocked(nx,ny)) return;
+  const monster = S.mons.find(m => m.x===nx && m.y===ny);
+  if (monster) { attack(); return; }
+  if (Object.values(S.players).some(q=>q.id!==S.uid&&q.x===nx&&q.y===ny)) return;
+  S.lastMove = now; playSound('move');
+  if (S.isHost) { p.x=nx; p.y=ny; S.moveSeq++; S.moveAck[S.uid]=S.moveSeq; }
+  else if (S.hostConn && S.hostConn.open) {
+    const seq=++S.moveSeq; S.pendingMoves.push({s:seq,dx,dy}); p.x=nx; p.y=ny; S.hostConn.send({t:'mv',s:seq,dx,dy});
   }
+}
 
-  S.lastMove = now;
-  playSound('move');
-
-  if (S.isHost) {
-    p.x = nx; p.y = ny;
-    S.moveSeq++;
-    S.moveAck[S.uid] = S.moveSeq;
-  } else if (S.hostConn && S.hostConn.open) {
-    const seq = ++S.moveSeq;
-    S.pendingMoves.push({ s: seq, dx, dy });
-    p.x = nx; p.y = ny; // 클라이언트 예측
-    S.hostConn.send({ t: 'mv', s: seq, dx, dy });
-  } else {
-    return;
+function findPath(start,target){
+  if(!start||!target||isBlocked(target.x,target.y)) return [];
+  const key=(x,y)=>x+','+y, startK=key(start.x,start.y), targetK=key(target.x,target.y);
+  const open=[{x:start.x,y:start.y,g:0,f:0}], came=new Map(), cost=new Map([[startK,0]]);
+  while(open.length){
+    open.sort((a,b)=>a.f-b.f); const cur=open.shift(); const ck=key(cur.x,cur.y);
+    if(ck===targetK){ const path=[]; let k=ck; while(k!==startK){ const q=came.get(k); if(!q) break; path.push(q.step); k=q.from; } return path.reverse(); }
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=cur.x+dx,ny=cur.y+dy,nk=key(nx,ny);
+      if(isBlocked(nx,ny)) continue;
+      const occupied=Object.values(S.players).some(p=>p.id!==S.uid&&p.x===nx&&p.y===ny); if(occupied) continue;
+      const ng=cur.g+1; if(ng>50) continue; if(cost.has(nk)&&ng>=cost.get(nk)) continue;
+      cost.set(nk,ng); const h=Math.abs(target.x-nx)+Math.abs(target.y-ny); open.push({x:nx,y:ny,g:ng,f:ng+h}); came.set(nk,{from:ck,step:[dx,dy]});
+    }
   }
+  return [];
+}
+
+function setWalkTarget(x,y){
+  const p=S.players[S.uid]; if(!p) return;
+  x=clamp(x,0,W-1); y=clamp(y,0,H-1); S.walkTo={x,y}; S.walkPath=findPath({x:p.x,y:p.y},{x,y});
+  if(!S.walkPath.length && (p.x!==x||p.y!==y)) S.walkTo=null;
 }
 
 function attack() {
@@ -1590,20 +1443,18 @@ function bindInput() {
   });
   $('btnAtk').addEventListener('click', attack);
   $('cv').addEventListener('pointerdown', e => {
-    const r = $('cv').getBoundingClientRect();
-    const x = Math.floor((e.clientX - r.left) / r.width * W);
-    const y = Math.floor((e.clientY - r.top) / r.height * H);
-    S.walkTo = { x: clamp(x, 0, W - 1), y: clamp(y, 0, H - 1) };
+    const r = $('cv').getBoundingClientRect(); const m=boardMetrics();
+    const sx=e.clientX-r.left, sy=e.clientY-r.top; const world=screenToWorld(sx,sy,m); setWalkTarget(world.x,world.y);
   });
   if (!S.moveTimer) S.moveTimer = setInterval(() => {
-    const p = S.players[S.uid], w = S.walkTo;
-    if (!p || !w) return;
-    const monHere = S.mons.find(m => m.x === w.x && m.y === w.y);
-    if (monHere && cheb(monHere, p) <= 1) { attack(); return; }
-    if (p.x === w.x && p.y === w.y) { S.walkTo = null; return; }
-    const dx = w.x - p.x, dy = w.y - p.y;
-    if (Math.abs(dx) >= Math.abs(dy)) tryMove(Math.sign(dx), 0); else tryMove(0, Math.sign(dy));
-  }, 130);
+    const p=S.players[S.uid]; if(!p||!S.walkTo) return;
+    if(p.x===S.walkTo.x&&p.y===S.walkTo.y){S.walkTo=null;S.walkPath=[];return;}
+    const monHere=S.mons.find(m=>m.x===S.walkTo.x&&m.y===S.walkTo.y);
+    if(monHere&&cheb(monHere,p)<=1){attack();return;}
+    if(!S.walkPath.length) S.walkPath=findPath({x:p.x,y:p.y},S.walkTo);
+    const step=S.walkPath.shift(); if(!step){S.walkTo=null;return;}
+    tryMove(step[0],step[1]);
+  }, 105);
 }
 
 /* ============================================================
@@ -1635,9 +1486,36 @@ function resizeCanvas() {
 }
 
 function boardMetrics() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  return { w, h, tw: w / W, th: h / H, unit: Math.min(w / W, h / H) };
+  const w=window.innerWidth, h=window.innerHeight;
+  const tw=clamp(Math.min(w/22,h/14),24,48), th=tw;
+  const cols=Math.ceil(w/tw)+2, rows=Math.ceil(h/th)+2;
+  return {w,h,tw,th,unit:tw,cols,rows};
+}
+function updateCamera(m){
+  const p=S.players[S.uid]; if(!p) return;
+  const halfX=m.w/(2*m.tw), halfY=m.h/(2*m.th);
+  S.camera.x=clamp(p.x,halfX,W-halfX-1); S.camera.y=clamp(p.y,halfY,H-halfY-1);
+}
+function worldToScreen(x,y,m){ return {x:(x-S.camera.x)*m.tw+m.w/2, y:(y-S.camera.y)*m.th+m.h/2}; }
+function screenToWorld(sx,sy,m){ return {x:clamp(Math.floor((sx-m.w/2)/m.tw+S.camera.x),0,W-1), y:clamp(Math.floor((sy-m.h/2)/m.th+S.camera.y),0,H-1)}; }
+function zoneColors(zone){
+  if(zone.key==='safe') return {fill:'#78b78a',edge:'#3e8050'};
+  if(zone.key==='town') return {fill:'#8bb39c',edge:'#567866'};
+  if(zone.key==='dungeon') return {fill:'#734f68',edge:'#3c2540'};
+  return {fill:'#a9c57b',edge:'#748e4e'};
+}
+function drawTile(x,y,sx,sy,m,css){
+  const zone=regionAt(x,y), road=isRoad(x,y), water=isWater(x,y), blocked=isBlocked(x,y);
+  let base=(x+y)%2?css.c1:css.c2;
+  if(water) base='#74a8c9';
+  else if(zone.key==='dungeon') base='#5b4659';
+  else if(zone.key==='safe') base=road?'#d8c79d':'#b9c9ae';
+  else if(zone.key==='town') base=road?'#c7baa1':'#a8c39a';
+  else if(isForest(x,y)) base='#7fa96c';
+  ctx.fillStyle=base; ctx.fillRect(sx,sy,m.tw+1,m.th+1);
+  if(blocked&&!water){ ctx.fillStyle=zone.key==='dungeon'?'#33283a':(zone.key==='town'?'#6f5f48':'#58734a'); ctx.fillRect(sx+m.tw*.16,sy+m.th*.14,m.tw*.68,m.th*.68); }
+  if(zone.key==='town' && !blocked && !water){ ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;ctx.strokeRect(sx+.5,sy+.5,m.tw-1,m.th-1); }
+  if(zone.key==='dungeon' && !blocked && !water && ((x+y)%5===0)){ ctx.fillStyle='rgba(255,210,120,.18)';ctx.beginPath();ctx.arc(sx+m.tw*.5,sy+m.th*.52,m.tw*.12,0,Math.PI*2);ctx.fill(); }
 }
 
 function drawNameplate(label, cx, topY, unit, color) {
@@ -1659,103 +1537,38 @@ function drawNameplate(label, cx, topY, unit, color) {
 }
 
 function draw() {
-  if (!S.started) {
-    S.drawStarted = false;
-    return;
-  }
-
-  resizeCanvas();
-  const { tw, th, unit, w, h } = boardMetrics();
-  const css = getComputedStyle(document.documentElement);
-  const c1 = css.getPropertyValue('--tile1').trim();
-  const c2 = css.getPropertyValue('--tile2').trim();
-  const fg = css.getPropertyValue('--fg').trim();
-  const acc = css.getPropertyValue('--acc').trim();
-  const ok = css.getPropertyValue('--ok').trim();
-  const bad = css.getPropertyValue('--bad').trim();
-
-  ctx.globalAlpha = 1;
-  ctx.lineWidth = 1;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    ctx.fillStyle = (x + y) % 2 ? c1 : c2;
-    ctx.fillRect(x * tw, y * th, tw + 1, th + 1);
-  }
-
-  if (S.walkTo) {
-    ctx.strokeStyle = acc;
-    ctx.lineWidth = Math.max(2, unit * 0.05);
-    ctx.strokeRect(S.walkTo.x * tw + 2, S.walkTo.y * th + 2, tw - 4, th - 4);
-  }
-
-  Object.values(NPCS).forEach(npc=>{const cx=npc.x*tw+tw/2,cy=npc.y*th+th/2;ctx.font=(unit*0.72)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(npc.icon,cx,cy);drawNameplate('🏪 '+npc.name,cx,npc.y*th-2,unit,ok);});
-
-  S.mons.forEach(m => {
-    const v = smooth('m' + m.id, m.x, m.y);
-    const px = v.x * tw, py = v.y * th;
-    ctx.font = (unit * 0.72) + 'px ' + FONT;
-    ctx.fillStyle = fg;
-    ctx.fillText(m.e, px + tw / 2, py + th / 2);
-    bar(px + 4, py + 2, Math.max(8, tw - 8), m.hp / m.mx, bad);
-  });
-
-  Object.values(S.players).forEach(p => {
-    const v = smooth('p' + p.id, p.x, p.y);
-    const px = v.x * tw, py = v.y * th;
-    const cx = px + tw / 2;
-    const cy = py + th / 2;
-
-    if (p.id === S.uid) {
-      ctx.strokeStyle = acc;
-      ctx.lineWidth = Math.max(2, unit * 0.055);
-      ctx.beginPath();
-      ctx.arc(cx, cy, Math.min(tw, th) * 0.44, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    ctx.font = (unit * 0.68) + 'px ' + FONT;
-    ctx.fillStyle = fg;
-    ctx.fillText(p.emoji, cx, cy);
-
-    const playerColor = p.id === S.uid ? acc : fg;
-    const label = (p.id === S.hostUid ? '👑 ' : '') + p.name;
-    drawNameplate(label, cx, py - Math.max(2, th * 0.04), unit, playerColor);
-
-    bar(px + 4, py + th - Math.max(8, unit * 0.12), Math.max(8, tw - 8), p.hp / maxHp(p), ok);
-  });
-
-  const now = Date.now();
-  S.fx = S.fx.filter(f => now - f.t0 < f.life);
-  S.fx.forEach(f => {
-    const a = (now - f.t0) / f.life;
-    let x = f.x, y = f.y;
-    if (f.id) {
-      const v = S.vis['p' + f.id];
-      if (!v) return;
-      x = v.x; y = v.y;
-    }
-    const px = x * tw + tw / 2;
-    const py = y * th + th / 2 - a * unit * 0.8;
-    ctx.globalAlpha = 1 - a;
-    if (f.ring) {
-      ctx.strokeStyle = f.c;
-      ctx.lineWidth = Math.max(2, unit * 0.07);
-      ctx.beginPath();
-      ctx.arc(x * tw + tw / 2, y * th + th / 2, unit * (0.25 + a * 1.5), 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.font = '700 ' + clamp(unit * 0.32, 13, 22) + 'px sans-serif';
-    ctx.fillStyle = f.c;
-    ctx.strokeStyle = 'rgba(0,0,0,.8)';
-    ctx.lineWidth = Math.max(2, unit * 0.06);
-    ctx.strokeText(f.s, px, py);
-    ctx.fillText(f.s, px, py);
-  });
-  ctx.globalAlpha = 1;
-
+  if(!S.started){S.drawStarted=false;return;}
+  resizeCanvas(); const m=boardMetrics(); updateCamera(m);
+  const css=getComputedStyle(document.documentElement),c1=css.getPropertyValue('--tile1').trim(),c2=css.getPropertyValue('--tile2').trim(),fg=css.getPropertyValue('--fg').trim(),acc=css.getPropertyValue('--acc').trim(),ok=css.getPropertyValue('--ok').trim(),bad=css.getPropertyValue('--bad').trim();
+  ctx.globalAlpha=1;ctx.lineWidth=1;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=css.getPropertyValue('--bg').trim();ctx.fillRect(0,0,m.w,m.h);
+  const startX=Math.max(0,Math.floor(S.camera.x-m.w/(2*m.tw))-2),endX=Math.min(W-1,Math.ceil(S.camera.x+m.w/(2*m.tw))+2);
+  const startY=Math.max(0,Math.floor(S.camera.y-m.h/(2*m.th))-2),endY=Math.min(H-1,Math.ceil(S.camera.y+m.h/(2*m.th))+2);
+  for(let y=startY;y<=endY;y++)for(let x=startX;x<=endX;x++){const q=worldToScreen(x,y,m);drawTile(x,y,q.x,q.y,m,{c1,c2});}
+  if(S.walkTo){const q=worldToScreen(S.walkTo.x,S.walkTo.y,m);ctx.strokeStyle=acc;ctx.lineWidth=3;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}
+  // 던전 입구
+  {const q=worldToScreen(DUNGEON_ENTRANCE.x,DUNGEON_ENTRANCE.y,m);ctx.font=(m.unit*.62)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText('🚪',q.x+m.tw/2,q.y+m.th/2);}
+  Object.values(NPCS).forEach(npc=>{const q=worldToScreen(npc.x,npc.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*.72)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(npc.icon,cx,cy);drawNameplate('🏪 '+npc.name,cx,q.y-2,m.unit,ok);});
+  S.mons.forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y),q=worldToScreen(v.x,v.y,m),px=q.x,py=q.y;ctx.font=(m.unit*.72)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(mon.e,px+m.tw/2,py+m.th/2);bar(px+4,py+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);});
+  Object.values(S.players).forEach(p=>{const v=smooth('p'+p.id,p.x,p.y),q=worldToScreen(v.x,v.y,m),px=q.x,py=q.y,cx=px+m.tw/2,cy=py+m.th/2;if(p.id===S.uid){ctx.strokeStyle=acc;ctx.lineWidth=Math.max(2,m.unit*.055);ctx.beginPath();ctx.arc(cx,cy,Math.min(m.tw,m.th)*.44,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(p.emoji,cx,cy);const playerColor=p.id===S.uid?acc:fg;const label=(p.id===S.hostUid?'👑 ':'')+p.name;drawNameplate(label,cx,py-Math.max(2,m.th*.04),m.unit,playerColor);bar(px+4,py+m.th-Math.max(8,m.unit*.12),Math.max(8,m.tw-8),p.hp/maxHp(p),ok);});
+  const now=Date.now();S.fx=S.fx.filter(f=>now-f.t0<f.life);S.fx.forEach(f=>{const a=(now-f.t0)/f.life;let x=f.x,y=f.y;if(f.id){const v=S.vis['p'+f.id];if(!v)return;x=v.x;y=v.y;}const q=worldToScreen(x,y,m),px=q.x+m.tw/2,py=q.y+m.th/2-a*m.unit*.8;ctx.globalAlpha=1-a;if(f.ring){ctx.strokeStyle=f.c;ctx.lineWidth=Math.max(2,m.unit*.07);ctx.beginPath();ctx.arc(px,py,m.unit*(.25+a*1.5),0,Math.PI*2);ctx.stroke();}ctx.font='700 '+clamp(m.unit*.32,13,22)+'px sans-serif';ctx.fillStyle=f.c;ctx.strokeStyle='rgba(0,0,0,.8)';ctx.lineWidth=Math.max(2,m.unit*.06);ctx.strokeText(f.s,px,py);ctx.fillText(f.s,px,py);});
+  ctx.globalAlpha=1;
+  updateZoneHud();
+  if(now-S.minimapLast>220){drawMinimap();S.minimapLast=now;}
   requestAnimationFrame(draw);
+}
+
+function updateZoneHud(){
+  const p=S.players[S.uid];if(!p)return;const z=zoneTextForPlayer(p);if(S.currentZone===z.key)return;S.currentZone=z.key;$('zoneName').textContent=(z.key==='safe'?'🛡️ ':z.key==='town'?'🏘️ ':z.key==='dungeon'?'🟥 ':'🌿 ')+z.name;$('zoneMeta').textContent=z.meta;
+}
+function drawMinimap(){
+  const mc=$('minimap'),mx=mc.getContext('2d'),sx=mc.width/W,sy=mc.height/H;
+  mx.clearRect(0,0,mc.width,mc.height);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const z=regionAt(x,y),c=zoneColors(z);let col=c.fill;if(isWater(x,y))col='#5f99bc';else if(isBlocked(x,y))col=z.key==='dungeon'?'#342a38':'#647d58';mx.fillStyle=col;mx.fillRect(x*sx,y*sy,Math.ceil(sx),Math.ceil(sy));}
+  const p=S.players[S.uid];if(p){mx.fillStyle='#ffd54a';mx.fillRect(p.x*sx,p.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));}
+  Object.values(S.players).forEach(q=>{if(q.id===S.uid)return;mx.fillStyle='#eaf1ff';mx.fillRect(q.x*sx,q.y*sy,Math.max(2,sx),Math.max(2,sy));});
+  Object.values(S.mons).forEach(mon=>{mx.fillStyle='#e86a6a';mx.fillRect(mon.x*sx,mon.y*sy,Math.max(1,sx),Math.max(1,sy));});
+  if(p){const m=boardMetrics(),hx=Math.ceil(m.w/(2*m.tw)),hy=Math.ceil(m.h/(2*m.th));mx.strokeStyle='rgba(255,255,255,.75)';mx.lineWidth=1;mx.strokeRect((p.x-hx)*sx,(p.y-hy)*sy,(hx*2)*sx,(hy*2)*sy);}
 }
 
 function updateBadge() {
@@ -1832,14 +1645,6 @@ function initLobby() {
   window.addEventListener('resize', () => {
     if (S.started) resizeCanvas();
   }, { passive: true });
-  const syncTheme = () => {
-    try {
-      const t = localStorage.getItem('minig-theme');
-      if (['white', 'beige', 'dark'].includes(t)) document.documentElement.setAttribute('data-theme', t);
-    } catch (e) {}
-  };
-  window.addEventListener('storage', syncTheme);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncTheme(); });
   window.addEventListener('pagehide', () => {
     unpublishRoom();
     cleanupNetwork();
