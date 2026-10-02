@@ -84,7 +84,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 .chatInput { display:flex; gap:6px; margin-top:7px; }
 .chatInput input { min-width:0; }
 .quest { background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:9px; font-size:12px; }
-.socialList{display:flex;flex-direction:column;gap:6px}.socialRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.socialMain{min-width:0}.socialMain b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.socialSub{color:var(--muted);font-size:10px}.socialActions{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}.socialActions button{min-height:30px;padding:5px 7px;font-size:11px}.partyBar{padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg);margin-bottom:8px}.partyMember{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);font-size:12px}.partyMember:first-child{border-top:0}.shopGrid{display:grid;gap:6px}.shopRow{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.shopIcon{font-size:23px;text-align:center}.shopInfo{min-width:0}.shopInfo b{display:block}.shopInfo small{color:var(--muted)}.npcHint{padding:8px 9px;border-radius:8px;background:color-mix(in srgb,var(--tile2) 85%,transparent);color:var(--muted);font-size:11px;line-height:1.4;margin-bottom:8px}.friendCodeBox{display:flex;gap:6px;margin-bottom:8px}.friendCodeBox input{min-width:0;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.socialList{display:flex;flex-direction:column;gap:6px}.socialRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.socialMain{min-width:0}.socialMain b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.socialSub{color:var(--muted);font-size:10px}.socialActions{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}.socialActions button{min-height:30px;padding:5px 7px;font-size:11px}.partyBar{padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg);margin-bottom:8px}.partyMember{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);font-size:12px}.partyMember:first-child{border-top:0}.shopGrid{display:grid;gap:6px}.shopRow{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.shopIcon{font-size:23px;text-align:center}.shopInfo{min-width:0}.shopInfo b{display:block}.shopInfo small{color:var(--muted)}.npcHint{padding:8px 9px;border-radius:8px;background:color-mix(in srgb,var(--tile2) 85%,transparent);color:var(--muted);font-size:11px;line-height:1.4;margin-bottom:8px}.friendCodeBox{display:flex;gap:6px;margin-bottom:8px}.friendCodeBox input{min-width:0;font-weight:700;letter-spacing:.06em;text-transform:uppercase}.recoveryLobby{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}.recoveryCode{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;line-height:1.45;word-break:break-all;padding:8px;border:1px dashed var(--line);border-radius:8px;background:color-mix(in srgb,var(--card) 70%,transparent);margin-bottom:7px}.recoveryWarn{padding:8px 9px;border-radius:8px;background:color-mix(in srgb,#f0b 8%,var(--bg));color:var(--sub);font-size:11px;line-height:1.45;margin-top:7px}.recoveryActions{display:flex;gap:6px;flex-wrap:wrap}.recoveryActions button{flex:1;min-width:120px}
 .quest progress { width:100%; height:7px; margin-top:7px; }
 @media(max-width:720px){ #menu { top:58px; right:8px; } #overlayPanel { top:100px; right:8px; width:min(390px,calc(100vw - 16px)); max-height:calc(100dvh - 112px); } }
 </style>
@@ -101,6 +101,13 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   </div>
   <h3>🌐 공개 방 목록</h3>
   <div id="rooms"><div class="empty">열려 있는 방을 찾는 중…</div></div>
+  <h3>🗝️ 계정 복구</h3>
+  <div class="recoveryLobby">
+    <div class="recoveryCode" id="lobbyRecoveryCode">연결하면 복구 코드가 발급돼.</div>
+    <div class="row"><button id="btnCopyRecovery" type="button">📋 코드 복사</button><button id="btnNewRecovery" type="button">🔄 새 코드</button></div>
+    <div class="row"><input id="recoveryInput" maxlength="5000" placeholder="복구 코드 붙여넣기"><button id="btnRecover" type="button">복구</button></div>
+    <div class="empty">복구 코드는 현재 계정 데이터가 들어 있는 백업 코드야. 최신 데이터로 다시 발급해서 보관해 두는 걸 권장해.</div>
+  </div>
   <div id="msg" role="alert"></div>
 </div>
 
@@ -120,6 +127,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
       <button id="btnQuest">📜 퀘스트</button>
       <button id="btnSocial">👥 친구/파티</button>
       <button id="btnShop">🏪 상점</button>
+      <button id="btnRecovery">🗝️ 복구</button>
     </div>
     <div id="overlayPanel" aria-live="polite">
       <div class="panelHead"><b id="panelTitle">온라인 RPG</b><button id="btnClosePanel">닫기</button></div>
@@ -329,8 +337,8 @@ const S = {
   moveSeq: 0, moveAck: {}, pendingMoves: [],
   rooms: {}, mq: null, fx: [], vis: {}, camera: {x:48,y:32}, walkPath: [], currentZone:'', minimapLast:0,
   gameTimers: [], hostTimer: null, hudTimer: null, roomTimer: null, moveTimer: null, roomPublishTimer: null,
-  inputBound: false, drawStarted: false, netState: 'idle',
-  peerWaiters: [], netErrorRetry: null
+  inputBound: false, drawStarted: false, netState: 'idle', drawError: '', renderFallback: false,
+  peerWaiters: [], netErrorRetry: null, accountSnapshot: null, recoveryCode: '', recoveryIssued: [], recoveryLastIssuedAt: 0, recoveryNoticeShown: false, renderHealthTimer: null
 };
 
 /* ============================================================
@@ -470,17 +478,91 @@ function renderRooms() {
 /* ============================================================
    방 만들기 / 들어가기
    ============================================================ */
+function b64UrlEncode(text) {
+  const bytes = new TextEncoder().encode(String(text));
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64UrlDecode(text) {
+  const raw = String(text||'').replace(/-/g,'+').replace(/_/g,'/');
+  const pad = raw.length % 4 ? '='.repeat(4-(raw.length%4)) : '';
+  const bin = atob(raw + pad);
+  const bytes = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+function quickHash(text) {
+  let h1=0x811c9dc5, h2=0x9e3779b9;
+  const str=String(text);
+  for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); h1=Math.imul(h1^c,16777619); h2=Math.imul(h2^((c<<1)|1),2246822519); }
+  return ((h1>>>0).toString(36)+ (h2>>>0).toString(36)).toUpperCase().padStart(13,'0').slice(0,13);
+}
+function playerAccountData(p){
+  if(!p) return null;
+  normalizePlayer(p);
+  return {v:1,name:String(p.name||'모험가').slice(0,10),emoji:EMOJIS.includes(p.emoji)?p.emoji:EMOJIS[0],friendCode:String(p.friendCode||'').toUpperCase(),lv:p.lv,xp:p.xp,hp:p.hp,gold:p.gold,atk:p.atk,def:p.def,inv:{...(p.inv||{})},equip:{...(p.equip||{})},quest:{...(p.quest||{})}};
+}
+function makeRecoveryCode(p){
+  const payload={v:1,ts:Date.now(),nonce:(globalThis.crypto&&globalThis.crypto.randomUUID)?globalThis.crypto.randomUUID().replace(/-/g,''):Math.random().toString(36).slice(2),data:playerAccountData(p)};
+  const packed=b64UrlEncode(JSON.stringify(payload));
+  return 'ERPG1-'+packed+'-'+quickHash(packed);
+}
+function parseRecoveryCode(code){
+  const raw=String(code||'').trim();
+  if(!raw.startsWith('ERPG1-')) throw new Error('지원하지 않는 복구 코드');
+  const parts=raw.split('-'); if(parts.length<3) throw new Error('복구 코드 형식이 올바르지 않아');
+  const checksum=parts.pop().toUpperCase(), packed=parts.slice(1).join('-');
+  if(quickHash(packed)!==checksum) throw new Error('복구 코드 검증에 실패했어');
+  const payload=JSON.parse(b64UrlDecode(packed));
+  if(!payload||payload.v!==1||!payload.data) throw new Error('복구 데이터가 없어');
+  const data=payload.data;
+  if(!data.name||!EMOJIS.includes(data.emoji)||!/^[A-Z0-9]{6,8}$/.test(String(data.friendCode||''))) throw new Error('복구 데이터가 손상됐어');
+  const p=starterPlayer('recovered',String(data.name).slice(0,10),data.emoji,0,String(data.friendCode));
+  Object.assign(p,{lv:clamp(+data.lv||1,1,99),xp:Math.max(0,Math.floor(+data.xp||0)),hp:Math.max(0,Math.floor(+data.hp||1)),gold:Math.max(0,Math.floor(+data.gold||0)),atk:Math.max(0,Math.floor(+data.atk||10)),def:Math.max(0,Math.floor(+data.def||0)),inv:data.inv&&typeof data.inv==='object'?{...data.inv}:{},equip:data.equip&&typeof data.equip==='object'?{...data.equip}:{weapon:null,armor:null},quest:data.quest&&typeof data.quest==='object'?{...data.quest}:{id:'slime_hunt',progress:0,claimed:false}});
+  normalizePlayer(p);
+  return p;
+}
+function isRecoveryCodeDuplicate(code){ return (S.recoveryIssued||[]).includes(String(code||'').trim()); }
+function saveRecoveryLedger(){ try{localStorage.setItem('emoji-rpg-recovery-ledger',JSON.stringify((S.recoveryIssued||[]).slice(-30)));}catch(e){} }
+function issueRecoveryCode(forceNew=false){
+  const p=S.players[S.uid]||newPlayer(S.uid,S.name,S.emoji,S.score,S.friendCode);
+  normalizePlayer(p);
+  if(!forceNew && S.recoveryCode) return S.recoveryCode;
+  let code='',guard=0;
+  do { code=makeRecoveryCode(p); guard++; } while(isRecoveryCodeDuplicate(code)&&guard<8);
+  S.recoveryCode=code;
+  S.recoveryIssued.push(code); if(S.recoveryIssued.length>30)S.recoveryIssued=S.recoveryIssued.slice(-30);
+  saveRecoveryLedger(); S.recoveryLastIssuedAt=Date.now();
+  try{localStorage.setItem('emoji-rpg-recovery-code',code);}catch(e){}
+  updateRecoveryUI(); return code;
+}
+function saveLocalAccountSnapshot(){ const p=S.players[S.uid]; if(!p)return; const data=playerAccountData(p); if(!data)return; S.accountSnapshot=data; try{localStorage.setItem('emoji-rpg-account',JSON.stringify(data));}catch(e){} }
+function loadLocalAccountSnapshot(){ try{const raw=JSON.parse(localStorage.getItem('emoji-rpg-account')||'null');if(raw&&raw.name&&raw.friendCode){const p=starterPlayer('local',raw.name,raw.emoji,0,raw.friendCode);Object.assign(p,raw);normalizePlayer(p);return p;}}catch(e){} return null; }
+function recoverAccountFromInput(){
+  const input=$('recoveryInput'),code=input?input.value.trim():'';
+  try{const p=parseRecoveryCode(code);S.accountSnapshot=playerAccountData(p);S.name=p.name;S.emoji=p.emoji;S.friendCode=p.friendCode;try{localStorage.setItem('emoji-rpg-account',JSON.stringify(S.accountSnapshot));localStorage.setItem('emoji-rpg-profile',JSON.stringify({n:S.name,e:S.emoji,fc:S.friendCode}));localStorage.setItem('emoji-rpg-recovery-code',code);}catch(e){}S.recoveryCode=code;updateRecoveryUI();lobbyMsg('✅ 계정 데이터를 복구했어. 이제 방에 들어가면 복구된 캐릭터로 시작해.');}
+  catch(e){lobbyMsg('복구 실패: '+e.message);}
+}
+function copyRecoveryCode(){ const code=issueRecoveryCode(false); navigator.clipboard?.writeText(code).then(()=>lobbyMsg('📋 복구 코드를 클립보드에 복사했어.')).catch(()=>window.prompt('복구 코드를 복사해 두세요.',code)); }
+function updateRecoveryUI(){ const code=S.recoveryCode||''; const a=$('lobbyRecoveryCode');if(a)a.textContent=code||'연결하면 복구 코드가 발급돼.'; }
+function renderRecoveryPanel(){
+  const code=issueRecoveryCode(false);
+  const html='<div class="section"><div class="sectionTitle">현재 계정 복구 코드</div><div class="recoveryCode" id="panelRecoveryCode">'+escapeHtml(code)+'</div><div class="recoveryActions"><button id="copyRecoveryPanel">📋 복사</button><button id="newRecoveryPanel">🔄 최신 데이터로 새 코드</button></div></div><div class="section"><div class="sectionTitle">복구</div><input id="panelRecoveryInput" maxlength="5000" placeholder="복구 코드 붙여넣기"><button id="applyRecoveryPanel" style="width:100%;margin-top:7px">♻️ 계정 복구</button><div class="recoveryWarn">복구 코드는 계정 데이터 자체가 들어 있는 백업이야. 다른 사람에게 보여주지 않는 게 좋아. 최신 상태를 복구하려면 최신 데이터로 새 코드를 발급해서 보관해.</div></div>';
+  openPanel('🗝️ 계정 복구',html);
+  $('copyRecoveryPanel').onclick=copyRecoveryCode;
+  $('newRecoveryPanel').onclick=()=>{saveLocalAccountSnapshot();const n=issueRecoveryCode(true);$('panelRecoveryCode').textContent=n;log('🔄 최신 계정 데이터로 새 복구 코드를 발급했어.');};
+  $('applyRecoveryPanel').onclick=()=>{try{const rp=parseRecoveryCode($('panelRecoveryInput').value);const data=playerAccountData(rp);S.accountSnapshot=data;S.name=data.name;S.emoji=data.emoji;S.friendCode=data.friendCode;try{localStorage.setItem('emoji-rpg-account',JSON.stringify(data));localStorage.setItem('emoji-rpg-profile',JSON.stringify({n:S.name,e:S.emoji,fc:S.friendCode}));localStorage.setItem('emoji-rpg-recovery-code',$('panelRecoveryInput').value.trim());}catch(e){}S.recoveryCode=$('panelRecoveryInput').value.trim();log('✅ 계정 복구 데이터가 적용됐어. 새 방/재접속부터 적용돼.');renderRecoveryPanel();}catch(e){log('복구 실패: '+e.message);}};
+}
 function readProfile() {
-  let prof = {};
-  try { prof = JSON.parse(localStorage.getItem('emoji-rpg-profile') || '{}'); } catch (e) {}
-  const saved = String(prof.n || '').trim();
-  S.name = (saved || ('사용자' + String(rnd(1000)).padStart(3, '0'))).slice(0, 10);
-  S.emoji = EMOJIS.includes(prof.e) ? prof.e : EMOJIS[0];
-  const fc = String(prof.fc || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-  S.friendCode = /^[A-Z0-9]{6,8}$/.test(fc) ? fc : Math.random().toString(36).slice(2, 10).toUpperCase();
-  try { localStorage.setItem('emoji-rpg-profile', JSON.stringify({ n: S.name, e: S.emoji, fc: S.friendCode })); } catch (e) {}
-  try { S.friends = JSON.parse(localStorage.getItem('emoji-rpg-friends') || '{}') || {}; } catch (e) { S.friends = {}; }
-  try { S.blocked = JSON.parse(localStorage.getItem('emoji-rpg-blocked') || '{}') || {}; } catch (e) { S.blocked = {}; }
+  let prof={}; try{prof=JSON.parse(localStorage.getItem('emoji-rpg-profile')||'{}');}catch(e){}
+  const saved=String(prof.n||'').trim(); S.name=(saved||('사용자'+String(rnd(1000)).padStart(3,'0'))).slice(0,10); S.emoji=EMOJIS.includes(prof.e)?prof.e:EMOJIS[0];
+  const fc=String(prof.fc||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8); S.friendCode=/^[A-Z0-9]{6,8}$/.test(fc)?fc:Math.random().toString(36).slice(2,10).toUpperCase();
+  try{S.friends=JSON.parse(localStorage.getItem('emoji-rpg-friends')||'{}')||{};}catch(e){S.friends={};} try{S.blocked=JSON.parse(localStorage.getItem('emoji-rpg-blocked')||'{}')||{};}catch(e){S.blocked={};}
+  try{S.recoveryIssued=JSON.parse(localStorage.getItem('emoji-rpg-recovery-ledger')||'[]')||[];}catch(e){S.recoveryIssued=[];}
+  const localAccount=loadLocalAccountSnapshot(); if(localAccount){S.accountSnapshot=localAccount;S.name=localAccount.name;S.emoji=localAccount.emoji;S.friendCode=localAccount.friendCode;}
+  try{localStorage.setItem('emoji-rpg-profile',JSON.stringify({n:S.name,e:S.emoji,fc:S.friendCode}));}catch(e){}
+  const knownRecovery=String(localStorage.getItem('emoji-rpg-recovery-code')||''); if(knownRecovery.startsWith('ERPG1-'))S.recoveryCode=knownRecovery;
 }
 function starterPlayer(id, name, emoji, score, friendCode) {
   return { id, name, emoji, friendCode: String(friendCode || '').toUpperCase().slice(0,8), score, x: 48, y: 32,
@@ -488,7 +570,12 @@ function starterPlayer(id, name, emoji, score, friendCode) {
     inv: { potion: 3, ironSword: 1, leather: 1 }, equip: { weapon: 'ironSword', armor: 'leather' },
     quest: { id:'slime_hunt', progress:0, claimed:false } };
 }
-function newPlayer(id, name, emoji, score, friendCode) { return starterPlayer(id, name, emoji, score, friendCode); }
+function newPlayer(id, name, emoji, score, friendCode) {
+  const p=starterPlayer(id,name,emoji,score,friendCode);
+  if(id===S.uid && S.accountSnapshot){ const a=playerAccountData(S.accountSnapshot); if(a){ Object.assign(p,a); p.id=id; p.score=score; } }
+  normalizePlayer(p);
+  return p;
+}
 function itemCount(p, id) { return Math.max(0, Math.floor(Number((p && p.inv && p.inv[id]) || 0))); }
 function addItem(p, id, n) {
   const def=ITEMS[id]; if(!def || !Number.isFinite(n) || n<=0) return 0;
@@ -612,6 +699,7 @@ function retryConnect() {
 }
 
 function cleanupGameTimers() {
+  if (S.renderHealthTimer) { clearTimeout(S.renderHealthTimer); S.renderHealthTimer = null; }
   S.gameTimers.forEach(t => clearInterval(t));
   S.gameTimers = [];
   if (S.hostTimer) { clearInterval(S.hostTimer); S.hostTimer = null; }
@@ -683,6 +771,8 @@ function selfRecord() {
     cpuPerf: S.caps.cpuPerf,
     browserRtt: S.caps.browserRtt
   };
+  p.recoveryCode = S.recoveryCode || '';
+  p.accountData = playerAccountData(p);
   return p;
 }
 
@@ -1205,6 +1295,24 @@ function hostRecv(c, m) {
     // 진행 상태(HP/XP/골드)는 클라이언트가 임의로 올려 보내지 못하도록 서버 값을 사용한다.
     if (!old) {
       Object.assign(p, starterPlayer(id, String(m.p.name || '모험가').slice(0,10), EMOJIS.includes(m.p.emoji) ? m.p.emoji : EMOJIS[0], capabilityScore(caps), safeFriendCode));
+      try {
+        const incoming = m.p.accountData && typeof m.p.accountData === 'object' ? m.p.accountData : null;
+        const recovery = String(m.p.recoveryCode || '');
+        if (incoming && recovery.startsWith('ERPG1-')) {
+          let verified = false;
+          try {
+            const decoded = parseRecoveryCode(recovery);
+            const inc = starterPlayer(id, String(incoming.name||p.name), EMOJIS.includes(incoming.emoji)?incoming.emoji:p.emoji, capabilityScore(caps), safeFriendCode);
+            Object.assign(inc,incoming); inc.id=id; normalizePlayer(inc);
+            verified = JSON.stringify(playerAccountData(decoded)) === JSON.stringify(playerAccountData(inc));
+          } catch(e) { verified = false; }
+          if (verified) {
+            const snap = starterPlayer(id, String(incoming.name||p.name), EMOJIS.includes(incoming.emoji)?incoming.emoji:p.emoji, capabilityScore(caps), safeFriendCode);
+            Object.assign(snap,incoming); snap.id=id; snap.name=String(incoming.name||p.name).slice(0,10); snap.emoji=EMOJIS.includes(incoming.emoji)?incoming.emoji:p.emoji; snap.friendCode=/^[A-Z0-9]{6,8}$/.test(String(incoming.friendCode||''))?String(incoming.friendCode).toUpperCase():safeFriendCode;
+            normalizePlayer(snap); Object.assign(p,snap);
+          }
+        }
+      } catch(e) {}
     } else {
       p.name = String(p.name || '모험가').slice(0, 10);
       p.emoji = EMOJIS.includes(p.emoji) ? p.emoji : EMOJIS[0];
@@ -1528,7 +1636,8 @@ function drawNameplate(label, cx, topY, unit, color) {
   ctx.fillStyle = 'rgba(0,0,0,.55)';
   ctx.beginPath();
   const r = Math.min(7, height / 3);
-  ctx.roundRect(x, y, width, height, r);
+  if(typeof ctx.roundRect === 'function') ctx.roundRect(x, y, width, height, r);
+  else { ctx.moveTo(x+r,y);ctx.arcTo(x+width,y,x+width,y+height,r);ctx.arcTo(x+width,y+height,x,y+height,r);ctx.arcTo(x,y+height,x,y,r);ctx.arcTo(x,y,x+width,y,r); }
   ctx.fill();
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
@@ -1536,7 +1645,7 @@ function drawNameplate(label, cx, topY, unit, color) {
   ctx.fillText(label, cx, y + height / 2);
 }
 
-function draw() {
+function drawScene() {
   if(!S.started){S.drawStarted=false;return;}
   resizeCanvas(); const m=boardMetrics(); updateCamera(m);
   const css=getComputedStyle(document.documentElement),c1=css.getPropertyValue('--tile1').trim(),c2=css.getPropertyValue('--tile2').trim(),fg=css.getPropertyValue('--fg').trim(),acc=css.getPropertyValue('--acc').trim(),ok=css.getPropertyValue('--ok').trim(),bad=css.getPropertyValue('--bad').trim();
@@ -1555,6 +1664,26 @@ function draw() {
   ctx.globalAlpha=1;
   updateZoneHud();
   if(now-S.minimapLast>220){drawMinimap();S.minimapLast=now;}
+}
+
+function drawEmergencyScene(){
+  resizeCanvas();
+  const m=boardMetrics();
+  const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const css=getComputedStyle(document.documentElement),bg=css.getPropertyValue('--bg').trim()||'#eef3f8',fg=css.getPropertyValue('--fg').trim()||'#223';
+  ctx.fillStyle=bg;ctx.fillRect(0,0,m.w,m.h);
+  const size=48, cols=Math.ceil(m.w/size)+1, rows=Math.ceil(m.h/size)+1;
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){ctx.fillStyle=(x+y)%2?'#dbe4ee':'#e5ebf2';ctx.fillRect(x*size,y*size,size+1,size+1);}
+  const p=S.players[S.uid]||{emoji:'⚔️',name:S.name||'모험가'}; const cx=m.w/2,cy=m.h/2;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='34px "Segoe UI Emoji","Apple Color Emoji",sans-serif';ctx.fillStyle=fg;ctx.fillText(p.emoji||'⚔️',cx,cy);
+  ctx.font='700 14px sans-serif';ctx.fillText(p.name||'모험가',cx,cy-32);
+  ctx.font='12px sans-serif';ctx.fillStyle=css.getPropertyValue('--sub').trim()||'#667';ctx.fillText('맵 렌더링 복구 모드',cx,cy+34);
+}
+function draw(){
+  if(!S.started){S.drawStarted=false;return;}
+  try{if(!S.renderFallback)drawScene();else drawEmergencyScene();}
+  catch(e){S.renderFallback=true;S.drawError=String(e&&e.message||e||'unknown');try{drawEmergencyScene();}catch(_){} }
   requestAnimationFrame(draw);
 }
 
@@ -1623,12 +1752,22 @@ function enterGame() {
   if (S.peer && S.peer.open && S.players[S.uid]) S.players[S.uid].peerId = S.peer.id;
   ensureDirectLinks();
   updateHud();
-  if (!S.hudTimer) S.hudTimer = setInterval(updateHud, 400);
+  if (!S.hudTimer) S.hudTimer = setInterval(()=>{ updateHud(); saveLocalAccountSnapshot(); }, 400);
+  saveLocalAccountSnapshot();
+  issueRecoveryCode(true);
+  if(!S.recoveryNoticeShown){ S.recoveryNoticeShown=true; log('🗝️ 새 계정 복구 코드가 발급됐어. 🗝️ 복구 메뉴에서 확인/복사할 수 있어.'); }
   startCapabilityReporting();
   if (!S.drawStarted) {
     S.drawStarted = true;
     requestAnimationFrame(draw);
   }
+  if (S.renderHealthTimer) clearTimeout(S.renderHealthTimer);
+  S.renderHealthTimer = setTimeout(() => {
+    try {
+      const px = ctx.getImageData(Math.max(0,Math.floor(cv.width/2)), Math.max(0,Math.floor(cv.height/2)), 1, 1).data;
+      if (!px || px[3] < 10) { S.renderFallback = true; requestAnimationFrame(draw); }
+    } catch (e) { S.renderFallback = true; requestAnimationFrame(draw); }
+  }, 700);
 }
 
 function initLobby() {
@@ -1636,7 +1775,11 @@ function initLobby() {
   readProfile();
   $('btnCreate').onclick=createRoom;
   $('btnQuick').onclick=quickJoin;
-  $('btnInv').onclick=renderInventory;$('btnTrade').onclick=openTradePanel;$('btnChat').onclick=renderChat;$('btnQuest').onclick=renderQuest;$('btnSocial').onclick=renderSocial;$('btnShop').onclick=()=>{if(!nearNpc(S.players[S.uid],NPCS.merchant)){log('🏪 상인 루루에게 2칸 이내로 이동해줘.');return;}renderShop();};$('btnClosePanel').onclick=closePanel;
+  $('btnInv').onclick=renderInventory;$('btnTrade').onclick=openTradePanel;$('btnChat').onclick=renderChat;$('btnQuest').onclick=renderQuest;$('btnSocial').onclick=renderSocial;$('btnShop').onclick=()=>{if(!nearNpc(S.players[S.uid],NPCS.merchant)){log('🏪 상인 루루에게 2칸 이내로 이동해줘.');return;}renderShop();};$('btnRecovery').onclick=renderRecoveryPanel;$('btnClosePanel').onclick=closePanel;
+  $('btnCopyRecovery').onclick=copyRecoveryCode;
+  $('btnNewRecovery').onclick=()=>{saveLocalAccountSnapshot();const code=issueRecoveryCode(true);updateRecoveryUI();lobbyMsg('🔄 최신 계정 데이터로 새 복구 코드를 발급했어.');};
+  $('btnRecover').onclick=recoverAccountFromInput;
+  readProfile(); updateRecoveryUI();
   $('networkErrorRetry').onclick=()=>{hideConnectionError();if(S.netErrorRetry){const fn=S.netErrorRetry;S.netErrorRetry=null;fn();}};
   $('networkErrorLobby').onclick=()=>{hideConnectionError();cleanupNetwork();S.started=false;$('game').hidden=true;$('lobby').hidden=false;lobbyMsg('연결 오류로 방을 종료했어.');updateBadge();};
   window.addEventListener('keydown',e=>{if(!S.started||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;const k=e.key.toLowerCase();if(k==='i')renderInventory();else if(k==='t')openTradePanel();else if(k==='q')renderQuest();else if(k==='f')renderSocial();else if(k==='b'){if(nearNpc(S.players[S.uid],NPCS.merchant))renderShop();else log('🏪 상인 루루에게 2칸 이내로 이동해줘.');}});
