@@ -26,7 +26,8 @@ input { background:var(--bg); border:1px solid var(--line); border-radius:8px; p
 .room span { color:var(--sub); font-size:13px; }
 #game { position:fixed; inset:0; width:100vw; height:100dvh; overflow:hidden; background:var(--bg); }
 #stage { position:absolute; inset:0; width:100%; height:100%; padding:0; border:0; border-radius:0; background:var(--bg); box-shadow:none; }
-#cv { position:absolute; inset:0; width:100%; height:100%; display:block; border-radius:0; touch-action:none; background:var(--tile1); }
+#cv { position:absolute; z-index:1; inset:0; width:100%; height:100%; display:block; border-radius:0; touch-action:none; background:var(--tile1); }
+#stage { isolation:isolate; }
 #top { position:absolute; z-index:4; top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); right:max(10px,env(safe-area-inset-right)); min-height:0; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 11px; border-radius:12px; background:color-mix(in srgb,var(--card) 82%,transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:0 6px 18px rgba(0,0,0,.18); }
 #zoneHud { position:absolute; z-index:4; top:64px; left:max(10px,env(safe-area-inset-left)); display:flex; flex-direction:column; gap:2px; max-width:min(360px,70vw); padding:8px 11px; border-radius:11px; background:color-mix(in srgb,var(--card) 86%,transparent); border:1px solid color-mix(in srgb,var(--line) 70%,transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:0 6px 18px rgba(0,0,0,.14); pointer-events:none; }
 #zoneName { font-weight:800; font-size:14px; }
@@ -106,7 +107,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
     <div class="recoveryCode" id="lobbyRecoveryCode">연결하면 복구 코드가 발급돼.</div>
     <div class="row"><button id="btnCopyRecovery" type="button">📋 코드 복사</button><button id="btnNewRecovery" type="button">🔄 새 코드</button></div>
     <div class="row"><input id="recoveryInput" maxlength="5000" placeholder="복구 코드 붙여넣기"><button id="btnRecover" type="button">복구</button></div>
-    <div class="empty">복구 코드는 현재 계정 데이터가 들어 있는 백업 코드야. 최신 데이터로 다시 발급해서 보관해 두는 걸 권장해.</div>
+    <div class="empty">복구 코드는 현재 계정 데이터가 들어 있는 백업 코드야. P2P만으로 운영되기 때문에 전역 위변조 방지는 서버 없이 보장되지 않아. 최신 데이터로 다시 발급해서 보관해 둬.</div>
   </div>
   <div id="msg" role="alert"></div>
 </div>
@@ -548,7 +549,7 @@ function copyRecoveryCode(){ const code=issueRecoveryCode(false); navigator.clip
 function updateRecoveryUI(){ const code=S.recoveryCode||''; const a=$('lobbyRecoveryCode');if(a)a.textContent=code||'연결하면 복구 코드가 발급돼.'; }
 function renderRecoveryPanel(){
   const code=issueRecoveryCode(false);
-  const html='<div class="section"><div class="sectionTitle">현재 계정 복구 코드</div><div class="recoveryCode" id="panelRecoveryCode">'+escapeHtml(code)+'</div><div class="recoveryActions"><button id="copyRecoveryPanel">📋 복사</button><button id="newRecoveryPanel">🔄 최신 데이터로 새 코드</button></div></div><div class="section"><div class="sectionTitle">복구</div><input id="panelRecoveryInput" maxlength="5000" placeholder="복구 코드 붙여넣기"><button id="applyRecoveryPanel" style="width:100%;margin-top:7px">♻️ 계정 복구</button><div class="recoveryWarn">복구 코드는 계정 데이터 자체가 들어 있는 백업이야. 다른 사람에게 보여주지 않는 게 좋아. 최신 상태를 복구하려면 최신 데이터로 새 코드를 발급해서 보관해.</div></div>';
+  const html='<div class="section"><div class="sectionTitle">현재 계정 복구 코드</div><div class="recoveryCode" id="panelRecoveryCode">'+escapeHtml(code)+'</div><div class="recoveryActions"><button id="copyRecoveryPanel">📋 복사</button><button id="newRecoveryPanel">🔄 최신 데이터로 새 코드</button></div></div><div class="section"><div class="sectionTitle">복구</div><input id="panelRecoveryInput" maxlength="5000" placeholder="복구 코드 붙여넣기"><button id="applyRecoveryPanel" style="width:100%;margin-top:7px">♻️ 계정 복구</button><div class="recoveryWarn">복구 코드는 계정 데이터 자체가 들어 있는 백업이야. 다른 사람에게 보여주지 않는 게 좋아. 서버가 없는 P2P 구조라 코드 위변조를 전역에서 막는 기능은 아직 없어. 최신 상태를 복구하려면 최신 데이터로 새 코드를 발급해서 보관해.</div></div>';
   openPanel('🗝️ 계정 복구',html);
   $('copyRecoveryPanel').onclick=copyRecoveryCode;
   $('newRecoveryPanel').onclick=()=>{saveLocalAccountSnapshot();const n=issueRecoveryCode(true);$('panelRecoveryCode').textContent=n;log('🔄 최신 계정 데이터로 새 복구 코드를 발급했어.');};
@@ -709,6 +710,7 @@ function cleanupGameTimers() {
   if (S.hostProbeTimer) { clearInterval(S.hostProbeTimer); S.hostProbeTimer = null; }
   if (S.hostElectionTimer) { clearInterval(S.hostElectionTimer); S.hostElectionTimer = null; }
   if (S.capReportTimer) { clearInterval(S.capReportTimer); S.capReportTimer = null; }
+  S.drawStarted=false;
 }
 
 function cleanupNetwork() {
@@ -1582,19 +1584,23 @@ function bar(px, py, w, ratio, color) {
   ctx.fillStyle = color; ctx.fillRect(px, py, w * clamp(ratio, 0, 1), 5);
 }
 
-function resizeCanvas() {
-  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-  const w = Math.max(1, Math.floor(window.innerWidth));
-  const h = Math.max(1, Math.floor(window.innerHeight));
-  if (cv.width !== Math.floor(w * dpr) || cv.height !== Math.floor(h * dpr)) {
-    cv.width = Math.floor(w * dpr);
-    cv.height = Math.floor(h * dpr);
+function resizeCanvas(force=false) {
+  const rect=cv.getBoundingClientRect();
+  const w=Math.max(1,Math.floor(rect.width||window.innerWidth));
+  const h=Math.max(1,Math.floor(rect.height||window.innerHeight));
+  const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+  const bw=Math.max(1,Math.floor(w*dpr)), bh=Math.max(1,Math.floor(h*dpr));
+  if(force || cv.width!==bw || cv.height!==bh){
+    cv.width=bw; cv.height=bh;
   }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {w,h,dpr};
 }
 
 function boardMetrics() {
-  const w=window.innerWidth, h=window.innerHeight;
+  const rect=cv.getBoundingClientRect();
+  const w=Math.max(1,Math.floor(rect.width||window.innerWidth));
+  const h=Math.max(1,Math.floor(rect.height||window.innerHeight));
   const tw=clamp(Math.min(w/22,h/14),24,48), th=tw;
   const cols=Math.ceil(w/tw)+2, rows=Math.ceil(h/th)+2;
   return {w,h,tw,th,unit:tw,cols,rows};
@@ -1647,7 +1653,9 @@ function drawNameplate(label, cx, topY, unit, color) {
 
 function drawScene() {
   if(!S.started){S.drawStarted=false;return;}
-  resizeCanvas(); const m=boardMetrics(); updateCamera(m);
+  const rc=resizeCanvas();
+  if(rc.w<=1 || rc.h<=1) return;
+  const m=boardMetrics(); updateCamera(m);
   const css=getComputedStyle(document.documentElement),c1=css.getPropertyValue('--tile1').trim(),c2=css.getPropertyValue('--tile2').trim(),fg=css.getPropertyValue('--fg').trim(),acc=css.getPropertyValue('--acc').trim(),ok=css.getPropertyValue('--ok').trim(),bad=css.getPropertyValue('--bad').trim();
   ctx.globalAlpha=1;ctx.lineWidth=1;ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillStyle=css.getPropertyValue('--bg').trim();ctx.fillRect(0,0,m.w,m.h);
@@ -1658,8 +1666,10 @@ function drawScene() {
   // 던전 입구
   {const q=worldToScreen(DUNGEON_ENTRANCE.x,DUNGEON_ENTRANCE.y,m);ctx.font=(m.unit*.62)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText('🚪',q.x+m.tw/2,q.y+m.th/2);}
   Object.values(NPCS).forEach(npc=>{const q=worldToScreen(npc.x,npc.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*.72)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(npc.icon,cx,cy);drawNameplate('🏪 '+npc.name,cx,q.y-2,m.unit,ok);});
-  S.mons.forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y),q=worldToScreen(v.x,v.y,m),px=q.x,py=q.y;ctx.font=(m.unit*.72)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(mon.e,px+m.tw/2,py+m.th/2);bar(px+4,py+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);});
-  Object.values(S.players).forEach(p=>{const v=smooth('p'+p.id,p.x,p.y),q=worldToScreen(v.x,v.y,m),px=q.x,py=q.y,cx=px+m.tw/2,cy=py+m.th/2;if(p.id===S.uid){ctx.strokeStyle=acc;ctx.lineWidth=Math.max(2,m.unit*.055);ctx.beginPath();ctx.arc(cx,cy,Math.min(m.tw,m.th)*.44,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(p.emoji,cx,cy);const playerColor=p.id===S.uid?acc:fg;const label=(p.id===S.hostUid?'👑 ':'')+p.name;drawNameplate(label,cx,py-Math.max(2,m.th*.04),m.unit,playerColor);bar(px+4,py+m.th-Math.max(8,m.unit*.12),Math.max(8,m.tw-8),p.hp/maxHp(p),ok);});
+  const renderMons=Array.isArray(S.mons)?S.mons:[];
+  renderMons.forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y),q=worldToScreen(v.x,v.y,m),px=q.x,py=q.y;ctx.font=(m.unit*.72)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(mon.e,px+m.tw/2,py+m.th/2);bar(px+4,py+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);});
+  const renderPlayers=S.players&&typeof S.players==='object'?S.players:{};
+  Object.values(renderPlayers).forEach(p=>{const v=smooth('p'+p.id,p.x,p.y),q=worldToScreen(v.x,v.y,m),px=q.x,py=q.y,cx=px+m.tw/2,cy=py+m.th/2;if(p.id===S.uid){ctx.strokeStyle=acc;ctx.lineWidth=Math.max(2,m.unit*.055);ctx.beginPath();ctx.arc(cx,cy,Math.min(m.tw,m.th)*.44,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.fillStyle=fg;ctx.fillText(p.emoji,cx,cy);const playerColor=p.id===S.uid?acc:fg;const label=(p.id===S.hostUid?'👑 ':'')+p.name;drawNameplate(label,cx,py-Math.max(2,m.th*.04),m.unit,playerColor);bar(px+4,py+m.th-Math.max(8,m.unit*.12),Math.max(8,m.tw-8),p.hp/maxHp(p),ok);});
   const now=Date.now();S.fx=S.fx.filter(f=>now-f.t0<f.life);S.fx.forEach(f=>{const a=(now-f.t0)/f.life;let x=f.x,y=f.y;if(f.id){const v=S.vis['p'+f.id];if(!v)return;x=v.x;y=v.y;}const q=worldToScreen(x,y,m),px=q.x+m.tw/2,py=q.y+m.th/2-a*m.unit*.8;ctx.globalAlpha=1-a;if(f.ring){ctx.strokeStyle=f.c;ctx.lineWidth=Math.max(2,m.unit*.07);ctx.beginPath();ctx.arc(px,py,m.unit*(.25+a*1.5),0,Math.PI*2);ctx.stroke();}ctx.font='700 '+clamp(m.unit*.32,13,22)+'px sans-serif';ctx.fillStyle=f.c;ctx.strokeStyle='rgba(0,0,0,.8)';ctx.lineWidth=Math.max(2,m.unit*.06);ctx.strokeText(f.s,px,py);ctx.fillText(f.s,px,py);});
   ctx.globalAlpha=1;
   updateZoneHud();
@@ -1667,7 +1677,8 @@ function drawScene() {
 }
 
 function drawEmergencyScene(){
-  resizeCanvas();
+  const rc=resizeCanvas();
+  if(rc.w<=1 || rc.h<=1) return;
   const m=boardMetrics();
   const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -1682,8 +1693,30 @@ function drawEmergencyScene(){
 }
 function draw(){
   if(!S.started){S.drawStarted=false;return;}
-  try{if(!S.renderFallback)drawScene();else drawEmergencyScene();}
-  catch(e){S.renderFallback=true;S.drawError=String(e&&e.message||e||'unknown');try{drawEmergencyScene();}catch(_){} }
+  try{
+    if(!S.renderFallback) drawScene();
+    else drawEmergencyScene();
+  }catch(e){
+    S.renderFallback=true;
+    S.drawError=String(e&&e.message||e||'unknown');
+    try{drawEmergencyScene();}catch(_e){
+      try{
+        const m=boardMetrics();
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.fillStyle='#eef3f8'; ctx.fillRect(0,0,m.w,m.h);
+        ctx.fillStyle='#24324a'; ctx.font='700 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('맵 렌더링 오류',m.w/2,m.h/2-14);
+        ctx.font='12px sans-serif'; ctx.fillText(S.drawError||'unknown',m.w/2,m.h/2+14);
+      }catch(__e){}
+    }
+  }
+  requestAnimationFrame(draw);
+}
+function startRenderLoop(){
+  if(S.drawStarted) return;
+  S.renderFallback=false; S.drawError='';
+  S.drawStarted=true;
+  try{resizeCanvas(true);}catch(e){S.renderFallback=true;S.drawError=String(e&&e.message||e||'canvas error');}
   requestAnimationFrame(draw);
 }
 
@@ -1695,8 +1728,10 @@ function drawMinimap(){
   mx.clearRect(0,0,mc.width,mc.height);
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const z=regionAt(x,y),c=zoneColors(z);let col=c.fill;if(isWater(x,y))col='#5f99bc';else if(isBlocked(x,y))col=z.key==='dungeon'?'#342a38':'#647d58';mx.fillStyle=col;mx.fillRect(x*sx,y*sy,Math.ceil(sx),Math.ceil(sy));}
   const p=S.players[S.uid];if(p){mx.fillStyle='#ffd54a';mx.fillRect(p.x*sx,p.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));}
-  Object.values(S.players).forEach(q=>{if(q.id===S.uid)return;mx.fillStyle='#eaf1ff';mx.fillRect(q.x*sx,q.y*sy,Math.max(2,sx),Math.max(2,sy));});
-  Object.values(S.mons).forEach(mon=>{mx.fillStyle='#e86a6a';mx.fillRect(mon.x*sx,mon.y*sy,Math.max(1,sx),Math.max(1,sy));});
+  const miniPlayers=S.players&&typeof S.players==='object'?S.players:{};
+  Object.values(miniPlayers).forEach(q=>{if(q.id===S.uid)return;mx.fillStyle='#eaf1ff';mx.fillRect(q.x*sx,q.y*sy,Math.max(2,sx),Math.max(2,sy));});
+  const miniMons=Array.isArray(S.mons)?S.mons:[];
+  miniMons.forEach(mon=>{mx.fillStyle='#e86a6a';mx.fillRect(mon.x*sx,mon.y*sy,Math.max(1,sx),Math.max(1,sy));});
   if(p){const m=boardMetrics(),hx=Math.ceil(m.w/(2*m.tw)),hy=Math.ceil(m.h/(2*m.th));mx.strokeStyle='rgba(255,255,255,.75)';mx.lineWidth=1;mx.strokeRect((p.x-hx)*sx,(p.y-hy)*sy,(hx*2)*sx,(hy*2)*sy);}
 }
 
@@ -1744,30 +1779,35 @@ function renderQuest(){const p=S.players[S.uid],q=p&&p.quest,d=q&&QUESTS[q.id];i
    게임 진입 / 초기화
    ============================================================ */
 function enterGame() {
-  S.started = true; S.migrating = false;
-  $('lobby').hidden = true; $('game').hidden = false;
-  $('roomCode').textContent = S.code;
+  S.started=true; S.migrating=false;
+  $('lobby').hidden=true; $('game').hidden=false;
+  $('roomCode').textContent=S.code;
   updateBadge();
-  bindInput();
-  if (S.peer && S.peer.open && S.players[S.uid]) S.players[S.uid].peerId = S.peer.id;
-  ensureDirectLinks();
-  updateHud();
-  if (!S.hudTimer) S.hudTimer = setInterval(()=>{ updateHud(); saveLocalAccountSnapshot(); }, 400);
-  saveLocalAccountSnapshot();
-  issueRecoveryCode(true);
-  if(!S.recoveryNoticeShown){ S.recoveryNoticeShown=true; log('🗝️ 새 계정 복구 코드가 발급됐어. 🗝️ 복구 메뉴에서 확인/복사할 수 있어.'); }
-  startCapabilityReporting();
-  if (!S.drawStarted) {
-    S.drawStarted = true;
-    requestAnimationFrame(draw);
-  }
-  if (S.renderHealthTimer) clearTimeout(S.renderHealthTimer);
-  S.renderHealthTimer = setTimeout(() => {
-    try {
-      const px = ctx.getImageData(Math.max(0,Math.floor(cv.width/2)), Math.max(0,Math.floor(cv.height/2)), 1, 1).data;
-      if (!px || px[3] < 10) { S.renderFallback = true; requestAnimationFrame(draw); }
-    } catch (e) { S.renderFallback = true; requestAnimationFrame(draw); }
-  }, 700);
+
+  // 렌더링은 네트워크/복구/성능 측정과 독립적으로 즉시 시작한다.
+  // 후속 기능 하나가 실패해도 월드맵 자체는 계속 보이게 한다.
+  startRenderLoop();
+
+  try{bindInput();}catch(e){log('입력 초기화 경고: '+(e&&e.message||e));}
+  try{
+    if(S.peer&&S.peer.open&&S.players[S.uid]) S.players[S.uid].peerId=S.peer.id;
+    ensureDirectLinks();
+  }catch(e){log('직접 P2P 초기화 경고: '+(e&&e.message||e));}
+  try{updateHud();}catch(e){log('HUD 초기화 경고: '+(e&&e.message||e));}
+  if(!S.hudTimer) S.hudTimer=setInterval(()=>{try{updateHud();}catch(e){} try{saveLocalAccountSnapshot();}catch(e){}},400);
+  try{saveLocalAccountSnapshot();}catch(e){}
+  try{issueRecoveryCode(true);}catch(e){log('복구 코드 발급 경고: '+(e&&e.message||e));}
+  if(!S.recoveryNoticeShown){S.recoveryNoticeShown=true;log('🗝️ 새 계정 복구 코드는 🗝️ 복구 메뉴에서 확인할 수 있어.');}
+  try{startCapabilityReporting();}catch(e){log('성능 측정 경고: '+(e&&e.message||e));}
+  if(S.renderHealthTimer)clearTimeout(S.renderHealthTimer);
+  S.renderHealthTimer=setTimeout(()=>{
+    try{
+      const rc=cv.getBoundingClientRect();
+      if(rc.width<=1||rc.height<=1){S.renderFallback=true;return;}
+      const px=ctx.getImageData(Math.max(0,Math.min(cv.width-1,Math.floor(cv.width/2))),Math.max(0,Math.min(cv.height-1,Math.floor(cv.height/2))),1,1).data;
+      if(!px||px[3]<10)S.renderFallback=true;
+    }catch(e){S.renderFallback=true;}
+  },700);
 }
 
 function initLobby() {
@@ -1779,7 +1819,7 @@ function initLobby() {
   $('btnCopyRecovery').onclick=copyRecoveryCode;
   $('btnNewRecovery').onclick=()=>{saveLocalAccountSnapshot();const code=issueRecoveryCode(true);updateRecoveryUI();lobbyMsg('🔄 최신 계정 데이터로 새 복구 코드를 발급했어.');};
   $('btnRecover').onclick=recoverAccountFromInput;
-  readProfile(); updateRecoveryUI();
+  updateRecoveryUI();
   $('networkErrorRetry').onclick=()=>{hideConnectionError();if(S.netErrorRetry){const fn=S.netErrorRetry;S.netErrorRetry=null;fn();}};
   $('networkErrorLobby').onclick=()=>{hideConnectionError();cleanupNetwork();S.started=false;$('game').hidden=true;$('lobby').hidden=false;lobbyMsg('연결 오류로 방을 종료했어.');updateBadge();};
   window.addEventListener('keydown',e=>{if(!S.started||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;const k=e.key.toLowerCase();if(k==='i')renderInventory();else if(k==='t')openTradePanel();else if(k==='q')renderQuest();else if(k==='f')renderSocial();else if(k==='b'){if(nearNpc(S.players[S.uid],NPCS.merchant))renderShop();else log('🏪 상인 루루에게 2칸 이내로 이동해줘.');}});
