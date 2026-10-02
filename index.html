@@ -100,7 +100,46 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 @media(max-width:520px){.guideGrid{grid-template-columns:repeat(3,1fr)}.teleportGrid{grid-template-columns:1fr}.characterGrid{grid-template-columns:repeat(4,1fr)}}
 .quest progress { width:100%; height:7px; margin-top:7px; }
 @media(max-width:720px){ #menu { top:58px; right:8px; } #overlayPanel { top:100px; right:8px; width:min(390px,calc(100vw - 16px)); max-height:calc(100dvh - 112px); } }
+
+/* 건물 내부 / 월드 오브젝트 UI */
+.buildingPrompt{position:absolute;left:50%;bottom:calc(max(78px,env(safe-area-inset-bottom)) + 8px);transform:translateX(-50%);z-index:7;padding:7px 11px;border-radius:10px;background:color-mix(in srgb,var(--card) 94%,transparent);border:1px solid var(--line);box-shadow:0 8px 20px rgba(0,0,0,.18);font-size:12px;font-weight:800;pointer-events:none;white-space:nowrap}
 </style>
+
+/* ===== RPG 완성도 패치 v3 ===== */
+#npcQuick { position:absolute; z-index:7; left:50%; bottom:calc(max(78px,env(safe-area-inset-bottom)) + 42px); transform:translateX(-50%); display:none; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--line); border-radius:12px; background:color-mix(in srgb,var(--card) 94%,transparent); box-shadow:0 10px 26px rgba(0,0,0,.22); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); font-size:12px; pointer-events:none; }
+#npcQuick b { color:var(--acc); }
+.rpgHero { padding:10px; border:1px solid var(--line); border-radius:11px; background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 8%,var(--bg)),var(--bg)); }
+.rpgHero b { font-size:15px; }
+.mapCards { display:grid; grid-template-columns:1fr; gap:7px; }
+.mapCard { border:1px solid var(--line); border-radius:11px; padding:10px; background:var(--bg); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.mapCard.current { border-color:var(--acc); box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 16%,transparent) inset; }
+.mapCardMain { min-width:0; }
+.mapCardMain b { display:block; }
+.mapCardMain small { display:block; margin-top:3px; color:var(--sub); }
+.mapCardIcon { font-size:28px; }
+.npcCard { border:1px solid var(--line); border-radius:11px; padding:11px; background:var(--bg); }
+.npcCardHead { display:flex; align-items:center; gap:10px; }
+.npcAvatar { font-size:36px; line-height:1; }
+.npcSpeech { margin-top:9px; padding:9px 10px; border-radius:9px; background:color-mix(in srgb,var(--tile2) 78%,transparent); color:var(--sub); line-height:1.45; font-size:12px; }
+.rpgActionGrid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:9px; }
+.rpgActionGrid button { min-height:44px; }
+.rpgStatHero { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:9px; }
+.rpgStatMini { border:1px solid var(--line); border-radius:9px; padding:7px 5px; text-align:center; background:var(--bg); font-size:11px; }
+.rpgStatMini b { display:block; font-size:15px; margin-bottom:2px; }
+.rpgEquipRow { display:grid; grid-template-columns:30px 1fr auto; align-items:center; gap:7px; padding:8px; border:1px solid var(--line); border-radius:9px; background:var(--bg); margin-bottom:6px; }
+.rpgEquipRow small { color:var(--sub); }
+.questBoard { display:grid; gap:7px; }
+.questCard { border:1px solid var(--line); border-radius:10px; padding:9px; background:var(--bg); }
+.questCard.locked { opacity:.58; }
+.questCard b { display:block; }
+.questCard small { display:block; color:var(--sub); margin-top:3px; line-height:1.4; }
+.questProgress { height:6px; width:100%; margin-top:7px; }
+.rpgStorageGrid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.rpgStorageBox { border:1px solid var(--line); border-radius:9px; padding:9px; background:var(--bg); }
+.portalPulse { animation:rpgPortalPulse 1.4s ease-in-out infinite; }
+@keyframes rpgPortalPulse { 0%,100%{transform:scale(.96);opacity:.75}50%{transform:scale(1.08);opacity:1} }
+@media(max-width:520px){.rpgStatHero{grid-template-columns:1fr 1fr}.rpgStorageGrid{grid-template-columns:1fr}}
+
 </head>
 <body>
 
@@ -1449,7 +1488,7 @@ function renderShop(){
   const p=S.players[S.uid];if(!p)return;const npc=NPCS.merchant;
   let html='<div class="npcHint"><b>'+npc.icon+' '+escapeHtml(npc.name)+'</b><br>“필요한 물건 있으면 말만 해!”<br>'+(nearNpc(p,npc)?'✅ 상인 근처야. 거래 가능.':'❌ 상인에게 2칸 이내로 이동해야 해.')+'</div>';
   html+='<div class="section"><div class="sectionTitle">🛒 구매</div><div class="shopGrid">';
-  ['potion','ironSword','leather','slimeGel','fang','scale'].forEach(id=>{const d=ITEMS[id];html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+'</b><small>💰 '+d.price+' · 보유 x'+itemCount(p,id)+'</small></div><button data-buy="'+id+'" '+(!nearNpc(p,npc)||p.gold<d.price||itemCount(p,id)>=d.max?'disabled':'')+'>구매</button></div>';});
+  ['potion','ironSword','leather','slimeGel','fang','scale','dungeonCore'].forEach(id=>{const d=ITEMS[id];html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+'</b><small>💰 '+d.price+' · 보유 x'+itemCount(p,id)+'</small></div><button data-buy="'+id+'" '+(!nearNpc(p,npc)||p.gold<d.price||itemCount(p,id)>=d.max?'disabled':'')+'>구매</button></div>';});
   html+='</div></div><div class="section"><div class="sectionTitle">💰 판매 · 구매가의 50%</div><div class="shopGrid">';
   Object.entries(p.inv||{}).forEach(([id,n])=>{const d=ITEMS[id];if(!d||!n)return;const equipped=p.equip.weapon===id||p.equip.armor===id;html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+' x'+n+'</b><small>판매 '+shopSellPrice(d)+' 골드 / 1개'+(equipped?' · 장착중':'')+'</small></div><button data-sell="'+id+'" '+(!nearNpc(p,npc)||equipped?'disabled':'')+'>1개 판매</button></div>';});
   if(!Object.keys(p.inv||{}).length)html+='<div class="empty">판매할 아이템이 없어.</div>';
@@ -2155,7 +2194,7 @@ const RPG_BUILDINGS = [
   {map:'town',id:'smith',x:36,y:6,w:11,h:7,icon:'⚒️',name:'붉은 모루 · 대장간',wall:'#c6bbb0',roof:'#74544d'},
   {map:'town',id:'guild',x:8,y:27,w:14,h:8,icon:'🛡️',name:'모험가 길드',wall:'#d5dce7',roof:'#5e7797'},
   {map:'town',id:'clinic',x:29,y:27,w:12,h:8,icon:'⛪',name:'새벽빛 · 치유소',wall:'#d7e5d8',roof:'#759b75'},
-  {map:'town',id:'inn2',x:44,y:28,w:7,h:6,icon:'📦',name:'창고',wall:'#d8c6a9',roof:'#8e6f4d'}
+  {map:'town',id:'warehouse',x:44,y:28,w:7,h:6,icon:'📦',name:'창고',wall:'#d8c6a9',roof:'#8e6f4d'}
 ];
 const RPG_NPCS = {
   merchant:{id:'merchant',map:'town',x:26,y:14,name:'상인 루루',icon:'🧑‍🍳',role:'상점'},
@@ -2292,7 +2331,7 @@ findPath=findPathRpg;
 setWalkTarget=function(x,y){const p=S.players[S.uid];if(!p)return;const md=mapDef(p.map);x=clamp(Math.floor(x),0,md.w-1);y=clamp(Math.floor(y),0,md.h-1);S.walkTo={x,y};S.walkPath=findPathRpg({x:p.x,y:p.y},{x,y},p.map);if(!S.walkPath.length&&(p.x!==x||p.y!==y))S.walkTo=null;};
 
 const _rpgSpawnMon=spawnMon;
-spawnMon=function(){if(!S.isHost)return;let countByMap=(map)=>S.mons.filter(m=>m.map===map).length;const roll=Math.random();const map=roll<0.22?'dungeon':'field';if(map==='field'&&countByMap('field')>=18)return;if(map==='dungeon'&&countByMap('dungeon')>=12)return;const md=mapDef(map);for(let i=0;i<120;i++){let x=1+rnd(md.w-2),y=1+rnd(md.h-2);if(map==='field'){if(x<14)continue;}if(isMapBlocked(map,x,y))continue;if(S.mons.some(m=>m.map===map&&m.x===x&&m.y===y))continue;if(Object.values(S.players).some(p=>p.map===map&&p.x===x&&p.y===y))continue;const e=map==='dungeon'?(Math.random()<0.45?'👺':Math.random()<0.55?'🐉':'🦠'):(Math.random()<0.7?'🦠':Math.random()<0.94?'👺':'🐉');S.mons.push({id:S.monSeq++,e,x,y,map,hp:MONS[e].hp,mx:MONS[e].hp,next:Date.now()+900,lastAtk:0});return;}};
+spawnMon=function(){if(!S.isHost)return;let countByMap=(map)=>S.mons.filter(m=>m.map===map).length;const roll=Math.random();const map=roll<0.22?'dungeon':'field';if(map==='field'&&countByMap('field')>=18)return;if(map==='dungeon'&&countByMap('dungeon')>=12)return;const md=mapDef(map);for(let i=0;i<120;i++){let x=1+rnd(md.w-2),y=1+rnd(md.h-2);if(map==='field'){if(x<14)continue;}if(isMapBlocked(map,x,y))continue;if(S.mons.some(m=>m.map===map&&m.x===x&&m.y===y))continue;if(Object.values(S.players).some(p=>p.map===map&&p.x===x&&p.y===y))continue;const e=map==='dungeon'?(Math.random()<0.08?'👹':Math.random()<0.50?'👺':Math.random()<0.72?'🐉':'🦠'):(Math.random()<0.7?'🦠':Math.random()<0.94?'👺':'🐉');S.mons.push({id:S.monSeq++,e,x,y,map,hp:MONS[e].hp,mx:MONS[e].hp,next:Date.now()+900,lastAtk:0});return;}};
 
 function awardXpRpg(p,amount){amount=Math.max(0,Math.floor(amount));p.xp+=amount;let leveled=0;while(p.lv<120&&p.xp>=p.lv*30){p.xp-=p.lv*30;p.lv++;p.hp=50+p.lv*10;leveled++;}if(leveled){broadcastEvent({k:'log',s:'✨ '+p.name+' 님이 Lv.'+p.lv+'로 레벨업!'});if(hasJobReady(p)){const stage=jobData(p).stage+1;sendTo(p.id,{t:'job_ready',stage,lv:p.lv});if(p.id===S.uid)renderJobPanel(true);}}}
 function partyMembersNearby(p){const pt=partyForPlayer(p.id);if(!pt)return[];return pt.members.map(id=>S.players[id]).filter(q=>q&&sameMap(q,p)&&cheb(q,p)<=10);}
@@ -2300,7 +2339,7 @@ function doAttackRpg(uid){if(!S.isHost)return;const p=S.players[uid];if(!p||p.hp
 var doAttack = doAttackRpg;
 
 function hostTickRpg(){if(!S.isHost)return;const now=Date.now();if(now%5<2){};if(now-S.nextSpawn>1400){S.nextSpawn=now;spawnMon();if(S.mons.filter(m=>m.map==='field').length<6)spawnMon();}
-  for(const mon of S.mons){if(now<(mon.next||0))continue;mon.next=now+(MONS[mon.e].spd||1200);const players=Object.values(S.players).filter(p=>p.map===mon.map&&p.hp>0);if(!players.length)continue;players.sort((a,b)=>cheb(a,mon)-cheb(b,mon));const t=players[0];if(cheb(mon,t)<=1){const dmg=Math.max(1,MONS[mon.e].dmg-effectiveDefRpg(t));t.hp=Math.max(0,t.hp-dmg);broadcastEvent({k:'hurt',id:t.id,dmg});if(t.hp<=0){t.hp=50+t.lv*10;t.map='town';t.x=RPG_MAPS.town.spawn.x;t.y=RPG_MAPS.town.spawn.y;broadcastEvent({k:'log',s:'💫 '+t.name+' 님이 쓰러져 루미나 마을로 돌아왔습니다.'});}}else{const path=findPathRpg({x:mon.x,y:mon.y},{x:t.x,y:t.y},mon.map);if(path.length){const st=path[0];const nx=mon.x+st[0],ny=mon.y+st[1];if(!isMapBlocked(mon.map,nx,ny)&&!S.mons.some(m=>m.id!==mon.id&&m.map===mon.map&&m.x===nx&&m.y===ny)){mon.x=nx;mon.y=ny;}}}}
+  for(const mon of S.mons){if(now<(mon.next||0))continue;mon.next=now+(MONS[mon.e].spd||1200);const players=Object.values(S.players).filter(p=>p.map===mon.map&&p.hp>0);if(!players.length)continue;players.sort((a,b)=>cheb(a,mon)-cheb(b,mon));const t=players[0];if(cheb(mon,t)<=1){const dmg=Math.max(1,MONS[mon.e].dmg-effectiveDefRpg(t));t.hp=Math.max(0,t.hp-dmg);broadcastEvent({k:'hurt',id:t.id,dmg});if(t.hp<=0){t.hp=maxHp(t);const h=t.home&&RPG_MAPS[t.home.map]?t.home:{map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y};t.map=h.map;t.x=clamp(Math.floor(Number(h.x)||RPG_MAPS[t.map].spawn.x),0,RPG_MAPS[t.map].w-1);t.y=clamp(Math.floor(Number(h.y)||RPG_MAPS[t.map].spawn.y),0,RPG_MAPS[t.map].h-1);if(isMapBlocked(t.map,t.x,t.y)){t.x=RPG_MAPS[t.map].spawn.x;t.y=RPG_MAPS[t.map].spawn.y;}broadcastEvent({k:'log',s:'💫 '+t.name+' 님이 쓰러져 '+RPG_MAPS[t.map].name+'의 귀환 지점으로 돌아왔습니다.'});}}else{const path=findPathRpg({x:mon.x,y:mon.y},{x:t.x,y:t.y},mon.map);if(path.length){const st=path[0];const nx=mon.x+st[0],ny=mon.y+st[1];if(!isMapBlocked(mon.map,nx,ny)&&!S.mons.some(m=>m.id!==mon.id&&m.map===mon.map&&m.x===nx&&m.y===ny)){mon.x=nx;mon.y=ny;}}}}
   bcast(snapshot());
 }
 var hostTick = hostTickRpg;
@@ -2372,7 +2411,761 @@ const _legacyBindInput=bindInput;
 bindInput=function(){if(S.inputBound)return _legacyBindInput();S.inputBound=false;_legacyBindInput();};
 
 /* 누락된 전투 함수/호스트 틱이 참조되기 전에 실제 구현을 제공 */
+
+/* ============================================================
+   건물 내부 / 마을 완성도 패치
+   - 건물은 외부와 내부가 분리된 독립 맵
+   - 문에서 E로 입장 / 내부 출구에서 E로 귀환
+   - 내부별 NPC와 상점/길드/회복/전직 기능 연결
+   - 텔레포트석을 크게 표시하고 월드맵 이동과 구분
+   ============================================================ */
+Object.assign(RPG_MAPS, {
+  inn:      {id:'inn',      name:'별빛쉼터 · 여관', meta:'실내 · 휴식/저장', w:20, h:14, bg:'#cdbb9f', kind:'interior', buildingId:'inn', safe:true, spawn:{x:10,y:11}},
+  market:   {id:'market',   name:'달빛시장 · 상점', meta:'실내 · 구매/판매', w:24, h:14, bg:'#d4c49f', kind:'interior', buildingId:'market', safe:true, spawn:{x:12,y:11}},
+  smith:    {id:'smith',    name:'붉은 모루 · 대장간', meta:'실내 · 장비/강화 안내', w:20, h:14, bg:'#b6aaa3', kind:'interior', buildingId:'smith', safe:true, spawn:{x:10,y:11}},
+  guild:    {id:'guild',    name:'모험가 길드', meta:'실내 · 파티/전직/의뢰', w:26, h:16, bg:'#b9c6d7', kind:'interior', buildingId:'guild', safe:true, spawn:{x:13,y:13}},
+  clinic:   {id:'clinic',   name:'새벽빛 · 치유소', meta:'실내 · 회복', w:20, h:14, bg:'#cbd9c9', kind:'interior', buildingId:'clinic', safe:true, spawn:{x:10,y:11}},
+  warehouse:{id:'warehouse',name:'루미나 공용창고', meta:'실내 · 보관 시설', w:18, h:12, bg:'#cbbb9c', kind:'interior', buildingId:'warehouse', safe:true, spawn:{x:9,y:9}}
+});
+
+const buildingInteriorDefs = {
+  inn:      { interior:'inn', returnX:12, returnY:13, exit:{x:10,y:13}, decor:[{x:4,y:4,icon:'🛏️',w:3,h:2},{x:13,y:4,icon:'🛏️',w:3,h:2},{x:9,y:7,icon:'🪑',w:2,h:1},{x:15,y:9,icon:'🪵',w:2,h:1}], title:'따뜻한 침대와 벽난로가 있는 작은 여관' },
+  market:   { interior:'market', returnX:26, returnY:13, exit:{x:12,y:13}, decor:[{x:4,y:3,icon:'🧺',w:3,h:2},{x:8,y:3,icon:'📦',w:3,h:2},{x:16,y:3,icon:'🪙',w:3,h:2},{x:19,y:8,icon:'🧺',w:2,h:2}], title:'물약과 재료가 진열된 마을 상점' },
+  smith:    { interior:'smith', returnX:40, returnY:13, exit:{x:10,y:13}, decor:[{x:4,y:4,icon:'🔥',w:2,h:2},{x:8,y:4,icon:'⚒️',w:3,h:2},{x:14,y:4,icon:'🛡️',w:3,h:2},{x:15,y:9,icon:'📦',w:2,h:2}], title:'화로와 장비 진열대가 있는 대장간' },
+  guild:    { interior:'guild', returnX:15, returnY:35, exit:{x:13,y:15}, decor:[{x:3,y:4,icon:'📜',w:4,h:2},{x:18,y:4,icon:'🪧',w:4,h:2},{x:7,y:8,icon:'🪑',w:5,h:2},{x:17,y:10,icon:'🗺️',w:4,h:2}], title:'모험가 의뢰와 전직을 담당하는 길드' },
+  clinic:   { interior:'clinic', returnX:35, returnY:35, exit:{x:10,y:13}, decor:[{x:4,y:4,icon:'🛏️',w:3,h:2},{x:13,y:4,icon:'🩺',w:3,h:2},{x:7,y:8,icon:'🧴',w:2,h:2},{x:15,y:9,icon:'🌿',w:2,h:2}], title:'마을 주민과 모험가를 치료하는 작은 진료소' },
+  warehouse:{ interior:'warehouse', returnX:47, returnY:34, exit:{x:9,y:11}, decor:[{x:3,y:3,icon:'📦',w:3,h:2},{x:8,y:3,icon:'📦',w:3,h:2},{x:13,y:3,icon:'📦',w:2,h:2},{x:5,y:7,icon:'🧰',w:3,h:2}] , title:'아이템을 정리하는 공용 창고' }
+};
+
+RPG_BUILDINGS.forEach(b=>{
+  const d=buildingInteriorDefs[b.id];
+  if(d){
+    b.interior=d.interior;
+    b.door={x:b.x+Math.floor(b.w/2),y:b.y+b.h-1};
+    b.sign=b.name;
+  }
+});
+
+/* 기존 NPC를 실제 건물 내부로 이동 */
+Object.assign(RPG_NPCS.merchant,   {map:'market',   x:12, y:5, role:'상점'});
+Object.assign(RPG_NPCS.innkeeper, {map:'inn',      x:10, y:4, role:'휴식'});
+Object.assign(RPG_NPCS.smith,     {map:'smith',    x:10, y:5, role:'장비'});
+Object.assign(RPG_NPCS.guide,     {map:'guild',    x:20, y:6, role:'길드 안내'});
+Object.assign(RPG_NPCS.healer,    {map:'clinic',   x:10, y:5, role:'회복'});
+Object.assign(RPG_NPCS.classmaster,{map:'guild',   x:7, y:6, role:'전직'});
+RPG_NPCS.storage={id:'storage',map:'warehouse',x:9,y:5,name:'창고지기 토토',icon:'🧑‍💼',role:'보관'};
+
+function interiorDefByMap(map){
+  return Object.values(buildingInteriorDefs).find(d=>d.interior===map)||null;
+}
+function buildingDoorAt(map,x,y){
+  if(map!=='town') return null;
+  return RPG_BUILDINGS.find(b=>b.map==='town' && b.door && b.door.x===x && b.door.y===y) || null;
+}
+function nearestBuildingDoor(p){
+  if(!p) return null;
+  if(p.map==='town'){
+    let best=null,d=999;
+    for(const b of RPG_BUILDINGS.filter(b=>b.interior)){
+      const q=b.door,dd=cheb(p,q);
+      if(dd<d){d=dd;best=b;}
+    }
+    return d<=1?{...best,dist:d}:null;
+  }
+  const d=interiorDefByMap(p.map);
+  if(!d)return null;
+  const dd=cheb(p,d.exit);
+  if(dd<=1)return {...d,dist:dd};
+  return null;
+}
+function canEnterBuilding(p,b){
+  return !!p && p.map==='town' && b && b.interior && b.door && cheb(p,b.door)<=1 && RPG_MAPS[b.interior];
+}
+function canExitBuilding(p,d){
+  return !!p && d && p.map===d.interior && cheb(p,d.exit)<=1;
+}
+function requestBuildingTransition(){
+  const p=S.players[S.uid]; if(!p)return;
+  if(p.map==='town'){
+    const b=nearestBuildingDoor(p);
+    if(!b){log('🚪 건물 입구 근처에서 E를 눌러줘.');return;}
+    sendLocalHost({t:'building_enter',building:b.id});
+  }else{
+    const d=interiorDefByMap(p.map);
+    if(!d){log('🚪 출구를 찾을 수 없어.');return;}
+    if(!canExitBuilding(p,d)){log('🚪 건물 출구 근처로 이동해줘.');return;}
+    sendLocalHost({t:'building_exit',interior:p.map});
+  }
+}
+
+/* 실내 맵 충돌 규칙 */
+const _buildingIsMapBlocked=isMapBlocked;
+isMapBlocked=function(map,x,y){
+  const md=mapDef(map);
+  if(md.kind==='interior'){
+    if(x<0||y<0||x>=md.w||y>=md.h)return true;
+    const d=interiorDefByMap(map);
+    if(d && x===d.exit.x && y===d.exit.y)return false;
+    if(x===0||y===0||x===md.w-1||y===md.h-1)return true;
+    const decor=(d&&d.decor)||[];
+    for(const o of decor){
+      if(x>=o.x&&x<o.x+o.w&&y>=o.y&&y<o.y+o.h)return true;
+    }
+    /* 실내 벽/가구형 통로 */
+    if(map==='guild' && ((x===5&&y>=3&&y<=12)||(x===15&&y>=3&&y<=8))) return true;
+    if(map==='market' && ((x===5&&y>=2&&y<=9)||(x===17&&y>=2&&y<=8))) return true;
+    if(map==='smith' && ((x===5&&y>=3&&y<=10)||(x===13&&y>=3&&y<=8))) return true;
+    return false;
+  }
+  return _buildingIsMapBlocked(map,x,y);
+};
+
+/* 더 '마을'처럼 보이도록 도로/광장/가로등/나무를 추가 */
+function isTownRoadRpg(x,y){
+  return (y>=18&&y<=22) || (x>=26&&x<=30) || (y>=25&&y<=27&&x>=3&&x<=52) || (x>=43&&x<=45&&y>=20&&y<=36);
+}
+function isTownPlazaRpg(x,y){return x>=24&&x<=32&&y>=16&&y<=24;}
+
+const _oldMapTileColorRpg=mapTileColor;
+mapTileColor=function(map,x,y,css){
+  const md=mapDef(map);
+  if(md.kind==='interior'){
+    if(x===0||y===0||x===md.w-1||y===md.h-1)return '#776857';
+    if(y>=md.h-3)return '#b89d7e';
+    if(map==='smith')return ((x+y)%2)?'#b6aaa1':'#c0b4ab';
+    if(map==='market')return ((x+y)%2)?'#d6c59f':'#ddcdaa';
+    if(map==='guild')return ((x+y)%2)?'#b9c7d9':'#c7d1df';
+    if(map==='clinic')return ((x+y)%2)?'#cbd8c9':'#d5e0d4';
+    if(map==='warehouse')return ((x+y)%2)?'#cabb9d':'#d2c2a5';
+    return ((x+y)%2)?'#cdbb9f':'#d7c6aa';
+  }
+  if(map==='town'){
+    if(isTownPlazaRpg(x,y))return ((x+y)%2)?'#d7c18f':'#e1cd9e';
+    if(isTownRoadRpg(x,y))return ((x+y)%2)?'#cbb98f':'#d3c39c';
+    if((x===4||x===51)&&(y>=14&&y<=35)&&!isTownRoadRpg(x,y))return '#7e9e6f';
+  }
+  return _oldMapTileColorRpg(map,x,y,css);
+};
+
+function drawTownDetailsRpg(m,fg){
+  for(let x=3;x<=52;x+=4){
+    for(let y=15;y<=35;y+=4){
+      if(isTownRoadRpg(x,y)||isTownPlazaRpg(x,y)||buildingAt('town',x,y))continue;
+      const q=worldToScreen(x,y,m);ctx.font=(m.unit*.45)+'px '+FONT;ctx.textAlign='center';ctx.fillText('🌳',q.x+m.tw/2,q.y+m.th*.72);
+    }
+  }
+  const plaza=worldToScreen(28,19,m);ctx.font=(m.unit*.55)+'px '+FONT;ctx.textAlign='center';ctx.fillText('⛲',plaza.x+m.tw/2,plaza.y+m.th*.72);
+  for(const p of [{x:22,y:19},{x:34,y:19},{x:22,y:28},{x:34,y:28}]){const q=worldToScreen(p.x,p.y,m);ctx.font=(m.unit*.38)+'px '+FONT;ctx.textAlign='center';ctx.fillText('🏮',q.x+m.tw/2,q.y+m.th*.72);}
+}
+
+function drawInteriorDecorRpg(m,map,fg){
+  const d=interiorDefByMap(map);if(!d)return;
+  for(const o of d.decor||[]){
+    const q=worldToScreen(o.x,o.y,m),w=o.w*m.tw,h=o.h*m.th;
+    ctx.save();ctx.fillStyle='rgba(80,60,35,.18)';ctx.fillRect(q.x+2,q.y+2,w-4,h-4);
+    ctx.strokeStyle='rgba(0,0,0,.22)';ctx.strokeRect(q.x+2,q.y+2,w-4,h-4);
+    ctx.font=(m.unit*.5)+'px '+FONT;ctx.textAlign='center';ctx.fillText(o.icon,q.x+w/2,q.y+h*.72);ctx.restore();
+  }
+  const md=mapDef(map),eq=worldToScreen(d.exit.x,d.exit.y,m);
+  ctx.save();ctx.shadowColor='rgba(255,232,180,.85)';ctx.shadowBlur=8;ctx.font=(m.unit*.58)+'px '+FONT;ctx.textAlign='center';ctx.fillText('🚪',eq.x+m.tw/2,eq.y+m.th*.75);ctx.shadowBlur=0;ctx.font='700 '+clamp(m.unit*.18,9,12)+'px sans-serif';ctx.fillStyle=fg;ctx.fillText('나가기',eq.x+m.tw/2,eq.y+m.th*.3);ctx.restore();
+}
+
+function drawTownBuildingsRpgBetter(m,fg){
+  for(const b of RPG_BUILDINGS.filter(b=>b.map==='town')){
+    const q=worldToScreen(b.x,b.y,m),w=b.w*m.tw,h=b.h*m.th;
+    ctx.save();
+    ctx.fillStyle=b.wall;ctx.strokeStyle='rgba(0,0,0,.34)';ctx.lineWidth=1.5;ctx.fillRect(q.x+2,q.y+4,w-4,h-4);ctx.strokeRect(q.x+2,q.y+4,w-4,h-4);
+    ctx.fillStyle=b.roof;ctx.beginPath();ctx.moveTo(q.x,q.y+m.th*.48);ctx.lineTo(q.x+w/2,q.y);ctx.lineTo(q.x+w,q.y+m.th*.48);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.12)';ctx.fillRect(q.x+5,q.y+h*.62,w-10,m.th*.24);
+    ctx.font=(m.unit*.46)+'px '+FONT;ctx.textAlign='center';ctx.fillStyle=fg;ctx.fillText(b.icon,q.x+w/2,q.y+h*.4);
+    ctx.font='800 '+clamp(m.unit*.19,10,14)+'px sans-serif';ctx.fillText(b.name.split(' · ')[0],q.x+w/2,q.y+h*.78);
+    const dq=worldToScreen(b.door.x,b.door.y,m);ctx.font=(m.unit*.32)+'px '+FONT;ctx.fillText('🚪',dq.x+m.tw/2,dq.y+m.th*.72);
+    ctx.restore();
+  }
+  drawTownDetailsRpg(m,fg);
+}
+drawTownBuildingsRpg=drawTownBuildingsRpgBetter;
+
+function drawRpgPortalsBetter(m,fg,map){
+  for(const t of (RPG_PORTALS[map]||[])){
+    const q=worldToScreen(t.x,t.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;
+    ctx.save();
+    ctx.strokeStyle='rgba(82,174,255,.72)';ctx.lineWidth=2.5;ctx.shadowColor='rgba(82,174,255,.9)';ctx.shadowBlur=14;
+    ctx.beginPath();ctx.arc(cx,cy,m.tw*.34,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,cy,m.tw*.2,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
+    ctx.font=(m.unit*.58)+'px '+FONT;ctx.textAlign='center';ctx.fillText(t.icon,cx,cy+m.th*.18);
+    ctx.font='900 '+clamp(m.unit*.18,9,13)+'px sans-serif';ctx.fillStyle=fg;ctx.fillText('텔레포트',cx,cy+m.th*.68);
+    ctx.font='700 '+clamp(m.unit*.15,8,11)+'px sans-serif';ctx.fillStyle=fg;ctx.fillText(t.name.replace(/\s*이동석|\s*텔레포트석/g,''),cx,cy+m.th*.92);
+    ctx.restore();
+  }
+}
+drawRpgPortals=drawRpgPortalsBetter;
+
+function drawPromptRpg(text,m){
+  const cvPrompt=document.getElementById('buildingPrompt');
+  if(!cvPrompt){const el=document.createElement('div');el.id='buildingPrompt';el.className='buildingPrompt';document.getElementById('game').appendChild(el);}
+  const el=document.getElementById('buildingPrompt');el.textContent=text;el.hidden=!text;
+}
+function clearPromptRpg(){const el=document.getElementById('buildingPrompt');if(el){el.hidden=true;el.textContent='';}}
+
+function updateZoneHudRpgBetter(){
+  const p=S.players[S.uid];if(!p)return;
+  const md=mapDef(p.map||'town');
+  const base=md.name;
+  $('zoneName').textContent=(md.kind==='interior'?'🏠 ':'')+base;
+  $('zoneMeta').textContent=md.meta;
+}
+updateZoneHudRpg=updateZoneHudRpgBetter;updateZoneHud=updateZoneHudRpgBetter;
+
+function drawSceneRpgBetter(){
+  if(!S.started){S.drawStarted=false;clearPromptRpg();return;}
+  const rc=resizeCanvas();if(rc.w<=1||rc.h<=1)return;
+  const p=S.players[S.uid];if(!p)return;
+  const map=p.map||'town';S.renderMap=map;const md=mapDef(map),m=boardMetrics();
+  const halfX=m.w/(2*m.tw),halfY=m.h/(2*m.th);
+  S.camera.x=clamp(p.x,halfX,md.w-halfX-1);S.camera.y=clamp(p.y,halfY,md.h-halfY-1);
+  const css=getComputedStyle(document.documentElement),c1=css.getPropertyValue('--tile1').trim(),c2=css.getPropertyValue('--tile2').trim(),fg=css.getPropertyValue('--fg').trim(),acc=css.getPropertyValue('--acc').trim(),ok=css.getPropertyValue('--ok').trim(),bad=css.getPropertyValue('--bad').trim();
+  ctx.globalAlpha=1;ctx.fillStyle=css.getPropertyValue('--bg').trim();ctx.fillRect(0,0,m.w,m.h);
+  const sx0=Math.max(0,Math.floor(S.camera.x-m.w/(2*m.tw))-2),sx1=Math.min(md.w-1,Math.ceil(S.camera.x+m.w/(2*m.tw))+2),sy0=Math.max(0,Math.floor(S.camera.y-m.h/(2*m.th))-2),sy1=Math.min(md.h-1,Math.ceil(S.camera.y+m.h/(2*m.th))+2);
+  for(let y=sy0;y<=sy1;y++)for(let x=sx0;x<=sx1;x++){const q=worldToScreen(x,y,m);drawMapTileRpg(map,x,y,q.x,q.y,m,{c1,c2});}
+  if(map==='town')drawTownBuildingsRpgBetter(m,fg);else if(md.kind==='interior')drawInteriorDecorRpg(m,map,fg);drawRpgPortalsBetter(m,fg,map);
+  const portal=nearestRpgPortal(p);
+  if(portal){const q=worldToScreen(portal.x,portal.y,m);ctx.strokeStyle=acc;ctx.lineWidth=2.5;ctx.setLineDash([4,3]);ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);ctx.setLineDash([]);}
+  const doorTown=map==='town'?nearestBuildingDoor(p):null;const doorExit=md.kind==='interior'?nearestBuildingDoor(p):null;
+  if(doorTown){const q=worldToScreen(doorTown.door.x,doorTown.door.y,m);ctx.strokeStyle=ok;ctx.lineWidth=2;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);} 
+  if(doorExit){const q=worldToScreen(interiorDefByMap(map).exit.x,interiorDefByMap(map).exit.y,m);ctx.strokeStyle=ok;ctx.lineWidth=2;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}
+  if(S.walkTo){const q=worldToScreen(S.walkTo.x,S.walkTo.y,m);ctx.strokeStyle=acc;ctx.lineWidth=3;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}
+  Object.values(RPG_NPCS).filter(n=>n.map===map).forEach(npc=>{const q=worldToScreen(npc.x,npc.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(npc.icon,cx,cy);drawNameplate(npc.role+' · '+npc.name,cx,q.y-2,m.unit,ok);});
+  S.mons.filter(mon=>mon.map===map).forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.fillText(mon.e,cx,cy);bar(q.x+4,q.y+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);});
+  Object.values(S.players).filter(q=>q.map===map).forEach(pl=>{const v=smooth('p'+pl.id,pl.x,pl.y,m),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,ap=sanitizeAppearance(pl.appearance),j=jobData(pl);if(pl.id===S.uid){ctx.strokeStyle=ap.aura;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.45,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(pl.emoji,cx,cy);if(ap.hat){ctx.font=(m.unit*.34)+'px '+FONT;ctx.fillText(ap.hat,cx,q.y);}drawNameplate((pl.id===S.hostUid?'👑 ':'')+j.icon+' '+pl.name,cx,q.y-m.th*.05,m.unit,pl.id===S.uid?ap.aura:fg);bar(q.x+4,q.y+m.th-8,Math.max(8,m.tw-8),pl.hp/(50+pl.lv*10),ok);});
+  const now=Date.now();S.fx=S.fx.filter(f=>now-f.t0<f.life);S.fx.forEach(f=>{const a=(now-f.t0)/f.life;let x=f.x,y=f.y;if(f.id){const v=S.vis['p'+f.id];if(!v)return;x=v.x;y=v.y;}const q=worldToScreen(x,y,m);ctx.globalAlpha=1-a;ctx.font='700 '+clamp(m.unit*.33,13,22)+'px sans-serif';ctx.fillStyle=f.c;ctx.textAlign='center';ctx.fillText(f.s,q.x+m.tw/2,q.y+m.th/2-a*m.unit*.8);});ctx.globalAlpha=1;
+  let prompt='';if(doorTown)prompt='E · '+doorTown.name+' 들어가기';else if(doorExit)prompt='E · 건물 밖으로 나가기';else if(portal)prompt='M · 텔레포트석 사용';drawPromptRpg(prompt,m);updateZoneHudRpgBetter();if(now-S.minimapLast>220){drawMinimapRpgBetter();S.minimapLast=now;}
+}
+drawSceneRpg=drawSceneRpgBetter;drawScene=drawSceneRpgBetter;
+
+function drawMinimapRpgBetter(){
+  const p=S.players[S.uid];if(!p)return;const map=p.map||'town',md=mapDef(map),mc=$('minimap');if(!mc)return;const mx=mc.getContext('2d'),sx=mc.width/md.w,sy=mc.height/md.h;mx.clearRect(0,0,mc.width,mc.height);
+  for(let y=0;y<md.h;y++)for(let x=0;x<md.w;x++){let col=md.kind==='interior'?((x+y)%2?'#c6b596':'#d6c6a8'):(map==='town'?((x+y)%2?'#a1c18f':'#acc995'):map==='field'?((x+y)%2?'#a8c57d':'#b2ce83'):'#5c4b5e');if(isMapBlocked(map,x,y))col=md.kind==='interior'?'#7a6957':map==='dungeon'?'#302735':'#58764e';mx.fillStyle=col;mx.fillRect(x*sx,y*sy,Math.ceil(sx),Math.ceil(sy));}
+  if(map==='town')for(const b of RPG_BUILDINGS.filter(b=>b.map==='town')){mx.fillStyle='#c8a77d';mx.fillRect(b.x*sx,b.y*sy,b.w*sx,b.h*sy);mx.fillStyle='#f4e3b2';mx.fillRect(b.door.x*sx,b.door.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));}
+  Object.values(S.players).filter(q=>q.map===map).forEach(q=>{mx.fillStyle=q.id===S.uid?'#ffd54a':'#eaf1ff';mx.fillRect(q.x*sx,q.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));});
+  S.mons.filter(m=>m.map===map).forEach(mm=>{mx.fillStyle='#e86a6a';mx.fillRect(mm.x*sx,mm.y*sy,Math.max(1,sx),Math.max(1,sy));});
+  (RPG_PORTALS[map]||[]).forEach(t=>{mx.fillStyle='#67d6ff';mx.fillRect(t.x*sx,t.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));});
+  const d=interiorDefByMap(map);if(d){mx.fillStyle='#ffe2a6';mx.fillRect(d.exit.x*sx,d.exit.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));}
+  const view=boardMetrics(),hx=Math.min(md.w/2,Math.ceil(view.w/(2*view.tw))),hy=Math.min(md.h/2,Math.ceil(view.h/(2*view.th)));mx.strokeStyle='rgba(255,255,255,.9)';mx.lineWidth=1;mx.strokeRect(Math.max(0,(p.x-hx)*sx),Math.max(0,(p.y-hy)*sy),Math.min(mc.width,hx*2*sx),Math.min(mc.height,hy*2*sy));
+}
+drawMinimapRpg=drawMinimapRpgBetter;drawMinimap=drawMinimapRpgBetter;
+
+/* 건물 전환은 반드시 호스트가 검증한다. */
+const _buildingHostRecv=hostRecv;
+hostRecv=function(c,m){
+  if(m&&m.t==='building_enter'&&c&&c.uid&&S.players[c.uid]){
+    const p=S.players[c.uid],b=RPG_BUILDINGS.find(x=>x.id===String(m.building||''));
+    if(!canEnterBuilding(p,b))return;
+    const md=mapDef(b.interior);p.map=b.interior;p.x=md.spawn.x;p.y=md.spawn.y;p._lastMapTransfer=Date.now();S.moveAck[c.uid]=(S.moveAck[c.uid]||0)+1;
+    sendTo(c.uid,{t:'map_transfer_ok',map:p.map,x:p.x,y:p.y,mode:'enter',building:b.id});broadcastEvent({k:'log',s:'🚪 '+p.name+' 님이 '+b.name+'에 들어갔습니다.'});return;
+  }
+  if(m&&m.t==='building_exit'&&c&&c.uid&&S.players[c.uid]){
+    const p=S.players[c.uid],d=interiorDefByMap(p.map);
+    if(!canExitBuilding(p,d))return;
+    const md=mapDef('town');p.map='town';p.x=d.returnX;p.y=d.returnY;p._lastMapTransfer=Date.now();S.moveAck[c.uid]=(S.moveAck[c.uid]||0)+1;
+    sendTo(c.uid,{t:'map_transfer_ok',map:'town',x:p.x,y:p.y,mode:'exit',interior:d.interior});broadcastEvent({k:'log',s:'🚪 '+p.name+' 님이 건물 밖으로 나왔습니다.'});return;
+  }
+  _buildingHostRecv(c,m);
+};
+
+const _buildingOnClientData=onClientData;
+onClientData=function(m){
+  if(m&&m.t==='map_transfer_ok'){
+    const p=S.players[S.uid],map=RPG_MAPS[m.map]?m.map:'town',md=RPG_MAPS[map];
+    if(p){p.map=map;p.x=Number.isFinite(+m.x)?+m.x:md.spawn.x;p.y=Number.isFinite(+m.y)?+m.y:md.spawn.y;S.pendingMoves=[];S.moveSeq=Math.max(S.moveSeq||0,(S.moveAck[S.uid]||0));S.renderMap=map;S.walkTo=null;S.walkPath=[];closePanel();updateZoneHudRpgBetter();log(m.mode==='enter'?'🚪 건물 안으로 들어왔습니다.':'🚪 건물 밖으로 나왔습니다.');}
+    return;
+  }
+  _buildingOnClientData(m);
+};
+
+/* E키: 마을 문/실내 출구. 기존 NPC 상호작용은 앞서 등록된 핸들러가 계속 담당한다. */
+if(!window.__buildingEHandler){
+  window.__buildingEHandler=true;
+  window.addEventListener('keydown',e=>{
+    if(!S.started||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+    if(e.key.toLowerCase()!=='e')return;
+    const p=S.players[S.uid];if(!p)return;
+    const door=p.map==='town'?nearestBuildingDoor(p):interiorDefByMap(p.map);
+    if(p.map==='town'&&door){e.preventDefault();requestBuildingTransition();}
+    else if(p.map!=='town'&&door&&canExitBuilding(p,door)){e.preventDefault();requestBuildingTransition();}
+  });
+}
+
+/* 상점/NPC 건물 안에서도 같은 메뉴가 열리도록 버튼 안내를 갱신한다. */
+const _betterRenderShop=renderShop;
+renderShop=function(){
+  const p=S.players[S.uid];
+  if(!p||p.map!=='market'){log('🏪 달빛시장 안의 상인 루루 근처에서 상점을 열어줘.');return;}
+  _betterRenderShop();
+};
+
+/* 길드 안에서는 전직 NPC를 통해 전직 창을 열 수 있다. */
+if(!window.__guildNpcHandler){
+  window.__guildNpcHandler=true;
+  window.addEventListener('keydown',e=>{
+    if(!S.started||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+    if(e.key.toLowerCase()!=='e')return;
+    const p=S.players[S.uid];if(!p)return;
+    const cm=RPG_NPCS.classmaster;
+    if(p.map===cm.map&&cheb(p,cm)<=2){e.preventDefault();renderJobPanel(false);}
+  });
+}
+
+/* 텔레포트 설명도 '포탈 표식'과 일치하도록 정리 */
+renderTeleportPanel=function(){renderTeleportPanelRpg();};
+
+
+/* 이벤트 표시 함수가 일부 이전 리비전에서 빠져 있던 문제를 보강.
+   호스트 전환/맵 이동/전투 이벤트가 UI 예외로 게임 루프를 깨지 않게 한다. */
+function handleEvent(ev){
+  if(!ev||typeof ev!=='object')return;
+  if(ev.k==='log'&&ev.s)log(String(ev.s));
+  else if(ev.k==='hit'&&ev.x!=null&&ev.y!=null&&ev.dmg!=null){S.fx.push({x:+ev.x,y:+ev.y,s:'-'+(+ev.dmg||0),c:'#ffca5c',t0:Date.now(),life:700});}
+  else if(ev.k==='hurt'&&ev.id&&ev.dmg!=null){S.fx.push({id:String(ev.id),s:'-'+(+ev.dmg||0),c:'#ff6b7a',t0:Date.now(),life:700});}
+  else if(ev.k==='appear'&&ev.id){log('👋 '+String(ev.name||'플레이어')+' 님이 들어왔습니다.');}
+  else if(ev.k==='leave'&&ev.id){log('🚪 플레이어가 나갔습니다.');}
+}
+
+window.__rpgBuildingInteriorsReady=true;
+
 window.__rpgOverhaulReady=true;
+
+/* ============================================================
+   RPG 완성도 패치 v3
+   - 실제 건물 내부 NPC 상호작용
+   - 대장간 강화 / 장비
+   - 여관 / 치유소 / 창고
+   - 길드 의뢰
+   - 맵/텔레포트 UI 강화
+   - 계정 복구 데이터에 RPG 진행상태 확장
+   - NPC/건물/텔레포트 E/M 상호작용을 캡처 단계에서 통합
+   ============================================================ */
+(function(){
+  'use strict';
+
+  const _sendToV3Core=sendTo;
+  sendTo=function(uid,msg){
+    if(String(uid)===String(S.uid)){ try{ onClientData(msg); return true; }catch(_e){} }
+    return _sendToV3Core(uid,msg);
+  };
+
+  const npcMap = () => {
+    RPG_NPCS.guildmaster = RPG_NPCS.guildmaster || {id:'guildmaster',map:'guild',x:18,y:5,name:'길드장 레온',icon:'🧑‍✈️',role:'의뢰'};
+    RPG_NPCS.storage = RPG_NPCS.storage || {id:'storage',map:'warehouse',x:9,y:5,name:'창고지기 토토',icon:'🧑‍💼',role:'보관'};
+  };
+  npcMap();
+  // 화면 하단의 상황별 상호작용 안내 배너를 만든다.
+  if(!$('npcQuick')){
+    const q=document.createElement('div'); q.id='npcQuick'; q.setAttribute('aria-live','polite'); q.style.display='none';
+    $('game').appendChild(q);
+  }
+  RPG_NPCS.smith.x=11; RPG_NPCS.smith.y=6;
+  RPG_NPCS.guildmaster.x=21; RPG_NPCS.guildmaster.y=7;
+
+  const NPC_LINES = {
+    merchant:'필요한 물건은 달빛시장 안에서 골라봐. 사는 것도 파는 것도 내가 맡을게.',
+    innkeeper:'여행은 체력이 중요하지. 이곳에서 쉬고 귀환 지점도 마을로 잡아둘 수 있어.',
+    smith:'장비는 강화할수록 단단해진다. 골드와 재료를 준비해 와.',
+    guide:'텔레포트석은 각 맵을 잇는 관문이야. 이동석 근처에서 🗺️을 열어봐.',
+    healer:'상처가 있다면 맡겨. 안전한 마을에서는 언제든 회복할 수 있어.',
+    classmaster:'전직은 모험가의 길을 정하는 순간이야. 레벨 조건을 만족하면 길드에서 선택할 수 있어.',
+    guildmaster:'길드 의뢰를 맡으면 사냥터와 던전을 돌아다닐 이유가 생긴다.',
+    storage:'귀중한 물건은 창고에 보관해 두면 가방을 비워도 안전하게 남아.'
+  };
+
+  function npcDef(id){
+    const key=String(id||'');
+    return RPG_NPCS[key] || Object.values(RPG_NPCS).find(n=>n.id===key) || null;
+  }
+  function nearRpgNpc(p, npc){
+    if(!p || !npc) return false;
+    const n=npcDef(npc.id||npc);
+    return !!n && String(p.map||'town')===String(n.map||'town') && cheb(p,n)<=2;
+  }
+  nearNpc = nearRpgNpc;
+
+  /* RPG 장비 진행상태 */
+  const _oldStarterV3 = starterPlayer;
+  starterPlayer = function(id,name,emoji,score,friendCode){
+    const p=_oldStarterV3(id,name,emoji,score,friendCode);
+    p.enhance = {weapon:0, armor:0};
+    p.storage = {};
+    p.home = {map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y};
+    p.guildQuest = {active:null, progress:0, claimed:false, completed:{}};
+    normalizePlayer(p);
+    return p;
+  };
+
+  const _oldNormalizeV3 = normalizePlayer;
+  normalizePlayer = function(p){
+    const out=_oldNormalizeV3(p);
+    out.enhance = out.enhance && typeof out.enhance==='object' ? out.enhance : {weapon:0,armor:0};
+    out.enhance.weapon=clamp(Math.floor(Number(out.enhance.weapon)||0),0,10);
+    out.enhance.armor=clamp(Math.floor(Number(out.enhance.armor)||0),0,10);
+    out.storage=out.storage&&typeof out.storage==='object'?out.storage:{};
+    Object.keys(out.storage).forEach(k=>{ if(!ITEMS[k]) delete out.storage[k]; else out.storage[k]=clamp(Math.floor(Number(out.storage[k])||0),0,ITEMS[k].max||99); });
+    out.home=out.home&&typeof out.home==='object'?out.home:{map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y};
+    if(!RPG_MAPS[out.home.map])out.home={map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y};
+    out.guildQuest=out.guildQuest&&typeof out.guildQuest==='object'?out.guildQuest:{active:null,progress:0,claimed:false,completed:{}};
+    out.guildQuest.completed=out.guildQuest.completed&&typeof out.guildQuest.completed==='object'?out.guildQuest.completed:{};
+    if(out.guildQuest.active && !QUEST_DEFS_V3[out.guildQuest.active])out.guildQuest.active=null;
+    return out;
+  };
+
+  const _oldPlayerAccountV3 = playerAccountData;
+  playerAccountData = function(p){
+    const d=_oldPlayerAccountV3(p); if(!d)return d;
+    normalizePlayer(p);
+    d.enhance={...(p.enhance||{})};
+    d.storage={...(p.storage||{})};
+    d.home={...(p.home||{})};
+    d.guildQuest={...(p.guildQuest||{}),completed:{...((p.guildQuest&&p.guildQuest.completed)||{})}};
+    return d;
+  };
+
+  const _oldParseRecoveryV3 = parseRecoveryCode;
+  parseRecoveryCode = function(code){
+    const p=_oldParseRecoveryV3(code);
+    try{
+      const raw=String(code||'').trim(), parts=raw.split('-'); const packed=parts.slice(1,-1).join('-');
+      const payload=JSON.parse(b64UrlDecode(packed)); const d=payload&&payload.data||{};
+      p.enhance=d.enhance&&typeof d.enhance==='object'?{...d.enhance}:({weapon:0,armor:0});
+      p.storage=d.storage&&typeof d.storage==='object'?{...d.storage}:{};
+      p.home=d.home&&typeof d.home==='object'?{...d.home}:({map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y});
+      p.guildQuest=d.guildQuest&&typeof d.guildQuest==='object'?{...d.guildQuest,completed:{...((d.guildQuest&&d.guildQuest.completed)||{})}}:({active:null,progress:0,claimed:false,completed:{}});
+      normalizePlayer(p);
+    }catch(_e){}
+    return p;
+  };
+
+  /* 계정 복구 코드를 새 데이터가 그대로 담도록 최종 래퍼 */
+  const _oldMakeRecoveryV3 = makeRecoveryCode;
+  makeRecoveryCode = function(p){
+    normalizePlayer(p);
+    return _oldMakeRecoveryV3(p);
+  };
+
+  /* 강화 적용 */
+  const _oldJobBonusV3 = jobBonus;
+  jobBonus = function(p){ return _oldJobBonusV3(p); };
+  effectiveAtkRpg = function(p){ return Math.max(1,10+p.lv*3+equipStats(p).atk+jobBonus(p).atk+(p.enhance?.weapon||0)*2); };
+  effectiveDefRpg = function(p){ return Math.max(0,equipStats(p).def+jobBonus(p).def+(p.enhance?.armor||0)*2); };
+  effectiveAtk = effectiveAtkRpg;
+  effectiveDef = effectiveDefRpg;
+
+  /* 길드 의뢰 */
+  const QUEST_DEFS_V3 = {
+    field_scout:{id:'field_scout',name:'바람초원 정찰',needLv:1,map:'field',target:'🦠',count:8,gold:90,xp:70,item:'potion',itemCount:3,text:'바람초원의 슬라임 8마리를 처치해 길을 정리한다.'},
+    goblin_guard:{id:'goblin_guard',name:'야영지 경계',needLv:10,map:'field',target:'👺',count:8,gold:160,xp:110,item:'fang',itemCount:3,text:'바람초원의 도깨비 8마리를 처치한다.'},
+    dungeon_expedition:{id:'dungeon_expedition',name:'잊힌 광산 원정',needLv:30,map:'dungeon',target:'*',count:10,gold:360,xp:240,item:'scale',itemCount:2,text:'잊힌 광산에서 몬스터 10마리를 처치한다.'}
+  };
+  window.QUEST_DEFS_V3=QUEST_DEFS_V3;
+
+  /* 던전 전용 정예 몬스터 */
+  MONS['👹']={hp:260,dmg:22,gold:120,xp:180,spd:780};
+  ITEMS.dungeonCore={id:'dungeonCore',name:'광산 심핵',icon:'💎',type:'material',max:99,price:90};
+  MON_DROPS['👹']={item:'dungeonCore',min:1,max:2,chance:.92};
+
+  function questProgressForKill(p,e,map){
+    const q=p.guildQuest; if(!q||!q.active)return;
+    const d=QUEST_DEFS_V3[q.active]; if(!d||d.map!==map)return;
+    if(d.target!=='*' && d.target!==e)return;
+    q.progress=Math.min(d.count,(q.progress||0)+1);
+    if(q.progress>=d.count) broadcastEvent({k:'log',s:'📌 '+p.name+' 님의 길드 의뢰 「'+d.name+'」가 완료됐어!'});
+  }
+
+  const _oldAddRewardV3=addMonsterReward;
+  addMonsterReward=function(p,e){
+    _oldAddRewardV3(p,e);
+    questProgressForKill(p,e,p.map);
+  };
+
+  function shopDefs(){ return ['potion','slimeGel','fang','scale','ironSword','leather']; }
+  function shopStatus(p,id){const d=ITEMS[id];return d?{count:itemCount(p,id),max:d.max||99}:null;}
+
+  function renderNpcPanel(id){
+    const p=S.players[S.uid],n=npcDef(id); if(!p||!n||!nearRpgNpc(p,n)){log('📍 NPC에게 2칸 이내로 가까이 가야 해.');return;}
+    if(id==='merchant'){ renderShop(); return; }
+    if(id==='guide'){ renderTeleportPanelRpg(); return; }
+    if(id==='classmaster'){ renderJobPanel(false); return; }
+    if(id==='innkeeper'){
+      const html='<div class="npcCard"><div class="npcCardHead"><div class="npcAvatar">'+n.icon+'</div><div><b>'+escapeHtml(n.name)+'</b><div class="socialSub">'+escapeHtml(n.role)+'</div></div></div><div class="npcSpeech">'+NPC_LINES[id]+'</div><div class="rpgActionGrid"><button data-npc-action="inn-rest">🛏️ 휴식</button><button data-npc-action="inn-home">🏠 귀환 지점 저장</button></div></div>';
+      openPanel('🏠 별빛쉼터',html);
+    } else if(id==='healer'){
+      openPanel('⛪ 새벽빛 · 치유소','<div class="npcCard"><div class="npcCardHead"><div class="npcAvatar">'+n.icon+'</div><div><b>'+escapeHtml(n.name)+'</b><div class="socialSub">안전한 마을의 치료 NPC</div></div></div><div class="npcSpeech">'+NPC_LINES[id]+'</div><button data-npc-action="heal" style="width:100%;margin-top:9px">❤️ 완전 회복</button></div>');
+    } else if(id==='smith'){
+      const eq=p.enhance||{weapon:0,armor:0};
+      let html='<div class="npcCard"><div class="npcCardHead"><div class="npcAvatar">'+n.icon+'</div><div><b>'+escapeHtml(n.name)+'</b><div class="socialSub">장비 착용과 강화</div></div></div><div class="npcSpeech">'+NPC_LINES[id]+'</div></div><div class="section" style="margin-top:10px"><div class="sectionTitle">⚒️ 현재 장비</div>';
+      const w=p.equip.weapon&&ITEMS[p.equip.weapon]?ITEMS[p.equip.weapon]:null,a=p.equip.armor&&ITEMS[p.equip.armor]?ITEMS[p.equip.armor]:null;
+      [[w,'weapon','무기',eq.weapon], [a,'armor','방어구',eq.armor]].forEach(([d,slot,label,lv])=>{html+='<div class="rpgEquipRow">'+(d?'<div class="shopIcon">'+d.icon+'</div><div><b>'+escapeHtml(d.name)+'</b><small>'+label+' · 강화 +'+lv+'</small></div><button data-enhance="'+slot+'">강화</button>':'<div class="shopIcon">—</div><div><b>장비 없음</b><small>'+label+'</small></div><span></span>')+'</div>';});
+      html+='<div class="sectionTitle" style="margin-top:10px">🎒 보유 장비</div>';
+      Object.entries(p.inv||{}).forEach(([iid,num])=>{const d=ITEMS[iid];if(!d||!num||(d.type!=='weapon'&&d.type!=='armor'))return;const slot=d.type==='weapon'?'weapon':'armor';html+='<div class="rpgEquipRow"><div class="shopIcon">'+d.icon+'</div><div><b>'+escapeHtml(d.name)+' x'+num+'</b><small>기본 '+(d.atk||d.def||0)+' · '+(d.type==='weapon'?'공격':'방어')+'</small></div><button data-equip="'+iid+'">장착</button></div>';});
+      html+='<div class="teleportHint">강화 비용은 현재 강화 수치에 따라 증가하며, 무기는 🦷 송곳니, 방어구는 🟢 슬라임 젤리가 재료로 필요해.</div>';
+      openPanel('⚒️ 붉은 모루 · 대장간',html);
+    } else if(id==='guildmaster'){
+      renderGuildQuestBoard();
+    } else if(id==='storage'){
+      renderStoragePanel();
+    }
+    $('panelBody').querySelectorAll('[data-npc-action]').forEach(b=>b.onclick=()=>{
+      const act=b.dataset.npcAction;
+      if(act==='inn-rest')sendLocalHost({t:'npc_action',npc:id,action:'rest'});
+      if(act==='inn-home')sendLocalHost({t:'npc_action',npc:id,action:'home'});
+      if(act==='heal')sendLocalHost({t:'npc_action',npc:id,action:'heal'});
+    });
+    $('panelBody').querySelectorAll('[data-enhance]').forEach(b=>b.onclick=()=>sendLocalHost({t:'npc_action',npc:'smith',action:'enhance',slot:b.dataset.enhance}));
+    $('panelBody').querySelectorAll('[data-equip]').forEach(b=>b.onclick=()=>sendLocalHost({t:'npc_action',npc:'smith',action:'equip',id:b.dataset.equip}));
+  }
+
+  function renderGuildQuestBoard(){
+    const p=S.players[S.uid],n=RPG_NPCS.guildmaster; if(!p||!nearRpgNpc(p,n))return;
+    const active=p.guildQuest&&p.guildQuest.active; let html='<div class="npcCard"><div class="npcCardHead"><div class="npcAvatar">'+n.icon+'</div><div><b>'+escapeHtml(n.name)+'</b><div class="socialSub">모험가 길드 · 의뢰 담당</div></div></div><div class="npcSpeech">'+NPC_LINES.guildmaster+'</div></div><div class="section" style="margin-top:10px"><div class="sectionTitle">📜 오늘의 길드 의뢰</div><div class="questBoard">';
+    Object.values(QUEST_DEFS_V3).forEach(q=>{
+      const blocked=p.lv<q.needLv, same=active===q.id, progress=same?Math.min(q.count,Number(p.guildQuest.progress)||0):0;
+      html+='<div class="questCard '+(blocked?'locked':'')+'"><b>'+escapeHtml(q.name)+'</b><small>Lv.'+q.needLv+' · '+escapeHtml(q.text)+'</small><small>보상 💰 '+q.gold+' · ✨ '+q.xp+' XP · '+ITEMS[q.item].icon+' x'+q.itemCount+'</small>';
+      if(same){html+='<progress class="questProgress" max="'+q.count+'" value="'+progress+'"></progress><small>'+progress+' / '+q.count+(progress>=q.count?' · 완료':'')+'</small>'+(progress>=q.count&&!p.guildQuest.claimed?'<button data-quest-claim="1" style="margin-top:7px;width:100%">🎁 보상 받기</button>':'');}
+      else if(blocked)html+='<div class="socialSub" style="margin-top:7px">🔒 레벨 '+q.needLv+' 필요</div>';
+      else if(p.guildQuest&&p.guildQuest.active)html+='<div class="socialSub" style="margin-top:7px">다른 의뢰가 진행 중이야.</div>';
+      else html+='<button data-quest-accept="'+q.id+'" style="margin-top:7px;width:100%">📜 의뢰 수락</button>';
+      html+='</div>';
+    });
+    html+='</div></div>';
+    openPanel('🛡️ 모험가 길드 · 의뢰',html);
+    $('panelBody').querySelectorAll('[data-quest-accept]').forEach(b=>b.onclick=()=>sendLocalHost({t:'guild_quest',action:'accept',id:b.dataset.questAccept}));
+    $('panelBody').querySelectorAll('[data-quest-claim]').forEach(b=>b.onclick=()=>sendLocalHost({t:'guild_quest',action:'claim'}));
+  }
+
+  function renderStoragePanel(){
+    const p=S.players[S.uid],n=RPG_NPCS.storage;if(!p||!nearRpgNpc(p,n))return;
+    let html='<div class="npcCard"><div class="npcCardHead"><div class="npcAvatar">'+n.icon+'</div><div><b>'+escapeHtml(n.name)+'</b><div class="socialSub">공용 창고 · 계정과 함께 복구</div></div></div><div class="npcSpeech">'+NPC_LINES.storage+'</div></div><div class="section" style="margin-top:10px"><div class="sectionTitle">🎒 가방 → 창고</div><div class="shopGrid">';
+    Object.entries(p.inv||{}).forEach(([id,nm])=>{const d=ITEMS[id];if(!d||!nm)return;html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+' x'+nm+'</b><small>창고 x'+itemCount(p.storage,id)+'</small></div><button data-deposit="'+id+'">1개 보관</button></div>';});
+    if(!Object.keys(p.inv||{}).length)html+='<div class="empty">보관할 아이템이 없어.</div>';
+    html+='</div></div><div class="section"><div class="sectionTitle">📦 창고 → 가방</div><div class="shopGrid">';
+    Object.entries(p.storage||{}).forEach(([id,nm])=>{const d=ITEMS[id];if(!d||!nm)return;html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+' x'+nm+'</b><small>가방 x'+itemCount(p,id)+'</small></div><button data-withdraw="'+id+'">1개 꺼내기</button></div>';});
+    if(!Object.keys(p.storage||{}).length)html+='<div class="empty">창고가 비어 있어.</div>';
+    html+='</div></div>';
+    openPanel('📦 루미나 공용창고',html);
+    $('panelBody').querySelectorAll('[data-deposit]').forEach(b=>b.onclick=()=>sendLocalHost({t:'storage',action:'deposit',id:b.dataset.deposit}));
+    $('panelBody').querySelectorAll('[data-withdraw]').forEach(b=>b.onclick=()=>sendLocalHost({t:'storage',action:'withdraw',id:b.dataset.withdraw}));
+  }
+
+  /* 채팅/패널에서 RPG 상황을 더 자연스럽게 표시 */
+  const _oldRenderChatV3=renderChat;
+  renderChat=function(){
+    _oldRenderChatV3();
+    try{const me=S.players[S.uid];if(me&&$('panelTitle')&&$('panelTitle').textContent.includes('채팅')){
+      const extra=document.createElement('div');extra.className='chatNotice';extra.textContent='💡 같은 맵의 플레이어에게는 머리 위 말풍선이 잠깐 보여. 파티 채팅은 현재 파티원에게만 전달돼.';const body=$('panelBody');if(body&&!body.querySelector('.chatNotice'))body.appendChild(extra);
+    }}catch(_e){}
+  };
+
+  /* 진짜 맵 선택 UI: 현재 맵, 연결 경로, 이동석 위치를 같이 보여준다. */
+  renderTeleportPanel = function(){
+    const p=S.players[S.uid]; if(!p)return;
+    const map=p.map||'town', near=nearestRpgPortal(p), all=Object.values(RPG_MAPS).filter(m=>m.kind!=='interior');
+    let html='<div class="rpgHero"><b>🗺️ '+escapeHtml(mapDef(map).name)+'</b><div class="socialSub">'+escapeHtml(mapDef(map).meta)+'</div></div><div class="section" style="margin-top:10px"><div class="sectionTitle">🌍 월드 맵</div><div class="mapCards">';
+    all.forEach(md=>{
+      const reachable=near && near.dest.includes(md.id), current=md.id===map;
+      const portal=near&&near.dest.includes(md.id)?near:null;
+      const icon=md.id==='town'?'🏘️':md.id==='field'?'🌿':'🟥';
+      html+='<div class="mapCard '+(current?'current':'')+'"><div class="mapCardIcon">'+icon+'</div><div class="mapCardMain"><b>'+escapeHtml(md.name)+'</b><small>'+escapeHtml(md.meta)+'</small></div><button data-map-v3="'+md.id+'" '+(current||!reachable?'disabled':'')+'>'+(current?'현재 위치':(reachable?'🌀 이동':'🔒 이동석 필요'))+'</button></div>';
+    });
+    html+='</div></div><div class="teleportHint">'+(near?'✅ '+escapeHtml(near.name)+'에서 이동 가능한 지역이 표시됐어.':'📍 맵에서 반짝이는 텔레포트석으로 이동하면 연결된 맵이 활성화돼. 텔레포트석은 미니맵에도 파란색으로 표시돼.')+'</div>';
+    openPanel('🗺️ 월드 맵 / 텔레포트',html);
+    $('panelBody').querySelectorAll('[data-map-v3]').forEach(b=>b.onclick=()=>requestTeleportRpg(b.dataset.mapV3));
+  };
+
+  /* NPC 설명/상호작용 버튼 */
+  if(!$('btnNpc')){
+    const b=document.createElement('button'); b.id='btnNpc';b.className='iconBtn';b.title='NPC 상호작용';b.setAttribute('aria-label','NPC 상호작용');b.textContent='🧑';
+    $('menu').insertBefore(b,$('btnCharacter'));b.onclick=()=>{const n=nearestActiveNpc();if(n)renderNpcPanel(n.id);else log('🧑 NPC에게 가까이 가서 E를 눌러줘.');};
+  }
+
+  function nearestActiveNpc(){const p=S.players[S.uid];if(!p)return null;let best=null,d=999;Object.values(RPG_NPCS).forEach(n=>{if(String(n.map)!==String(p.map))return;const dd=cheb(p,n);if(dd<d){d=dd;best=n;}});return d<=2?best:null;}
+
+  function updateNpcPrompt(){
+    const p=S.players[S.uid];if(!p)return;
+    const n=nearestActiveNpc();const portal=nearestRpgPortal(p);const door=p.map==='town'?nearestBuildingDoor(p):((mapDef(p.map).kind==='interior')?nearestBuildingDoor(p):null);
+    const box=$('npcQuick');if(!box)return;
+    if(n){box.innerHTML='🧑 <b>'+escapeHtml(n.name)+'</b> · E 상호작용';box.style.display='flex';}
+    else if(portal){box.innerHTML='🌀 <b>'+escapeHtml(portal.name)+'</b> · M 텔레포트';box.style.display='flex';}
+    else if(door){box.innerHTML='🚪 <b>'+escapeHtml(door.name||'출입구')+'</b> · E '+(p.map==='town'?'입장':'퇴장');box.style.display='flex';}
+    else {box.style.display='none';}
+  }
+
+  /* NPC 행동 결과를 즉시 다시 그리기 위한 클라이언트 수신 훅 */
+  const _oldClientDataV3=onClientData;
+  onClientData=function(m){
+    if(m&&m.t==='npc_result'){log(m.s||'NPC 처리가 완료됐어.');updateHud();saveLocalAccountSnapshot();if($('overlayPanel').classList.contains('open')){
+      const title=$('panelTitle').textContent;
+      if(title.includes('대장간'))renderNpcPanel('smith');
+      else if(title.includes('창고'))renderStoragePanel();
+      else if(title.includes('길드'))renderGuildQuestBoard();
+      else if(title.includes('상점'))renderShop();
+      }}
+    if(m&&m.t==='quest_result'){log(m.s||'길드 의뢰가 갱신됐어.');updateHud();saveLocalAccountSnapshot();if($('overlayPanel').classList.contains('open'))renderGuildQuestBoard();}
+    _oldClientDataV3(m);
+  };
+
+  /* 호스트에서 모든 NPC/경제 변경을 최종 검증 */
+  const _oldHostRecvV3=hostRecv;
+  hostRecv=function(c,m){
+    if(m&&m.t==='trade_request'&&c&&c.uid&&S.players[c.uid]){
+      const to=String(m.to||''),a=S.players[c.uid],b=S.players[to];
+      if(!b||!sameMap(a,b)||cheb(a,b)>5){sendTo(c.uid,{t:'report_ack',s:'🤝 거래는 같은 맵에서 5칸 이내의 플레이어끼리만 가능해.'});return;}
+    }
+    if(m&&m.t==='npc_action'&&c&&c.uid&&S.players[c.uid]){
+      const p=S.players[c.uid],n=npcDef(m.npc);if(!n||!nearRpgNpc(p,n))return;
+      const action=String(m.action||'');
+      if(action==='rest'&&n.id==='innkeeper'){p.hp=maxHp(p);p.home={map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y};sendTo(c.uid,{t:'npc_result',s:'🛏️ 푹 쉬었어. HP가 모두 회복됐고 루미나 마을이 귀환 지점으로 저장됐어.'});return;}
+      if(action==='home'&&n.id==='innkeeper'){p.home={map:'town',x:RPG_MAPS.town.spawn.x,y:RPG_MAPS.town.spawn.y};sendTo(c.uid,{t:'npc_result',s:'🏠 귀환 지점을 루미나 마을로 저장했어.'});return;}
+      if(action==='heal'&&n.id==='healer'){p.hp=maxHp(p);sendTo(c.uid,{t:'npc_result',s:'❤️ 회복 완료.'});return;}
+      if(n.id==='smith'&&action==='equip'){
+        const id=String(m.id||''),d=ITEMS[id];if(!d||!itemCount(p,id)||(d.type!=='weapon'&&d.type!=='armor'))return;
+        if(d.type==='weapon')p.equip.weapon=id;else p.equip.armor=id;
+        sendTo(c.uid,{t:'npc_result',s:'⚒️ '+d.icon+' '+d.name+' 장착 완료.'});return;
+      }
+      if(n.id==='smith'&&action==='enhance'){
+        const slot=m.slot==='armor'?'armor':'weapon',id=slot==='weapon'?p.equip.weapon:p.equip.armor,d=id?ITEMS[id]:null,lv=Math.max(0,Number(p.enhance?.[slot])||0);
+        if(!d){sendTo(c.uid,{t:'npc_result',s:'⚒️ 먼저 해당 슬롯의 장비를 장착해줘.'});return;}
+        if(lv>=10){sendTo(c.uid,{t:'npc_result',s:'⚒️ 최대 강화 단계야. 더 이상 강화할 수 없어.'});return;}
+        const cost=50+lv*60,mat=slot==='weapon'?'fang':'slimeGel';
+        if(p.gold<cost||itemCount(p,mat)<1){sendTo(c.uid,{t:'npc_result',s:'💰 골드 '+cost+' + '+ITEMS[mat].icon+' 1개가 필요해.'});return;}
+        p.gold-=cost;removeItem(p,mat,1);p.enhance[slot]=lv+1;
+        sendTo(c.uid,{t:'npc_result',s:'✨ '+d.icon+' '+d.name+' 강화 성공! +'+p.enhance[slot]});return;
+      }
+      return;
+    }
+    if(m&&m.t==='storage'&&c&&c.uid&&S.players[c.uid]){
+      const p=S.players[c.uid],n=RPG_NPCS.storage;if(!nearRpgNpc(p,n))return;const id=String(m.id||''),d=ITEMS[id];if(!d)return;
+      if(m.action==='deposit'){if(!itemCount(p,id))return;removeItem(p,id,1);p.storage[id]=(p.storage[id]||0)+1;sendTo(c.uid,{t:'npc_result',s:'📦 '+d.icon+' '+d.name+' 1개를 창고에 보관했어.'});return;}
+      if(m.action==='withdraw'){if(!itemCount(p.storage,id)||itemCount(p,id)>=d.max)return; p.storage[id]--;if(p.storage[id]<=0)delete p.storage[id];addItem(p,id,1);sendTo(c.uid,{t:'npc_result',s:'📤 '+d.icon+' '+d.name+' 1개를 가방으로 꺼냈어.'});return;}
+      return;
+    }
+    if(m&&m.t==='guild_quest'&&c&&c.uid&&S.players[c.uid]){
+      const p=S.players[c.uid],n=RPG_NPCS.guildmaster;if(!nearRpgNpc(p,n))return;
+      p.guildQuest=p.guildQuest||{active:null,progress:0,claimed:false,completed:{}};
+      if(m.action==='accept'){
+        const q=QUEST_DEFS_V3[String(m.id||'')];if(!q||p.lv<q.needLv||p.guildQuest.active)return; p.guildQuest.active=q.id;p.guildQuest.progress=0;p.guildQuest.claimed=false;sendTo(c.uid,{t:'quest_result',s:'📜 '+q.name+' 의뢰를 수락했어.'});return;
+      }
+      if(m.action==='claim'){
+        const q=QUEST_DEFS_V3[p.guildQuest.active];if(!q||p.guildQuest.progress<q.count||p.guildQuest.claimed)return;p.guildQuest.claimed=true;p.guildQuest.completed[q.id]=(p.guildQuest.completed[q.id]||0)+1;p.gold+=q.gold;awardXpRpg(p,q.xp);addItem(p,q.item,q.itemCount);p.guildQuest.active=null;p.guildQuest.progress=0;p.guildQuest.claimed=false;sendTo(c.uid,{t:'quest_result',s:'🎁 '+q.name+' 보상 획득 · 💰 '+q.gold+' · ✨ '+q.xp+' XP · '+ITEMS[q.item].icon+' x'+q.itemCount});return;
+      }
+    }
+    _oldHostRecvV3(c,m);
+  };
+
+  /* 렌더 함수: 내부 NPC를 강조하고 텔레포트석에 애니메이션 느낌을 더한다. */
+  const _oldInteriorDecorV3=drawInteriorDecorRpg;
+  drawInteriorDecorRpg=function(m,map,fg){
+    _oldInteriorDecorV3(m,map,fg);
+    const d=interiorDefByMap(map);if(!d)return;const md=mapDef(map);
+    const rug={x:Math.floor(md.w/2)-3,y:md.h-6,w:6,h:2};const rq=worldToScreen(rug.x,rug.y,m);
+    ctx.save();ctx.fillStyle='rgba(120,70,120,.12)';ctx.fillRect(rq.x,rq.y,rug.w*m.tw,rug.h*m.th);ctx.restore();
+  };
+
+  const _oldTownBuildingsV3=drawTownBuildingsRpgBetter;
+  drawTownBuildingsRpgBetter=function(m,fg){
+    _oldTownBuildingsV3(m,fg);
+    for(const b of RPG_BUILDINGS.filter(x=>x.map==='town')){
+      const q=worldToScreen(b.x,b.y,m),w=b.w*m.tw,h=b.h*m.th;
+      ctx.save();
+      const door=worldToScreen(b.door.x,b.door.y,m);
+      ctx.fillStyle='rgba(248,232,182,.98)';ctx.fillRect(door.x+3,door.y+3,m.tw-6,m.th-6);
+      ctx.fillStyle=fg;ctx.font='700 '+clamp(m.unit*.15,8,11)+'px sans-serif';ctx.textAlign='center';ctx.fillText('E',door.x+m.tw/2,door.y+m.th*.6);
+      const wx=Math.max(1,Math.floor(b.w/3));
+      for(let i=1;i<=2;i++){const xx=b.x+Math.min(b.w-2,wx*i);const wq=worldToScreen(xx,b.y+1,m);ctx.fillStyle='rgba(150,200,230,.8)';ctx.fillRect(wq.x+4,wq.y+4,Math.max(4,m.tw-8),Math.max(4,m.th*.35));}
+      ctx.restore();
+    }
+  };
+
+  const _oldDrawPortalsV3=drawRpgPortalsBetter;
+  drawRpgPortalsBetter=function(m,fg,map){
+    const tlist=RPG_PORTALS[map]||[];for(const t of tlist){
+      const q=worldToScreen(t.x,t.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.save();
+      const pulse=.85+Math.sin(Date.now()/260+t.x)*.12;
+      ctx.translate(cx,cy);ctx.scale(pulse,pulse);ctx.strokeStyle='rgba(82,190,255,.95)';ctx.lineWidth=3;ctx.shadowColor='rgba(82,190,255,.85)';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(0,0,m.tw*.38,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,m.tw*.18,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;ctx.font=(m.unit*.6)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t.icon,0,m.th*.02);ctx.font='900 '+clamp(m.unit*.16,8,11)+'px sans-serif';ctx.fillStyle=fg;ctx.fillText('TELEPORT',0,m.th*.52);ctx.restore();
+    }
+  };
+
+  /* 장면 후처리: 가장 가까운 NPC/포탈을 눈에 띄게 표시 */
+  const _oldDrawSceneFinal = drawSceneRpg;
+  drawSceneRpg = function(){
+    _oldDrawSceneFinal();
+    try{
+      if(!S.started)return; updateNpcPrompt();
+      const p=S.players[S.uid];if(!p)return;const m=boardMetrics();const n=nearestActiveNpc();
+      if(n){const q=worldToScreen(n.x,n.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.save();ctx.strokeStyle='rgba(255,213,74,.95)';ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.strokeRect(q.x+1,q.y+1,m.tw-2,m.th-2);ctx.setLineDash([]);ctx.font='700 '+clamp(m.unit*.18,9,12)+'px sans-serif';ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='center';ctx.fillText('E · '+n.name,cx,q.y-m.th*.28);ctx.restore();}
+    }catch(_e){}
+  };
+  drawScene = drawSceneRpg;
+
+  /* 키 입력 통합: 가장 가까운 상호작용 대상을 먼저 처리한다. */
+  if(!window.__rpgInteractionCaptureV3){
+    window.__rpgInteractionCaptureV3=true;
+    window.addEventListener('keydown',e=>{
+      if(!S.started||e.target&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
+      const k=e.key.toLowerCase();if(k!=='e'&&k!=='m')return;
+      const p=S.players[S.uid];if(!p)return;
+      if(k==='m'){
+        const portal=nearestRpgPortal(p);if(portal){e.preventDefault();e.stopImmediatePropagation();renderTeleportPanel();return;}
+      }
+      if(k==='e'){
+        const n=nearestActiveNpc();if(n){e.preventDefault();e.stopImmediatePropagation();renderNpcPanel(n.id);return;}
+        const door=p.map==='town'?nearestBuildingDoor(p):((mapDef(p.map).kind==='interior')?nearestBuildingDoor(p):null);
+        if(door){e.preventDefault();e.stopImmediatePropagation();requestBuildingTransition();return;}
+        const portal=nearestRpgPortal(p);if(portal){e.preventDefault();e.stopImmediatePropagation();renderTeleportPanel();return;}
+      }
+    },true);
+  }
+
+  /* 인벤토리에서 강화 수치를 바로 확인할 수 있게 한다. */
+  const _oldRenderInventoryV3=renderInventory;
+  renderInventory=function(){
+    const p=S.players[S.uid];if(!p)return;
+    const eq=p.enhance||{weapon:0,armor:0};
+    let html='<div class="rpgHero"><b>🎒 '+escapeHtml(p.name)+' · Lv.'+p.lv+'</b><div class="socialSub">'+escapeHtml(jobData(p).icon+' '+jobData(p).name)+'</div></div><div class="rpgStatHero"><div class="rpgStatMini"><b>❤️ '+p.hp+'/'+maxHp(p)+'</b>체력</div><div class="rpgStatMini"><b>⚔️ '+effectiveAtkRpg(p)+'</b>공격</div><div class="rpgStatMini"><b>🛡️ '+effectiveDefRpg(p)+'</b>방어</div><div class="rpgStatMini"><b>💰 '+p.gold+'</b>골드</div></div>';
+    html+='<div class="section" style="margin-top:10px"><div class="sectionTitle">⚒️ 장비</div><div class="statGrid"><div class="statBox">무기: '+(p.equip.weapon?ITEMS[p.equip.weapon].icon+' '+escapeHtml(ITEMS[p.equip.weapon].name)+' +'+eq.weapon:'없음')+'</div><div class="statBox">방어구: '+(p.equip.armor?ITEMS[p.equip.armor].icon+' '+escapeHtml(ITEMS[p.equip.armor].name)+' +'+eq.armor:'없음')+'</div></div></div>';
+    html+='<div class="section"><div class="sectionTitle">📦 소지품</div><div class="panelGrid">';
+    Object.entries(p.inv||{}).forEach(([id,n])=>{if(n&&ITEMS[id])html+='<button class="itemBtn" data-item="'+id+'"><strong>'+ITEMS[id].icon+'</strong><span>'+escapeHtml(ITEMS[id].name)+'</span><small>x'+n+'</small></button>';});
+    html+='</div></div><div class="teleportHint">💡 무기/방어구 강화는 마을의 ⚒️ 대장간에서 할 수 있어.</div>';
+    openPanel('🎒 인벤토리',html);
+    $('panelBody').querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{useOrEquip(b.dataset.item);setTimeout(renderInventory,120);});
+  };
+
+  /* NPC 메뉴 버튼에 실제 대상이 있도록 동적으로 추가 */
+  const _oldUpdateHudV3=updateHud;
+  updateHud=function(){_oldUpdateHudV3();try{updateNpcPrompt();}catch(_e){}};
+
+  /* 퀘스트 패널은 길드 의뢰 + 기존 메인 퀘스트를 함께 표시 */
+  renderQuest=function(){
+    const p=S.players[S.uid];if(!p)return;
+    const q=p.quest||{},d=q.id&&QUESTS[q.id];let html='';
+    if(d){const done=q.progress>=d.need;html+='<div class="section"><div class="sectionTitle">📜 초보자 임무</div><div class="questCard"><b>'+escapeHtml(d.name)+'</b><small>'+escapeHtml(d.text)+'</small><progress class="questProgress" max="'+d.need+'" value="'+Math.min(q.progress,d.need)+'"></progress><small>'+q.progress+' / '+d.need+' · 보상 💰 '+d.gold+' + '+ITEMS[d.item].icon+' x'+d.count+'</small>'+(done&&!q.claimed?'<button id="questClaimV3" style="margin-top:7px;width:100%">🎁 보상 받기</button>':(q.claimed?'<div class="socialSub" style="margin-top:7px">보상 완료</div>':''))+'</div></div>';
+    }
+    const g=p.guildQuest&&p.guildQuest.active?QUEST_DEFS_V3[p.guildQuest.active]:null;
+    html+='<div class="section"><div class="sectionTitle">🛡️ 길드 의뢰</div>'+(g?'<div class="questCard"><b>'+escapeHtml(g.name)+'</b><small>'+escapeHtml(g.text)+'</small><progress class="questProgress" max="'+g.count+'" value="'+Math.min(g.count,p.guildQuest.progress||0)+'"></progress><small>'+Math.min(g.count,p.guildQuest.progress||0)+' / '+g.count+(p.guildQuest.progress>=g.count?' · 완료':'')+'</small><div class="socialSub" style="margin-top:7px">보상: 💰 '+g.gold+' · ✨ '+g.xp+' XP · '+ITEMS[g.item].icon+' x'+g.itemCount+'</div></div>':'<div class="npcHint">모험가 길드의 길드장에게 찾아가면 여러 지역의 의뢰를 받을 수 있어.</div>')+'</div>';
+    html+='<div class="teleportHint">💡 길드 안에서 E를 누르면 의뢰 담당 NPC와 대화할 수 있어.</div>';
+    openPanel('📜 퀘스트 / 의뢰',html);
+    if($('questClaimV3'))$('questClaimV3').onclick=()=>sendLocalHost({t:'quest_claim'});
+  };
+
+  /* 미니맵: NPC, 문, 현재 맵의 주요 시설을 구분 */
+  const _oldMiniV3=drawMinimapRpgBetter;
+  drawMinimapRpgBetter=function(){
+    _oldMiniV3();
+    try{
+      const p=S.players[S.uid];if(!p)return;const map=p.map,md=mapDef(map),mc=$('minimap'),mx=mc.getContext('2d'),sx=mc.width/md.w,sy=mc.height/md.h;
+      Object.values(RPG_NPCS).filter(n=>n.map===map).forEach(n=>{mx.fillStyle='#ffd36a';mx.beginPath();mx.arc((n.x+.5)*sx,(n.y+.5)*sy,Math.max(2,Math.min(3.5,sx*1.1)),0,Math.PI*2);mx.fill();});
+      if(map==='town')RPG_BUILDINGS.filter(b=>b.map==='town').forEach(b=>{mx.fillStyle='#9c7a52';mx.fillRect(b.x*sx,b.y*sy,b.w*sx,b.h*sy);});
+    }catch(_e){}
+  };
+
+})();
 
 initLobby();
 </script>
