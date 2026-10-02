@@ -756,7 +756,7 @@ function renderCharacterPanel(){
 
 function renderGuide(){
   const topics={
-    move:{i:'🎮',t:'이동',d:'WASD / 방향키로 1칸씩 이동해.\n맵을 클릭하면 장애물을 피해서 자동 이동해.\n플레이어·벽·물은 통과할 수 없어.'},
+    move:{i:'🎮',t:'이동',d:'WASD / 방향키를 꾹 누르면 즉시 첫 칸이 이동하고 계속 이동해.\n모바일 방향키도 꾹 누르면 바로 반복 이동해.\n맵을 클릭하면 장애물을 피해서 자동 이동해.'},
     zone:{i:'🗺️',t:'구역',d:'🏘️ 루미나 마을: 안전구역 · 일반 전투 불가\n🌿 바람초원: 기본 사냥터 · 슬라임/도깨비/드문 용 출현\n🟥 잊힌 광산: 고위험 던전 · 강한 몬스터와 희귀 보상'},
     teleport:{i:'🌀',t:'텔레포트',d:'월드에서 🔷🌀🟥 이동석을 찾은 뒤 🗺️ 아이콘을 눌러 이동해.\n마을 → 초원/던전, 초원 → 마을, 던전 → 마을/초원으로 연결돼.'},
     battle:{i:'⚔️',t:'전투',d:'Space 또는 ⚔️ 공격 버튼으로 공격해.\n몬스터에게 접근하면 자동 이동 중에도 공격해.\n사냥으로 XP/골드/아이템을 얻고 레벨이 오르면 최대 HP가 늘어나.'},
@@ -1910,14 +1910,66 @@ function bindInput() {
   if (S.inputBound) return;
   S.inputBound = true;
   const keys = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1], a: [-1, 0], d: [1, 0], w: [0, -1], s: [0, 1] };
+  const held = new Map();
+  const isTyping = el => {
+    if(!el) return false;
+    const tag=String(el.tagName||'').toUpperCase();
+    return tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||el.isContentEditable;
+  };
+  const keyName = key => String(key||'').toLowerCase();
+  const stopHeld = key => {
+    const k=keyName(key), rec=held.get(k);
+    if(!rec) return;
+    clearInterval(rec.timer);
+    held.delete(k);
+  };
+  const stopAllHeld = () => Array.from(held.keys()).forEach(stopHeld);
+  const startHeld = key => {
+    const k=keyName(key), dir=keys[key]||keys[k];
+    if(!dir || held.has(k) || !S.started || isTyping(document.activeElement)) return;
+    S.walkTo=null;
+    // 첫 칸은 기다리지 않고 꾹 누르는 순간 즉시 이동
+    tryMove(dir[0],dir[1]);
+    const timer=setInterval(()=>{
+      if(!S.started || isTyping(document.activeElement)){ stopHeld(k); return; }
+      S.walkTo=null;
+      tryMove(dir[0],dir[1]);
+    },90);
+    held.set(k,{timer});
+  };
   window.addEventListener('keydown', e => {
-    if (!S.started || e.target.tagName === 'INPUT') return;
+    if (!S.started || isTyping(e.target)) return;
     const k = keys[e.key] || keys[e.key.toLowerCase()];
-    if (k) { e.preventDefault(); S.walkTo = null; tryMove(k[0], k[1]); }
-    else if (e.key === ' ') { e.preventDefault(); attack(); }
-  });
+    if (k) {
+      e.preventDefault();
+      if(!e.repeat) startHeld(e.key);
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      attack();
+    }
+  }, true);
+  window.addEventListener('keyup', e => {
+    if(keys[e.key] || keys[e.key.toLowerCase()]) {
+      stopHeld(e.key);
+      e.preventDefault();
+    }
+  }, true);
+  window.addEventListener('blur', stopAllHeld, {passive:true});
+
   document.querySelectorAll('#pad button[data-dx]').forEach(b => {
-    b.addEventListener('click', () => { S.walkTo = null; tryMove(+b.dataset.dx, +b.dataset.dy); });
+    let timer=null;
+    const stop=()=>{ if(timer){clearInterval(timer);timer=null;} };
+    const go=()=>{ if(!S.started||isTyping(document.activeElement)) return; S.walkTo=null; tryMove(+b.dataset.dx,+b.dataset.dy); };
+    b.addEventListener('pointerdown',e=>{
+      try{b.setPointerCapture(e.pointerId);}catch(_e){}
+      stop();
+      go();
+      timer=setInterval(go,90);
+      e.preventDefault();
+      e.stopPropagation();
+    },true);
+    ['pointerup','pointercancel','pointerleave'].forEach(type=>b.addEventListener(type,stop,true));
+    b.addEventListener('click',e=>e.preventDefault(),true);
   });
   $('btnAtk').addEventListener('click', attack);
   $('cv').addEventListener('pointerdown', e => {
@@ -2450,7 +2502,7 @@ spawnMon=function(){
     return;
   }
 };
-function awardXpRpg(p,amount){amount=Math.max(0,Math.floor(amount));p.xp+=amount;let leveled=0;while(p.lv<120&&p.xp>=p.lv*30){p.xp-=p.lv*30;p.lv++;p.hp=50+p.lv*10;leveled++;}if(leveled){broadcastEvent({k:'log',s:'✨ '+p.name+' 님이 Lv.'+p.lv+'로 레벨업!'});if(hasJobReady(p)){const stage=jobData(p).stage+1;sendTo(p.id,{t:'job_ready',stage,lv:p.lv});if(p.id===S.uid)renderJobPanel(true);}}}
+function awardXpRpg(p,amount){amount=Math.max(0,Math.floor(amount));p.xp+=amount;let leveled=0;while(p.lv<120&&p.xp>=p.lv*30){p.xp-=p.lv*30;p.lv++;p.hp=50+p.lv*10;leveled++;}if(leveled){broadcastEvent({k:'log',s:'✨ '+p.name+' 님이 Lv.'+p.lv+'로 레벨업!'});if(hasJobReady(p)){const stage=jobData(p).stage+1;sendTo(p.id,{t:'job_ready',stage,lv:p.lv});if(p.id===S.uid)showJobReadyNotice(p);}}}
 function partyMembersNearby(p){const pt=partyForPlayer(p.id);if(!pt)return[];return pt.members.map(id=>S.players[id]).filter(q=>q&&sameMap(q,p)&&cheb(q,p)<=10);}
 function doAttackRpg(uid){if(!S.isHost)return;const p=S.players[uid];if(!p||p.hp<=0)return;const now=Date.now();p._lastAttack=p._lastAttack||0;if(now-p._lastAttack<350)return;p._lastAttack=now;const target=S.mons.find(m=>m.map===p.map&&cheb(m,p)<=1);if(!target)return;const dmg=Math.max(1,effectiveAtkRpg(p)-Math.floor(Math.random()*3));target.hp-=dmg;broadcastEvent({k:'hit',id:p.id,x:target.x,y:target.y,dmg});if(target.hp<=0){const defeatedBoss=!!target.isBoss;S.mons=S.mons.filter(m=>m.id!==target.id);p.gold+=MONS[target.e].gold;awardXpRpg(p,MONS[target.e].xp);addMonsterReward(p,target.e);if(defeatedBoss){S.dungeonBossRespawnAt=Date.now()+90000;broadcastEvent({k:'log',s:'🏆 '+(target.bossName||'던전 보스')+'를 쓰러뜨렸습니다! 90초 후 다시 나타납니다.'});}const allies=partyMembersNearby(p).filter(q=>q.id!==p.id);allies.forEach(q=>awardXpRpg(q,Math.max(1,Math.floor(MONS[target.e].xp*0.5))));broadcastEvent({k:'log',s:'⚔️ '+p.name+' 님이 '+target.e+' 처치! +'+MONS[target.e].xp+' XP'});}}
 var doAttack = doAttackRpg;
@@ -2578,20 +2630,50 @@ hostRecv=function(c,m){
 };
 
 const _rpgOnClientData = onClientData;
-onClientData=function(m){if(m&&m.t==='map_teleport_ok'){const p=S.players[S.uid];if(p){p.map=RPG_MAPS[m.map]?m.map:'town';p.x=Number.isFinite(+m.x)?+m.x:RPG_MAPS[p.map].spawn.x;p.y=Number.isFinite(+m.y)?+m.y:RPG_MAPS[p.map].spawn.y;S.renderMap=p.map;S.walkTo=null;S.walkPath=[];S.discoveredTeleports[p.map]=true;updateZoneHud();log('🌀 '+RPG_MAPS[p.map].name+' 도착');}return;}if(m&&m.t==='ack'&&m.map){const p=S.players[S.uid];if(p){p.x=+m.x;p.y=+m.y;p.map=RPG_MAPS[m.map]?m.map:p.map;S.pendingMoves=S.pendingMoves.filter(q=>q.s>(+m.s||0));}return;}if(m&&m.t==='job_ready'){renderJobPanel(true);return;}if(m&&m.t==='job_done'){renderJobPanel(false);return;}if(m&&m.t==='ev'&&m.k==='hit'){S.fx.push({x:m.x,y:m.y,s:'-'+m.dmg,c:'#ffca5c',t0:Date.now(),life:700});}if(m&&m.t==='ev'&&m.k==='hurt'){S.fx.push({id:m.id,s:'-'+m.dmg,c:'#ff6b7a',t0:Date.now(),life:700});}_rpgOnClientData(m);};
+onClientData=function(m){if(m&&m.t==='map_teleport_ok'){const p=S.players[S.uid];if(p){p.map=RPG_MAPS[m.map]?m.map:'town';p.x=Number.isFinite(+m.x)?+m.x:RPG_MAPS[p.map].spawn.x;p.y=Number.isFinite(+m.y)?+m.y:RPG_MAPS[p.map].spawn.y;S.renderMap=p.map;S.walkTo=null;S.walkPath=[];S.discoveredTeleports[p.map]=true;updateZoneHud();log('🌀 '+RPG_MAPS[p.map].name+' 도착');}return;}if(m&&m.t==='ack'&&m.map){const p=S.players[S.uid];if(p){p.x=+m.x;p.y=+m.y;p.map=RPG_MAPS[m.map]?m.map:p.map;S.pendingMoves=S.pendingMoves.filter(q=>q.s>(+m.s||0));}return;}if(m&&m.t==='job_ready'){showJobReadyNotice(S.players[S.uid]);return;}if(m&&m.t==='job_done'){S.jobNoticeStage=-1;log('✅ 전직 완료! '+String(m.job&&m.job.name||'새 직업')+'로 전직했어.');renderJobProgressPanel();return;}if(m&&m.t==='ev'&&m.k==='hit'){S.fx.push({x:m.x,y:m.y,s:'-'+m.dmg,c:'#ffca5c',t0:Date.now(),life:700});}if(m&&m.t==='ev'&&m.k==='hurt'){S.fx.push({id:m.id,s:'-'+m.dmg,c:'#ff6b7a',t0:Date.now(),life:700});}_rpgOnClientData(m);};
 
 /* 일반 채팅/파티 구조는 유지하되, 파티원 정보에 현재 맵을 표시한다. */
 const _rpgRenderSocial=renderSocial;
 renderSocial=function(){_rpgRenderSocial();const party=partyForPlayer(S.uid);if(party){const rows=document.querySelectorAll('#panelBody .partyMember .socialSub');rows.forEach(()=>{});} };
 
-function renderJobPanel(force){const p=S.players[S.uid];if(!p)return;const j=jobData(p),choices=jobChoicesFor(p),nextStage=j.stage+1;if(!choices.length&&!force){openPanel('🎓 직업', '<div class="npcHint">현재 전직 가능한 단계가 없어. 다음 전직 레벨은 '+(JOB_NEEDS[j.stage]||'최고 단계')+'이야.</div>');return;}let html='<div class="npcHint"><b>'+j.icon+' '+escapeHtml(j.name)+'</b> · 전직 단계 '+j.stage+'/4<br>다음 전직 레벨: '+(JOB_NEEDS[j.stage]||'완료')+'</div>';if(choices.length){html+='<div class="section"><div class="sectionTitle">🎓 '+nextStage+'차 전직 · Lv.'+JOB_NEEDS[j.stage]+'</div><div class="panelGrid">';choices.forEach(ch=>{html+='<button class="itemBtn" data-job="'+ch.code+'"><strong>'+ch.icon+'</strong><span>'+escapeHtml(ch.name)+'</span><small>⚔️ +'+(ch.atk||0)+' · 🛡️ '+(ch.def||0)+'</small><small>'+escapeHtml(ch.desc||'')+'</small></button>';});html+='</div></div><div class="teleportHint">전직은 한 번 선택하면 되돌릴 수 없어. 장기적으로 어떤 전투 스타일로 갈지 골라줘.</div>';}else{html+='<div class="empty">아직 전직 조건이 충족되지 않았어.</div>';}openPanel('🎓 직업 / 전직',html);$('panelBody').querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>sendLocalHost({t:'job_choose',stage:nextStage,code:b.dataset.job}));}
+function showJobReadyNotice(p){
+  if(!p)return;
+  const j=jobData(p), nextStage=j.stage+1, need=JOB_NEEDS[j.stage];
+  if(j.stage>=4 || !need || p.lv<need || !hasJobReady(p))return;
+  if(Number(S.jobNoticeStage||-1)>=nextStage)return;
+  S.jobNoticeStage=nextStage;
+  const msg='🎓 전직이 가능합니다! 모험가 길드의 전직관 아렌에게 가서 전직을 하세요!';
+  log(msg);
+  lobbyMsg('');
+  playSound('unlock');
+}
 
-function ensureJobButton(){if($('btnJob'))return;const b=document.createElement('button');b.id='btnJob';b.className='iconBtn';b.title='직업 / 전직';b.setAttribute('aria-label','직업 / 전직');b.textContent='🎓';$('menu').appendChild(b);b.onclick=()=>renderJobPanel(false);}
+function renderJobProgressPanel(){
+  const p=S.players[S.uid];if(!p)return;
+  const j=jobData(p),stage=j.stage,nextStage=stage+1,need=JOB_NEEDS[stage]||null;
+  const ready=hasJobReady(p);
+  let progress=stage>=4?1:clamp((Number(p.lv)||1)/(need||1),0,1);
+  const percent=Math.round(progress*100);
+  let html='<div class="npcHint"><b>'+j.icon+' '+escapeHtml(j.name)+'</b> · 전직 단계 '+stage+'/4</div>';
+  if(stage>=4){
+    html+='<div class="section"><div class="sectionTitle">🏆 전직 완료</div><div class="empty">최고 단계 전직까지 완료했어.</div></div>';
+  }else{
+    html+='<div class="section"><div class="sectionTitle">🎓 '+nextStage+'차 전직 진행도</div>';
+    html+='<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-weight:700"><span>Lv.'+p.lv+'</span><span>Lv.'+need+'</span></div><div style="height:10px;border-radius:999px;background:rgba(0,0,0,.12);overflow:hidden"><div style="height:100%;width:'+percent+'%;background:var(--acc);transition:width .2s"></div></div><div class="empty" style="margin-top:6px">'+(ready?'✅ 전직 가능':'⏳ Lv.'+need+'까지 '+Math.max(0,need-(Number(p.lv)||0))+'레벨 남음')+'</div></div>';
+    html+='</div>';
+    html+='<div class="teleportHint">전직은 <b>모험가 길드의 전직관 아렌</b>에게 가서 진행해. 이 버튼에서는 진행도만 확인할 수 있어.</div>';
+  }
+  openPanel('🎓 전직 진행도',html);
+}
+
+function renderJobPanel(force){const p=S.players[S.uid];if(!p)return;const j=jobData(p),choices=jobChoicesFor(p),nextStage=j.stage+1;if(!choices.length&&!force){openPanel('🎓 전직', '<div class="npcHint">아직 전직할 수 없어.<br>다음 전직은 Lv.'+(JOB_NEEDS[j.stage]||'최고 단계')+'에 열려. 전직관 아렌에게서 진행해.</div>');return;}let html='<div class="npcHint"><b>'+j.icon+' '+escapeHtml(j.name)+'</b> · 전직 단계 '+j.stage+'/4<br>🎓 '+nextStage+'차 전직 · Lv.'+JOB_NEEDS[j.stage]+'</div>';if(choices.length){html+='<div class="section"><div class="sectionTitle">전직할 직업을 선택해</div><div class="panelGrid">';choices.forEach(ch=>{html+='<button class="itemBtn" data-job="'+ch.code+'"><strong>'+ch.icon+'</strong><span>'+escapeHtml(ch.name)+'</span><small>⚔️ +'+(ch.atk||0)+' · 🛡️ '+(ch.def||0)+'</small><small>'+escapeHtml(ch.desc||'')+'</small></button>';});html+='</div></div><div class="teleportHint">전직은 한 번 선택하면 되돌릴 수 없어.</div>';}else{html+='<div class="empty">전직 조건이 아직 충족되지 않았어.</div>';}openPanel('🎓 전직관 아렌',html);$('panelBody').querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>sendLocalHost({t:'job_choose',stage:nextStage,code:b.dataset.job}));}
+
+function ensureJobButton(){if($('btnJob'))return;const b=document.createElement('button');b.id='btnJob';b.className='iconBtn';b.title='전직 진행도';b.setAttribute('aria-label','전직 진행도');b.textContent='🎓';$('menu').appendChild(b);b.onclick=()=>renderJobProgressPanel();}
 ensureJobButton();
 
 const _rpgUpdateHud=updateHud;
-updateHud=function(){_rpgUpdateHud();const p=S.players[S.uid];if(!p)return;jobData(p);const root=document.getElementById('miniHud');if(root)root.textContent='❤️ '+Math.max(0,p.hp)+'/'+(50+p.lv*10)+' · 💰 '+p.gold+' · Lv.'+p.lv+' · '+p.job.icon+' '+p.job.name;maybeOpenJobButton(p);};
-function maybeOpenJobButton(p){const b=$('btnJob');if(!b||!p)return;b.title=hasJobReady(p)?'전직 가능 · Lv.'+JOB_NEEDS[jobData(p).stage]:'직업 / 전직';b.textContent=hasJobReady(p)?'🎓!':'🎓';}
+updateHud=function(){_rpgUpdateHud();const p=S.players[S.uid];if(!p)return;jobData(p);const root=document.getElementById('miniHud');if(root)root.textContent='❤️ '+Math.max(0,p.hp)+'/'+(50+p.lv*10)+' · 💰 '+p.gold+' · Lv.'+p.lv+' · '+p.job.icon+' '+p.job.name;maybeOpenJobButton(p);showJobReadyNotice(p);};
+function maybeOpenJobButton(p){const b=$('btnJob');if(!b||!p)return;const j=jobData(p),need=JOB_NEEDS[j.stage];b.title=j.stage>=4?'전직 완료':(hasJobReady(p)?'전직 가능 · 아렌에게 가기':'전직 진행도 · 다음 Lv.'+(need||'완료'));b.textContent=hasJobReady(p)?'🎓!':'🎓';}
 
 const _rpgUpdateBadge=updateBadge;
 updateBadge=function(){_rpgUpdateBadge();const p=S.players[S.uid];if(p){const j=jobData(p);const badge=$('badge');if(badge)badge.title=j.icon+' '+j.name+' · '+j.stage+'차 전직';}};
