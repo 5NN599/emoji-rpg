@@ -103,7 +103,6 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 
 /* 건물 내부 / 월드 오브젝트 UI */
 .buildingPrompt{position:absolute;left:50%;bottom:calc(max(78px,env(safe-area-inset-bottom)) + 8px);transform:translateX(-50%);z-index:7;padding:7px 11px;border-radius:10px;background:color-mix(in srgb,var(--card) 94%,transparent);border:1px solid var(--line);box-shadow:0 8px 20px rgba(0,0,0,.18);font-size:12px;font-weight:800;pointer-events:none;white-space:nowrap}
-</style>
 
 /* ===== RPG 완성도 패치 v3 ===== */
 #npcQuick { position:absolute; z-index:7; left:50%; bottom:calc(max(78px,env(safe-area-inset-bottom)) + 42px); transform:translateX(-50%); display:none; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--line); border-radius:12px; background:color-mix(in srgb,var(--card) 94%,transparent); box-shadow:0 10px 26px rgba(0,0,0,.22); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); font-size:12px; pointer-events:none; }
@@ -139,6 +138,9 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 .portalPulse { animation:rpgPortalPulse 1.4s ease-in-out infinite; }
 @keyframes rpgPortalPulse { 0%,100%{transform:scale(.96);opacity:.75}50%{transform:scale(1.08);opacity:1} }
 @media(max-width:520px){.rpgStatHero{grid-template-columns:1fr 1fr}.rpgStorageGrid{grid-template-columns:1fr}}
+
+
+</style>
 
 </head>
 <body>
