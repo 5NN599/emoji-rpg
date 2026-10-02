@@ -3482,6 +3482,311 @@ window.__rpgOverhaulReady=true;
 
 })();
 
+
+/* ============================================================
+   RPG v15 UX PATCH
+   - 풍부한 상황별 효과음
+   - 키보드 동시 입력 대각선 이동
+   - P2P 호스트 측 대각선 이동 검증
+   ============================================================ */
+(function installV15Ux(){
+  'use strict';
+
+  /* --------------------------
+     확장 사운드 엔진
+     -------------------------- */
+  const _soundEnabledKey='emoji-rpg-sound-enabled';
+  let _soundMoveStep=0;
+  let _soundLast={};
+  let _soundNoiseBuf=null;
+  function soundEnabled(){
+    try{return localStorage.getItem(_soundEnabledKey)!=='0';}catch(e){return true;}
+  }
+  function soundThrottle(type,ms){
+    const now=performance.now(),last=_soundLast[type]||0;
+    if(now-last<ms)return true;
+    _soundLast[type]=now;return false;
+  }
+  function richerSound(type){
+    if(!soundEnabled())return;
+    try{
+      AC=AC||(new (window.AudioContext||window.webkitAudioContext)());
+      if(AC.state==='suspended')AC.resume();
+      const t0=AC.currentTime;
+      const tone=(f,st,d,wave='sine',vol=.08,endF=null)=>{
+        const o=AC.createOscillator(),g=AC.createGain();
+        o.type=wave;o.frequency.setValueAtTime(Math.max(20,f),t0+st);
+        if(endF!=null)o.frequency.exponentialRampToValueAtTime(Math.max(20,endF),t0+st+d);
+        g.gain.setValueAtTime(Math.max(.0001,vol),t0+st);
+        g.gain.exponentialRampToValueAtTime(.0001,t0+st+d);
+        o.connect(g);g.connect(AC.destination);o.start(t0+st);o.stop(t0+st+d+.03);
+      };
+      const chord=(freqs,spacing=.06,d=.16,wave='sine',vol=.07)=>freqs.forEach((f,i)=>tone(f,i*spacing,d,wave,vol));
+      const wobble=(base,st,d,vol=.07)=>{tone(base,st,d,'triangle',vol,base*.62);tone(base*1.01,st+d*.18,d*.7,'sine',vol*.45,base*1.22);};
+
+      switch(type){
+        case 'move':
+          if(soundThrottle('move',55))return;
+          _soundMoveStep++;
+          tone(_soundMoveStep%2?250:290,0,.045,'triangle',.055,_soundMoveStep%2?180:215);
+          break;
+        case 'attack':
+          tone(520,0,.045,'sawtooth',.035,980);tone(980,.035,.09,'square',.055,340);tone(115,.01,.12,'triangle',.055,70);break;
+        case 'hit':
+          tone(920,0,.045,'square',.085,520);tone(170,.01,.12,'triangle',.06,85);tone(1480,.005,.07,'sine',.045,760);break;
+        case 'hurt':
+          tone(210,0,.12,'sawtooth',.075,105);tone(420,.025,.09,'square',.035,190);break;
+        case 'heal':
+          chord([523,659,784],.075,.2,'sine',.065);tone(1047,.23,.22,'triangle',.075,1319);break;
+        case 'coin':
+          tone(880,0,.09,'square',.065,1175);tone(1175,.075,.12,'square',.07,1760);break;
+        case 'buy':
+          tone(660,0,.08,'sine',.06,880);tone(1047,.08,.12,'triangle',.06,1319);break;
+        case 'sell':
+          tone(1047,0,.08,'triangle',.06,880);tone(784,.08,.12,'sine',.06,659);break;
+        case 'equip':
+          tone(330,0,.08,'square',.05,520);tone(660,.06,.16,'triangle',.065,990);break;
+        case 'enhance':
+          tone(300,0,.07,'square',.04,480);tone(480,.05,.09,'square',.05,720);tone(720,.11,.16,'triangle',.06,1100);break;
+        case 'teleport':
+          tone(180,0,.32,'sine',.06,940);tone(380,.08,.28,'triangle',.045,1500);chord([1047,1319],.1,.18,'sine',.04);break;
+        case 'unlock':
+          chord([523,659,784],.1,.16,'triangle',.06);tone(1047,.34,.3,'sine',.07,1319);break;
+        case 'quest':
+          chord([392,523,659],.09,.15,'sine',.055);tone(784,.3,.22,'triangle',.065,1047);break;
+        case 'level':
+          [523,659,784,1047,1319].forEach((f,i)=>tone(f,i*.075,.18,'triangle',.065));break;
+        case 'warning':
+          tone(270,0,.13,'square',.07,190);tone(270,.17,.13,'square',.07,190);break;
+        case 'boss':
+          tone(74,0,.5,'sawtooth',.09,48);tone(148,.04,.38,'square',.05,94);chord([220,277,330],.03,.26,'triangle',.035);break;
+        case 'bossDefeat':
+          tone(110,0,.18,'sawtooth',.07,55);chord([392,494,659],.11,.22,'triangle',.06);tone(784,.34,.35,'sine',.075,1175);break;
+        case 'death':
+          tone(420,0,.15,'sawtooth',.06,210);tone(250,.12,.18,'triangle',.055,95);tone(130,.27,.28,'sine',.05,55);break;
+        case 'chat':
+          tone(720,0,.045,'sine',.035,590);break;
+        case 'party':
+          tone(523,0,.09,'sine',.045);tone(784,.08,.14,'triangle',.05);break;
+        case 'join':
+          chord([523,659],.08,.14,'sine',.05);break;
+        case 'leave':
+          tone(659,0,.1,'triangle',.045,440);break;
+        case 'door':
+          tone(180,0,.12,'triangle',.05,260);tone(360,.09,.2,'sine',.035,500);break;
+        case 'click':
+          tone(640,0,.035,'square',.03,500);break;
+        case 'error':
+          tone(180,0,.1,'square',.055,120);tone(120,.1,.12,'square',.04,80);break;
+        default:
+          break;
+      }
+    }catch(e){}
+  }
+  playSound=function(type){
+    richerSound(String(type||''));
+  };
+
+  /* 이벤트에서 자동으로 상황별 사운드를 매칭 */
+  const _v15HandleEvent=handleEvent;
+  handleEvent=function(ev){
+    try{
+      if(ev&&ev.k==='hit')richerSound('hit');
+      else if(ev&&ev.k==='hurt')richerSound('hurt');
+      else if(ev&&ev.k==='heal')richerSound('heal');
+      else if(ev&&ev.k==='monster_fx'){
+        const ss=String(ev.s||'');
+        if(ss==='💥')richerSound('boss');
+        else if(ss==='‼️')richerSound('warning');
+        else richerSound('hit');
+      }else if(ev&&ev.k==='appear')richerSound('join');
+      else if(ev&&ev.k==='leave')richerSound('leave');
+      else if(ev&&ev.k==='log'){
+        const msg=String(ev.s||'');
+        if(/레벨업/.test(msg))richerSound('level');
+        else if(/전직했습니다|새로운 콘텐츠 해금|해금/.test(msg))richerSound('unlock');
+        else if(/퀘스트 완료|퀘스트 보상|보상/.test(msg))richerSound('quest');
+        else if(/구매/.test(msg))richerSound('buy');
+        else if(/판매/.test(msg))richerSound('sell');
+        else if(/장착/.test(msg))richerSound('equip');
+        else if(/강화/.test(msg))richerSound('enhance');
+        else if(/텔레포트|이동했습니다/.test(msg))richerSound('teleport');
+        else if(/회복 완료|회복/.test(msg))richerSound('heal');
+        else if(/쓰러져/.test(msg))richerSound('death');
+        else if(/보스/.test(msg)&&/쓰러뜨렸|처치/.test(msg))richerSound('bossDefeat');
+        else if(/보스/.test(msg)&&/나타났/.test(msg))richerSound('boss');
+        else if(/거래 완료/.test(msg))richerSound('coin');
+        else if(/들어갔습니다|건물 밖/.test(msg))richerSound('door');
+      }
+    }catch(e){}
+    _v15HandleEvent(ev);
+  };
+
+  /* 직접 응답 메시지 사운드 */
+  const _v15OnClientData=onClientData;
+  onClientData=function(m){
+    try{
+      if(m&&m.t==='map_teleport_ok')richerSound('teleport');
+      else if(m&&m.t==='job_done')richerSound('unlock');
+      else if(m&&m.t==='shop_result'){
+        richerSound(/구매/.test(String(m.s||''))?'buy':'sell');
+      }else if(m&&m.t==='trade_end')richerSound('coin');
+      else if(m&&m.t==='party_invite')richerSound('party');
+      else if(m&&m.t==='chat')richerSound('chat');
+    }catch(e){}
+    _v15OnClientData(m);
+  };
+
+  const _v15AwardXp=awardXpRpg;
+  awardXpRpg=function(p,amount){
+    const before=p&&p.lv||0;
+    _v15AwardXp(p,amount);
+    if(p&&p.id===S.uid&&p.lv>before)richerSound('level');
+  };
+
+  const _v15Attack=attack;
+  attack=function(){
+    const before=S.lastAtk;
+    _v15Attack();
+    if(S.lastAtk!==before)richerSound('attack');
+  };
+
+  /* --------------------------
+     대각선 이동 공통 처리
+     -------------------------- */
+  function canRpgStep(p,dx,dy){
+    const md=mapDef(p.map),nx=p.x+dx,ny=p.y+dy;
+    if(nx<0||ny<0||nx>=md.w||ny>=md.h)return false;
+    if(isMapBlocked(p.map,nx,ny))return false;
+    if(dx&&dy){
+      // 대각선으로 건물 모서리를 뚫고 지나가지 않도록 양쪽 모서리도 검사
+      if(isMapBlocked(p.map,p.x+dx,p.y))return false;
+      if(isMapBlocked(p.map,p.x,p.y+dy))return false;
+    }
+    return true;
+  }
+
+  function tryMoveRpgV15(dx,dy){
+    const p=S.players[S.uid],now=Date.now();
+    if(!p||S.migrating||now-S.lastMove<85)return false;
+    dx=clamp(dx|0,-1,1);dy=clamp(dy|0,-1,1);
+    if(!dx&&!dy)return false;
+    if(!canRpgStep(p,dx,dy))return false;
+    const nx=p.x+dx,ny=p.y+dy;
+    const monster=S.mons.find(m=>m.map===p.map&&m.x===nx&&m.y===ny);
+    if(monster){attack();return false;}
+    if(Object.values(S.players).some(q=>q.id!==S.uid&&sameMap(q,p)&&q.x===nx&&q.y===ny))return false;
+    S.lastMove=now;playSound('move');
+    if(S.isHost){
+      p.x=nx;p.y=ny;S.moveSeq++;S.moveAck[S.uid]=S.moveSeq;
+    }else if(S.hostConn&&S.hostConn.open){
+      const seq=++S.moveSeq;S.pendingMoves.push({s:seq,dx,dy});p.x=nx;p.y=ny;S.hostConn.send({t:'mv',s:seq,dx,dy});
+    }
+    return true;
+  }
+  tryMoveRpg=tryMoveRpgV15;
+  tryMove=tryMoveRpgV15;
+
+  /* --------------------------
+     호스트의 P2P 이동 검증도 대각선 허용
+     -------------------------- */
+  const _v15HostRecv=hostRecv;
+  hostRecv=function(c,m){
+    if(m&&m.t==='mv'&&c&&c.uid&&S.players[c.uid]){
+      const p=S.players[c.uid],seq=Math.floor(+m.s||0);
+      if(seq<=(c.lastMoveSeq||0))return;
+      c.lastMoveSeq=seq;
+      const dx=clamp(+m.dx|0,-1,1),dy=clamp(+m.dy|0,-1,1);
+      if(!dx&&!dy || Math.abs(dx)>1 || Math.abs(dy)>1)return;
+      if(!canRpgStep(p,dx,dy)){
+        S.moveAck[c.uid]=seq;try{c.send({t:'ack',s:seq,x:p.x,y:p.y,map:p.map});}catch(e){}return;
+      }
+      const nx=p.x+dx,ny=p.y+dy;
+      if(Object.values(S.players).some(q=>q.id!==c.uid&&sameMap(q,p)&&q.x===nx&&q.y===ny)){
+        S.moveAck[c.uid]=seq;try{c.send({t:'ack',s:seq,x:p.x,y:p.y,map:p.map});}catch(e){}return;
+      }
+      const monster=S.mons.find(mn=>mn.map===p.map&&mn.x===nx&&mn.y===ny);
+      if(monster){S.moveAck[c.uid]=seq;doAttackRpg(c.uid);try{c.send({t:'ack',s:seq,x:p.x,y:p.y,map:p.map});}catch(e){}return;}
+      p.x=nx;p.y=ny;S.moveAck[c.uid]=seq;
+      try{c.send({t:'ack',s:seq,x:nx,y:ny,map:p.map});}catch(e){}
+      return;
+    }
+    _v15HostRecv(c,m);
+  };
+
+  /* --------------------------
+     키보드: 동시 입력을 하나의 방향 벡터로 합친다.
+     예) ↑ + ← 유지 = (-1,-1) 대각선으로 반복 이동
+     -------------------------- */
+  bindInput=function(){
+    if(S.inputBound)return;
+    S.inputBound=true;
+    const active=new Set();
+    let timer=null;
+    const moveMap={
+      arrowleft:[-1,0],arrowright:[1,0],arrowup:[0,-1],arrowdown:[0,1],
+      a:[-1,0],d:[1,0],w:[0,-1],s:[0,1]
+    };
+    const typing=el=>{if(!el)return false;const tag=String(el.tagName||'').toUpperCase();return tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||el.isContentEditable;};
+    const normalized=k=>String(k||'').toLowerCase();
+    const vector=()=>{
+      let x=0,y=0;
+      for(const k of active){const d=moveMap[k];if(!d)continue;x+=d[0];y+=d[1];}
+      return [clamp(x,-1,1),clamp(y,-1,1)];
+    };
+    const step=()=>{
+      if(!S.started||typing(document.activeElement)){active.clear();return;}
+      const [dx,dy]=vector();if(dx||dy){S.walkTo=null;tryMoveRpgV15(dx,dy);}
+    };
+    const ensureTimer=()=>{if(timer==null)timer=setInterval(step,88);};
+    const stopTimer=()=>{if(timer!=null){clearInterval(timer);timer=null;}};
+    window.addEventListener('keydown',e=>{
+      if(!S.started||typing(e.target))return;
+      const k=normalized(e.key);
+      if(moveMap[k]){
+        e.preventDefault();active.add(k);step();ensureTimer();return;
+      }
+      if(e.key===' '){e.preventDefault();attack();}
+    },true);
+    window.addEventListener('keyup',e=>{
+      const k=normalized(e.key);if(moveMap[k]){active.delete(k);if(!active.size)stopTimer();e.preventDefault();}
+    },true);
+    window.addEventListener('blur',()=>{active.clear();stopTimer();},{passive:true});
+
+    /* 모바일 방향키도 여러 손가락을 동시에 누르면 대각선 벡터로 합산 */
+    const padHeld=new Map();
+    const padVector=()=>{
+      let x=0,y=0;for(const d of padHeld.values()){x+=d[0];y+=d[1];}
+      return [clamp(x,-1,1),clamp(y,-1,1)];
+    };
+    let padTimer=null;
+    const padStep=()=>{if(!S.started||typing(document.activeElement))return;const [dx,dy]=padVector();if(dx||dy){S.walkTo=null;tryMoveRpgV15(dx,dy);}};
+    const padEnsure=()=>{if(padTimer==null)padTimer=setInterval(padStep,88);};
+    const padStop=()=>{if(!padHeld.size&&padTimer!=null){clearInterval(padTimer);padTimer=null;}};
+    document.querySelectorAll('#pad button[data-dx]').forEach(btn=>{
+      btn.addEventListener('pointerdown',e=>{const id=e.pointerId+'|'+btn.dataset.dx+'|'+btn.dataset.dy;try{btn.setPointerCapture(e.pointerId)}catch(_e){}padHeld.set(id,[+btn.dataset.dx||0,+btn.dataset.dy||0]);padStep();padEnsure();e.preventDefault();e.stopPropagation();},true);
+      const end=e=>{for(const id of Array.from(padHeld.keys()))if(id.startsWith(e.pointerId+'|'))padHeld.delete(id);padStop();e.preventDefault();};
+      btn.addEventListener('pointerup',end,true);btn.addEventListener('pointercancel',end,true);btn.addEventListener('lostpointercapture',end,true);
+      btn.addEventListener('click',e=>e.preventDefault(),true);
+    });
+
+    $('btnAtk').addEventListener('click',attack);
+    $('cv').addEventListener('pointerdown',e=>{const r=$('cv').getBoundingClientRect(),m=boardMetrics();const w=screenToWorld(e.clientX-r.left,e.clientY-r.top,m);setWalkTarget(w.x,w.y);});
+    if(!S.moveTimer)S.moveTimer=setInterval(()=>{
+      const p=S.players[S.uid];if(!p||!S.walkTo)return;
+      if(p.x===S.walkTo.x&&p.y===S.walkTo.y){S.walkTo=null;S.walkPath=[];return;}
+      const targetMonster=S.mons.find(m=>m.x===S.walkTo.x&&m.y===S.walkTo.y&&m.map===p.map);if(targetMonster&&cheb(targetMonster,p)<=1){attack();return;}
+      if(!S.walkPath.length)S.walkPath=findPath({x:p.x,y:p.y},{x:S.walkTo.x,y:S.walkTo.y});
+      const st=S.walkPath.shift();if(!st){S.walkTo=null;return;}tryMoveRpgV15(st[0],st[1]);
+    },105);
+  };
+
+  /* 이동/상호작용 피드백 */
+  const _v15RequestTeleport=requestTeleportRpg;
+  requestTeleportRpg=function(dest){richerSound('click');return _v15RequestTeleport(dest);};
+  requestTeleport=requestTeleportRpg;
+})();
+
 initLobby();
 </script>
 </body>
