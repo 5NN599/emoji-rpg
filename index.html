@@ -825,7 +825,9 @@ function readProfile() {
   try{S.recoveryIssued=JSON.parse(localStorage.getItem('emoji-rpg-recovery-ledger')||'[]')||[];}catch(e){S.recoveryIssued=[];}
   const localAccount=loadLocalAccountSnapshot(); if(localAccount){S.accountSnapshot=localAccount;S.name=localAccount.name;S.emoji=localAccount.emoji;S.friendCode=localAccount.friendCode;}
   try{localStorage.setItem('emoji-rpg-profile',JSON.stringify({n:S.name,e:S.emoji,fc:S.friendCode}));}catch(e){}
-  const knownRecovery=String(localStorage.getItem('emoji-rpg-recovery-code')||''); if(/^ERPG[12]-/.test(knownRecovery)){S.recoveryCode=knownRecovery;try{S.recoverySession=parseRecoveryCode(knownRecovery).recoverySession||null;}catch(e){S.recoverySession=null;}}
+  const knownRecovery=String(localStorage.getItem('emoji-rpg-recovery-code')||'');
+  S._firstTimePlayer=!localAccount && !/^ERPG[12]-/.test(knownRecovery);
+  if(/^ERPG[12]-/.test(knownRecovery)){S.recoveryCode=knownRecovery;try{S.recoverySession=parseRecoveryCode(knownRecovery).recoverySession||null;}catch(e){S.recoverySession=null;}}
 }
 function starterPlayer(id, name, emoji, score, friendCode) {
   return { id, name, emoji, friendCode: String(friendCode || '').toUpperCase().slice(0,8), score, x: 48, y: 32,
@@ -2221,19 +2223,15 @@ function drawEmergencyScene(){
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='34px "Segoe UI Emoji","Apple Color Emoji",sans-serif';ctx.fillStyle=fg;ctx.fillText(p.emoji||'⚔️',cx,cy);
   ctx.font='700 14px sans-serif';ctx.fillText(p.name||'모험가',cx,cy-32);
   ctx.font='12px sans-serif';ctx.fillStyle=css.getPropertyValue('--sub').trim()||'#667';ctx.fillText('맵 렌더링 복구 모드',cx,cy+34);
-  if(S.drawError){ctx.font='10px sans-serif';ctx.fillStyle=css.getPropertyValue('--bad').trim()||'#b44';ctx.fillText(String(S.drawError).slice(0,90),cx,cy+50);}
 }
 function draw(){
   if(!S.started){S.drawStarted=false;return;}
   try{
-    if(!S.renderFallback){
-      drawScene();
-      S.renderErrorCount=0;
-    }else drawEmergencyScene();
+    if(!S.renderFallback) drawScene();
+    else drawEmergencyScene();
   }catch(e){
+    S.renderFallback=true;
     S.drawError=String(e&&e.message||e||'unknown');
-    S.renderErrorCount=(S.renderErrorCount||0)+1;
-    if(S.renderErrorCount>=2)S.renderFallback=true;
     try{drawEmergencyScene();}catch(_e){
       try{
         const m=boardMetrics();
@@ -2347,9 +2345,15 @@ function enterGame() {
   try{issueRecoveryCode(true);}catch(e){log('복구 코드 발급 경고: '+(e&&e.message||e));}
   if(!S.recoveryNoticeShown){S.recoveryNoticeShown=true;log('🗝️ 새 계정 복구 코드는 🗝️ 복구 메뉴에서 확인할 수 있어.');}
   try{startCapabilityReporting();}catch(e){log('성능 측정 경고: '+(e&&e.message||e));}
-  /* 렌더링 성공 여부를 중앙 픽셀 하나로 판단하지 않는다. 정상 맵도 중앙 픽셀이 투명할 수 있어 복구 모드로 오인될 수 있다. */
-  if(S.renderHealthTimer){clearTimeout(S.renderHealthTimer);S.renderHealthTimer=null;}
-  S.renderFallback=false;
+  if(S.renderHealthTimer)clearTimeout(S.renderHealthTimer);
+  S.renderHealthTimer=setTimeout(()=>{
+    try{
+      const rc=cv.getBoundingClientRect();
+      if(rc.width<=1||rc.height<=1){S.renderFallback=true;return;}
+      const px=ctx.getImageData(Math.max(0,Math.min(cv.width-1,Math.floor(cv.width/2))),Math.max(0,Math.min(cv.height-1,Math.floor(cv.height/2))),1,1).data;
+      if(!px||px[3]<10)S.renderFallback=true;
+    }catch(e){S.renderFallback=true;}
+  },700);
 }
 
 function initLobby() {
@@ -3027,7 +3031,6 @@ function drawSceneRpgBetter(){
   S.mons.filter(mon=>mon.map===map).forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y,m),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,pulse=.5+.5*Math.sin(Date.now()/150+mon.id);if(mon.state==='telegraph'){ctx.strokeStyle=mon.e==='👹'?'#c084fc':'#ff9f43';ctx.lineWidth=2+2*pulse;ctx.globalAlpha=.45+.25*pulse;ctx.beginPath();ctx.arc(cx,cy,m.unit*(.45+.08*pulse),0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}if(mon.enraged){ctx.strokeStyle='#ff4d5d';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.42,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*(mon.enraged?.76:(mon.isBoss?.86:.68)))+'px '+FONT;ctx.textAlign='center';ctx.fillText(mon.e,cx,cy);if(mon.isBoss){ctx.font='900 '+Math.max(11,m.unit*.2)+'px sans-serif';ctx.fillStyle='#ffd166';ctx.fillText(mon.bossName||'던전 보스',cx,q.y-5);ctx.fillStyle=bad;}bar(q.x+4,q.y+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);if(mon.targetId&&mon.state==='chase'){ctx.fillStyle=bad;ctx.font='700 '+Math.max(10,m.unit*.2)+'px sans-serif';ctx.fillText('!',cx,q.y+1);}});
   Object.values(S.players).filter(q=>q.map===map).forEach(pl=>{const v=smooth('p'+pl.id,pl.x,pl.y,m),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,ap=sanitizeAppearance(pl.appearance),j=jobData(pl);if(pl.id===S.uid){ctx.strokeStyle=ap.aura;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.45,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(pl.emoji,cx,cy);if(ap.hat){ctx.font=(m.unit*.34)+'px '+FONT;ctx.fillText(ap.hat,cx,q.y);}drawNameplate(j.icon+' '+pl.name,cx,q.y-m.th*.05,m.unit,pl.id===S.uid?ap.aura:fg);bar(q.x+4,q.y+m.th-8,Math.max(8,m.tw-8),pl.hp/(50+pl.lv*10),ok);});
   const now=Date.now();S.fx=S.fx.filter(f=>now-f.t0<f.life);S.fx.forEach(f=>{const a=(now-f.t0)/f.life;let x=f.x,y=f.y;if(f.id){const v=S.vis['p'+f.id];if(!v)return;x=v.x;y=v.y;}const q=worldToScreen(x,y,m);ctx.globalAlpha=1-a;ctx.font='700 '+clamp(m.unit*.33,13,22)+'px sans-serif';ctx.fillStyle=f.c;ctx.textAlign='center';ctx.fillText(f.s,q.x+m.tw/2,q.y+m.th/2-a*m.unit*.8);});ctx.globalAlpha=1;
-  S.renderFallback=false;
   let prompt='';if(doorTown)prompt='E · '+doorTown.name+' 들어가기';else if(doorExit)prompt='E · 건물 밖으로 나가기';else if(portal)prompt='M · 텔레포트석 사용';drawPromptRpg(prompt,m);updateZoneHudRpgBetter();if(now-S.minimapLast>220){drawMinimapRpgBetter();S.minimapLast=now;}
 }
 drawSceneRpg=drawSceneRpgBetter;drawScene=drawSceneRpgBetter;
@@ -3315,6 +3318,9 @@ window.__rpgOverhaulReady=true;
     $('panelBody').querySelectorAll('[data-equip]').forEach(b=>b.onclick=()=>sendLocalHost({t:'npc_action',npc:'smith',action:'equip',id:b.dataset.equip}));
   }
 
+  // v32: 외부 대화 UI에서 실제 NPC 기능 패널을 다시 열 수 있도록 최소 API 공개
+  globalThis.__rpgNpcApiV32={open:renderNpcPanel,guild:renderGuildQuestBoard,storage:renderStoragePanel};
+
   function renderGuildQuestBoard(){
     const p=S.players[S.uid],n=RPG_NPCS.guildmaster; if(!p||!nearRpgNpc(p,n))return;
     const active=p.guildQuest&&p.guildQuest.active; let html='<div class="npcCard"><div class="npcCardHead"><div class="npcAvatar">'+n.icon+'</div><div><b>'+escapeHtml(n.name)+'</b><div class="socialSub">모험가 길드 · 의뢰 담당</div></div></div><div class="npcSpeech">'+NPC_LINES.guildmaster+'</div></div><div class="section" style="margin-top:10px"><div class="sectionTitle">📜 오늘의 길드 의뢰</div><div class="questBoard">';
@@ -3375,7 +3381,7 @@ window.__rpgOverhaulReady=true;
   /* NPC 설명/상호작용 버튼 */
   if(!$('btnNpc')){
     const b=document.createElement('button'); b.id='btnNpc';b.className='iconBtn';b.title='NPC 상호작용';b.setAttribute('aria-label','NPC 상호작용');b.textContent='🧑';
-    $('menu').insertBefore(b,$('btnCharacter'));b.onclick=()=>{const n=nearestActiveNpc();if(n)renderNpcPanel(n.id);else log('🧑 NPC에게 가까이 가서 E를 눌러줘.');};
+    $('menu').insertBefore(b,$('btnCharacter'));b.onclick=()=>{const n=nearestActiveNpc();if(n&&typeof showNpcDialogueV32==='function')showNpcDialogueV32(n.id);else if(n)renderNpcPanel(n.id);else log('🧑 NPC에게 가까이 가서 대화할 NPC에게 가까이 가줘.');};
   }
 
   function nearestActiveNpc(){const p=S.players[S.uid];if(!p)return null;let best=null,d=999;Object.values(RPG_NPCS).forEach(n=>{if(String(n.map)!==String(p.map))return;const dd=cheb(p,n);if(dd<d){d=dd;best=n;}});return d<=2?best:null;}
@@ -3508,7 +3514,7 @@ window.__rpgOverhaulReady=true;
         const portal=nearestRpgPortal(p);if(portal){e.preventDefault();e.stopImmediatePropagation();renderTeleportPanel();return;}
       }
       if(k==='e'){
-        const n=nearestActiveNpc();if(n){e.preventDefault();e.stopImmediatePropagation();renderNpcPanel(n.id);return;}
+        const n=nearestActiveNpc();if(n){e.preventDefault();e.stopImmediatePropagation();if(typeof showNpcDialogueV32==='function')showNpcDialogueV32(n.id);else renderNpcPanel(n.id);return;}
         const door=p.map==='town'?nearestBuildingDoor(p):((mapDef(p.map).kind==='interior')?nearestBuildingDoor(p):null);
         if(door){e.preventDefault();e.stopImmediatePropagation();requestBuildingTransition();return;}
         const portal=nearestRpgPortal(p);if(portal){e.preventDefault();e.stopImmediatePropagation();renderTeleportPanel();return;}
@@ -4531,6 +4537,1370 @@ initLobby();
   globalThis.__rpgFinalBindingsV18=true;
 })();
 
+
+
+/* ============================================================
+   STABILITY PATCH — 기준본 렌더러/시작 순서 보강
+   - 기존 RPG 기능은 유지하고, 누락된 네트워크 보조 함수만 복구
+   - 렌더링 한 부분의 예외가 전체 화면을 복구 모드로 떨어뜨리지 않게 함
+   - Canvas 표시 크기와 내부 해상도를 항상 동기화
+   ============================================================ */
+(function installStabilityPatch(){
+  'use strict';
+
+  /* ---------- 누락되어 있던 호스트 모니터링 함수 ---------- */
+  function startHostMonitoring(){
+    if(S.hostProbeTimer) clearInterval(S.hostProbeTimer);
+    S.hostProbeTimer=setInterval(()=>{
+      try{
+        if(!S.isHost)return;
+        const now=Date.now();
+        S.hostStats[S.uid]={...(S.hostStats[S.uid]||{}),...(S.caps||{}),lastSeen:now};
+        Object.keys(S.hostStats).forEach(uid=>{
+          if(uid!==S.uid&&!S.players[uid])delete S.hostStats[uid];
+        });
+      }catch(e){ /* 모니터링 실패가 게임을 중단시키면 안 됨 */ }
+    },3000);
+  }
+  globalThis.startHostMonitoring=startHostMonitoring;
+
+  /* ---------- 누락되어 있던 성능 정보 보고 ---------- */
+  function startCapabilityReporting(){
+    if(S.capReportTimer)clearInterval(S.capReportTimer);
+    const report=()=>{
+      try{
+        const caps={
+          cores:Number(S.caps&&S.caps.cores)||2,
+          ram:Number(S.caps&&S.caps.ram)||4,
+          cpuPerf:Number(S.caps&&S.caps.cpuPerf)||1,
+          browserRtt:Number(S.caps&&S.caps.browserRtt)||80
+        };
+        S.score=capabilityScore(caps);
+        if(S.isHost){
+          S.hostStats[S.uid]={...caps,lastSeen:Date.now()};
+          return;
+        }
+        if(S.hostConn&&S.hostConn.open){
+          try{S.hostConn.send({t:'caps',p:{caps}});}catch(e){}
+        }
+      }catch(e){}
+    };
+    report();
+    S.capReportTimer=setInterval(report,5000);
+  }
+  globalThis.startCapabilityReporting=startCapabilityReporting;
+
+  /* ---------- Canvas 안정화 ---------- */
+  function stableResizeCanvas(){
+    const rect=cv.getBoundingClientRect();
+    const w=Math.max(1,Math.round(rect.width||window.innerWidth));
+    const h=Math.max(1,Math.round(rect.height||window.innerHeight));
+    const dpr=Math.max(1,Math.min(3,Number(window.devicePixelRatio)||1));
+    const bw=Math.max(1,Math.round(w*dpr));
+    const bh=Math.max(1,Math.round(h*dpr));
+    if(cv.width!==bw)cv.width=bw;
+    if(cv.height!==bh)cv.height=bh;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.globalAlpha=1;
+    ctx.filter='none';
+    ctx.imageSmoothingEnabled=true;
+    return {w,h,dpr};
+  }
+
+  function stableBoardMetrics(){
+    const rect=cv.getBoundingClientRect();
+    const w=Math.max(1,Math.round(rect.width||window.innerWidth));
+    const h=Math.max(1,Math.round(rect.height||window.innerHeight));
+    const tw=clamp(Math.min(w/22,h/14),24,48);
+    return {w,h,tw,th:tw,unit:tw,cols:Math.ceil(w/tw)+2,rows:Math.ceil(h/tw)+2};
+  }
+
+  function drawCoreFallback(reason){
+    try{
+      const m=stableBoardMetrics();
+      const p=S.players[S.uid];
+      ctx.setTransform((Number(window.devicePixelRatio)||1),0,0,(Number(window.devicePixelRatio)||1),0,0);
+      ctx.globalAlpha=1;ctx.filter='none';ctx.fillStyle='#a9c77d';ctx.fillRect(0,0,m.w,m.h);
+      if(!p)return;
+      const md=mapDef(p.map||'town');
+      updateCamera(m);
+      const sx0=Math.max(0,Math.floor(S.camera.x-m.w/(2*m.tw))-2);
+      const sx1=Math.min(md.w-1,Math.ceil(S.camera.x+m.w/(2*m.tw))+2);
+      const sy0=Math.max(0,Math.floor(S.camera.y-m.h/(2*m.th))-2);
+      const sy1=Math.min(md.h-1,Math.ceil(S.camera.y+m.h/(2*m.th))+2);
+      for(let y=sy0;y<=sy1;y++)for(let x=sx0;x<=sx1;x++){
+        const q=worldToScreen(x,y,m);
+        try{drawMapTileRpg(md.id,x,y,q.x,q.y,m,{c1:'#a9c77d',c2:'#b4cf8a'});}
+        catch(e){ctx.fillStyle=md.id==='dungeon'?'#5b4659':'#a9c77d';ctx.fillRect(q.x,q.y,m.tw+1,m.th+1);}
+      }
+      const q=worldToScreen(p.x,p.y,m);
+      ctx.font=(m.unit*.68)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffffff';ctx.fillText(p.emoji||'⚔️',q.x+m.tw/2,q.y+m.th/2);
+      if(reason){
+        ctx.font='700 11px sans-serif';ctx.fillStyle='rgba(0,0,0,.55)';
+        ctx.fillText('렌더링 보정 중',m.w/2,m.h-18);
+      }
+    }catch(e){
+      try{const r=cv.getBoundingClientRect();ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#9fbe8c';ctx.fillRect(0,0,r.width,r.height);}catch(_){}
+    }
+  }
+
+  function drawStableFrame(){
+    if(!S.started){S.drawStarted=false;return;}
+    try{
+      stableResizeCanvas();
+      const p=S.players[S.uid];
+      if(!p){drawCoreFallback('player');return;}
+      /* 기존 최종 RPG 렌더러를 우선 사용 */
+      try{
+        drawSceneRpgBetter();
+        S.drawError='';
+        return;
+      }catch(e){
+        S.drawError=String(e&&e.message||e||'render error');
+        console.warn('[emoji-rpg render]',S.drawError);
+        drawCoreFallback(S.drawError);
+      }
+    }catch(e){
+      S.drawError=String(e&&e.message||e||'render error');
+      drawCoreFallback(S.drawError);
+    }
+  }
+
+  function startStableRenderLoop(){
+    if(S.drawStarted)return;
+    S.drawStarted=true;
+    S.renderFallback=false;
+    S.drawError='';
+    try{stableResizeCanvas();}catch(e){}
+    const frame=()=>{
+      try{drawStableFrame();}catch(e){S.drawError=String(e&&e.message||e||'render loop error');}
+      if(S.started)requestAnimationFrame(frame);else S.drawStarted=false;
+    };
+    requestAnimationFrame(frame);
+  }
+
+  /* enterGame()가 호출하는 이름을 교체하면 기존 시작 코드는 그대로 유지된다. */
+  globalThis.resizeCanvas=stableResizeCanvas;
+  globalThis.boardMetrics=stableBoardMetrics;
+  globalThis.startRenderLoop=startStableRenderLoop;
+
+  /* 캔버스 자체에 브라우저 필터/변형이 적용되지 않도록 고정 */
+  const style=document.createElement('style');
+  style.textContent='#cv{filter:none!important;opacity:1!important;transform:none!important;}';
+  document.head.appendChild(style);
+
+  window.addEventListener('resize',()=>{try{stableResizeCanvas();}catch(e){}},{passive:true});
+  if(window.ResizeObserver){
+    const ro=new ResizeObserver(()=>{try{stableResizeCanvas();}catch(e){}});
+    ro.observe(cv);
+  }
+
+  /* 마지막 초기화 이후 함수가 실제 존재하는지 확인 */
+  globalThis.__rpgStabilityPatch=true;
+})();
+
+
+/* =========================
+   V26 RPG VISUAL PASS
+   - remove checkerboard floors
+   - cleaner terrain palettes
+   - proper raised/overhanging roofs
+   - clearer buildings/roads
+   - non-checkerboard minimap
+   ========================= */
+(function(){
+  const visualHash=(x,y,n=0)=>Math.abs(Math.sin((x*127.1+y*311.7+n*74.3)*0.01723)*43758.5453)%1;
+
+  mapTileColor=function(map,x,y,css){
+    const md=mapDef(map),k=md.kind;
+    if(k==='town'){
+      if(isTownPlazaRpg(x,y)){
+        const v=visualHash(x,y,2);
+        return v>.82?'#d5bb76':v>.45?'#ddc88f':'#e1ce99';
+      }
+      if(isTownRoadRpg(x,y)){
+        const v=visualHash(x,y,4);
+        return v>.78?'#c0ae82':v>.38?'#c8b68a':'#cfbe96';
+      }
+      const v=visualHash(x,y,1);
+      return v>.9?'#789b63':v>.52?'#82a76a':'#8aad72';
+    }
+    if(k==='field'){
+      if(md.id==='forest'){
+        const v=visualHash(x,y,10);
+        return v>.86?'#6f956b':v>.45?'#789f72':'#81a979';
+      }
+      if(md.id==='canyon'){
+        const v=visualHash(x,y,11);
+        return v>.86?'#9d604a':v>.45?'#aa6a50':'#b57459';
+      }
+      const v=visualHash(x,y,12);
+      return v>.88?'#93b96f':v>.45?'#a0c37a':'#a9c980';
+    }
+    if(k==='dungeon'){
+      if(md.id==='catacombs'){
+        const v=visualHash(x,y,20);
+        return v>.9?'#4a394f':v>.5?'#51405a':'#59455f';
+      }
+      if(md.id==='abyss'){
+        const v=visualHash(x,y,21);
+        return v>.9?'#2b2138':v>.5?'#332740':'#3a2c47';
+      }
+      const v=visualHash(x,y,22);
+      return v>.9?'#51424f':v>.5?'#594958':'#604e60';
+    }
+    if(k==='interior'){
+      const palette={smith:['#aaa09a','#b7aca5'],market:['#d1bf98','#dbcaa7'],guild:['#b8c4d5','#c3cfde'],clinic:['#c9d6c9','#d3dfd3'],warehouse:['#c2b194','#cdbd9f']};
+      const pair=palette[md.id]||['#c5b299','#d0bea6'];
+      const v=visualHash(x,y,30);
+      return v>.48?pair[0]:pair[1];
+    }
+    return '#7f9f6b';
+  };
+
+  drawMapTileRpg=function(map,x,y,sx,sy,m,css){
+    const md=mapDef(map),blocked=isMapBlocked(map,x,y),base=mapTileColor(map,x,y,css);
+    ctx.fillStyle=base;
+    ctx.fillRect(sx,sy,m.tw+1,m.th+1);
+    if(!blocked){
+      const hv=visualHash(x,y,md.id==='town'?40:md.id==='field'?41:42);
+      if(md.kind==='field' && hv>.88){
+        ctx.fillStyle=md.id==='canyon'?'rgba(70,45,30,.17)':'rgba(58,95,55,.12)';
+        ctx.beginPath();
+        ctx.arc(sx+m.tw*(.25+.5*visualHash(x,y,43)),sy+m.th*(.28+.44*visualHash(x,y,44)),Math.max(1,m.tw*.035),0,Math.PI*2);
+        ctx.fill();
+      }
+      if(md.kind==='dungeon' && hv>.82){
+        ctx.fillStyle='rgba(255,210,120,.10)';
+        ctx.fillRect(sx+m.tw*.18,sy+m.th*.18,Math.max(1,m.tw*.055),Math.max(1,m.th*.055));
+      }
+      return;
+    }
+    const wall=md.kind==='town'?'#63584b':md.kind==='field'?'#586f4e':'#302833';
+    ctx.fillStyle=wall;
+    ctx.fillRect(sx+m.tw*.055,sy+m.th*.055,m.tw*.89,m.th*.89);
+    ctx.strokeStyle=md.kind==='town'?'rgba(255,239,190,.16)':'rgba(255,255,255,.08)';
+    ctx.lineWidth=Math.max(1,m.unit*.025);
+    ctx.strokeRect(sx+m.tw*.055,sy+m.th*.055,m.tw*.89,m.th*.89);
+    if(md.kind==='field'){
+      const icon=md.id==='forest'?'🌲':md.id==='canyon'?'🪨':null;
+      if(icon){ctx.font=(m.unit*.35)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(icon,sx+m.tw/2,sy+m.th*.64);}
+    }
+  };
+
+  drawTownBuildingsRpgBetter=function(m,fg){
+    for(const b of RPG_BUILDINGS.filter(b=>b.map==='town')){
+      const q=worldToScreen(b.x,b.y,m),w=b.w*m.tw,h=b.h*m.th;
+      const roofH=Math.max(m.th*.72,m.th*1.02);
+      const wallY=q.y+roofH*.42;
+      const wallH=h-roofH*.05;
+      const door=worldToScreen(b.door.x,b.door.y,m);
+      ctx.save();
+      ctx.fillStyle='rgba(33,29,24,.18)';
+      ctx.fillRect(q.x+4,q.y+h-2,w-2,m.th*.16);
+      ctx.fillStyle=b.wall;
+      ctx.strokeStyle='rgba(47,38,31,.45)';
+      ctx.lineWidth=1.6;
+      ctx.fillRect(q.x+3,wallY,w-6,wallH);
+      ctx.strokeRect(q.x+3,wallY,w-6,wallH);
+      const eaveY=wallY+m.th*.08;
+      const peakY=q.y-roofH*.46;
+      ctx.fillStyle=b.roof;
+      ctx.beginPath();
+      ctx.moveTo(q.x-m.th*.13,eaveY);
+      ctx.lineTo(q.x+w/2,peakY);
+      ctx.lineTo(q.x+w+m.th*.13,eaveY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle='rgba(42,31,28,.52)';
+      ctx.lineWidth=1.8;
+      ctx.stroke();
+      ctx.fillStyle='rgba(54,39,31,.34)';
+      ctx.fillRect(q.x-m.th*.09,eaveY-m.th*.02,w+m.th*.18,m.th*.11);
+      const wx=m.tw*Math.min(1.9,Math.max(1.2,b.w/4.2));
+      const wy=m.th*.62;
+      const count=b.w>=10?2:1;
+      for(let i=0;i<count;i++){
+        const frac=(i+1)/(count+1);
+        const cx=q.x+w*frac;
+        if(Math.abs(cx-door.x-m.tw*.5)<m.tw*.8 && count===1)continue;
+        ctx.fillStyle='rgba(151,204,229,.88)';
+        ctx.fillRect(cx-wx*.24,wallY+m.th*.52,wx*.48,wy*.48);
+        ctx.strokeStyle='rgba(72,82,88,.48)';
+        ctx.strokeRect(cx-wx*.24,wallY+m.th*.52,wx*.48,wy*.48);
+      }
+      ctx.font=(m.unit*.43)+'px '+FONT;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillStyle=fg;
+      ctx.fillText(b.icon,q.x+w/2,wallY+m.th*1.0);
+      ctx.font='800 '+clamp(m.unit*.17,10,14)+'px sans-serif';
+      ctx.fillText(b.name.split(' · ')[0],q.x+w/2,wallY+m.th*1.52);
+      ctx.fillStyle='rgba(92,62,43,.92)';
+      ctx.fillRect(door.x+3,door.y+m.th*.16,m.tw-6,m.th*.84);
+      ctx.fillStyle='rgba(244,225,176,.96)';
+      ctx.beginPath();ctx.arc(door.x+m.tw*.72,door.y+m.th*.57,Math.max(1,m.unit*.035),0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=fg;
+      ctx.font='800 '+clamp(m.unit*.14,8,11)+'px sans-serif';
+      ctx.fillText('E',door.x+m.tw*.5,door.y+m.th*.38);
+      ctx.restore();
+    }
+    drawTownDetailsRpg(m,fg);
+  };
+  drawTownBuildingsRpg=drawTownBuildingsRpgBetter;
+
+  drawMinimapRpgBetter=function(){
+    const p=S.players[S.uid];if(!p)return;
+    const map=p.map||'town',md=mapDef(map),mc=$('minimap');if(!mc)return;
+    const mx=mc.getContext('2d'),sx=mc.width/md.w,sy=mc.height/md.h;
+    mx.clearRect(0,0,mc.width,mc.height);
+    for(let y=0;y<md.h;y++)for(let x=0;x<md.w;x++){
+      let col=mapTileColor(map,x,y,null);
+      if(isMapBlocked(map,x,y)) col=md.kind==='dungeon'?'#302833':md.kind==='town'?'#63584b':'#586f4e';
+      mx.fillStyle=col;mx.fillRect(x*sx,y*sy,Math.ceil(sx+.5),Math.ceil(sy+.5));
+    }
+    if(map==='town')for(const b of RPG_BUILDINGS.filter(b=>b.map==='town')){
+      mx.fillStyle='#8e6a4d';mx.fillRect(b.x*sx,b.y*sy,b.w*sx,b.h*sy);
+      mx.fillStyle='#e2c67c';mx.fillRect(b.door.x*sx,b.door.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));
+    }
+    Object.values(S.players).filter(q=>q.map===map).forEach(q=>{
+      mx.fillStyle=q.id===S.uid?'#ffd54a':'#eaf1ff';
+      mx.fillRect(q.x*sx,q.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));
+    });
+    S.mons.filter(mm=>mm.map===map).forEach(mm=>{
+      mx.fillStyle=mm.isBoss?'#ff5b6e':'#e86a6a';
+      mx.fillRect(mm.x*sx,mm.y*sy,Math.max(1,sx),Math.max(1,sy));
+    });
+    (RPG_PORTALS[map]||[]).forEach(t=>{
+      mx.fillStyle='#67d6ff';mx.fillRect(t.x*sx,t.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));
+    });
+    const d=interiorDefByMap(map);if(d){
+      mx.fillStyle='#ffe2a6';mx.fillRect(d.exit.x*sx,d.exit.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));
+    }
+    const view=boardMetrics(),hx=Math.min(md.w/2,Math.ceil(view.w/(2*view.tw))),hy=Math.min(md.h/2,Math.ceil(view.h/(2*view.th)));
+    mx.strokeStyle='rgba(255,255,255,.9)';mx.lineWidth=1;
+    mx.strokeRect(Math.max(0,(p.x-hx)*sx),Math.max(0,(p.y-hy)*sy),Math.min(mc.width,hx*2*sx),Math.min(mc.height,hy*2*sy));
+  };
+  drawMinimapRpg=drawMinimapRpgBetter;drawMinimap=drawMinimapRpgBetter;
+})();
+
+
+
+/* ============================================================
+   RPG 정식화 패치 v27
+   - 캐릭터 외형은 직업 아이콘으로 고정
+   - 커스터마이징은 모자 / 칭호 중심
+   - 맵은 고정된 설계 + 좌표 기반 지면 색 변화
+   - 필드/숲/협곡/던전에 고정 장식과 횃불 추가
+   - 신규 던전도 방/복도 구조를 사용
+   ============================================================ */
+(function(){
+  const JOB_VISUAL_AURA={
+    novice:'#8a8f98',fighter:'#d95b4f',mage:'#9b6cff',archer:'#4fa86b',rogue:'#4f86d9',
+    guardian:'#5b86c9',berserker:'#cf4f45',elementalist:'#8c63d9',sage:'#6c7fd0',ranger:'#4e9a68',sniper:'#5b83b8',assassin:'#5a63a9',trickster:'#7e6ab2'
+  };
+
+  function validHatTitleStyle(style){
+    const a=style&&typeof style==='object'?style:{};
+    return {
+      aura: typeof a.aura==='string' ? a.aura : '#8a8f98',
+      hat: CHARACTER_HATS.includes(a.hat)?a.hat:'',
+      title: CHARACTER_TITLES.includes(a.title)?a.title:CHARACTER_TITLES[0]
+    };
+  }
+  function syncJobAppearance(p){
+    if(!p)return p;
+    const j=jobData(p);
+    const aura=JOB_VISUAL_AURA[j.code]||JOB_VISUAL_AURA.novice;
+    const cur=validHatTitleStyle(p.appearance||S.characterStyle);
+    p.appearance={aura,hat:cur.hat,title:cur.title};
+    p.emoji=j.icon;
+    if(p.id===S.uid){
+      S.emoji=j.icon;
+      S.characterStyle={aura,hat:cur.hat,title:cur.title};
+    }
+    return p;
+  }
+
+  const _jobDataForV27=jobData;
+  jobData=function(p){
+    const j=_jobDataForV27(p);
+    if(p){
+      p.emoji=j.icon;
+      const a=validHatTitleStyle(p.appearance||S.characterStyle);
+      const aura=JOB_VISUAL_AURA[j.code]||JOB_VISUAL_AURA.novice;
+      p.appearance={aura,hat:a.hat,title:a.title};
+      if(p.id===S.uid){S.emoji=j.icon;S.characterStyle={aura,hat:a.hat,title:a.title};}
+    }
+    return j;
+  };
+  globalThis.jobData=jobData;
+
+  const _normalizeForV27=normalizePlayer;
+  normalizePlayer=function(p){
+    const out=_normalizeForV27(p);
+    return syncJobAppearance(out||p);
+  };
+  globalThis.normalizePlayer=normalizePlayer;
+
+  /* 캐릭터 패널: 이름 + 모자 + 칭호만 변경 가능. 얼굴/색상 선택은 제거. */
+  renderCharacterPanel=function(){
+    const p=S.players[S.uid]||newPlayer(S.uid,S.name,S.emoji,S.score,S.friendCode);
+    normalizePlayer(p);
+    const a=validHatTitleStyle(p.appearance||S.characterStyle);
+    const j=jobData(p);
+    const hats=CHARACTER_HATS.map((h,i)=>'<button class="itemBtn '+(a.hat===h?'active':'')+'" data-hat="'+i+'"><strong>'+(h||'🙂')+'</strong><small>'+(h||'없음')+'</small></button>').join('');
+    const titles=CHARACTER_TITLES.map(t=>'<option '+(a.title===t?'selected':'')+'>'+escapeHtml(t)+'</option>').join('');
+    const html=
+      '<div class="characterPreview"><div class="characterAvatar" id="charPreview">'+escapeHtml(j.icon)+' '+escapeHtml(a.hat||'')+'</div><div><b id="charPreviewName">'+escapeHtml(S.name)+'</b><div class="socialSub">직업 · '+escapeHtml(j.name)+'</div><div class="socialSub">칭호 · <span id="charPreviewTitle">'+escapeHtml(a.title)+'</span></div><div class="socialSub">캐릭터 외형은 직업에 따라 자동으로 바뀌고, 꾸미기는 모자와 칭호만 가능해.</div></div></div>'+ 
+      '<div class="section"><div class="sectionTitle">🎓 현재 직업</div><div class="npcHint"><b style="font-size:18px">'+escapeHtml(j.icon)+'</b> '+escapeHtml(j.name)+' · '+j.stage+'차 전직</div></div>'+ 
+      '<div class="section"><div class="sectionTitle">🎩 모자</div><div class="panelGrid">'+hats+'</div></div>'+ 
+      '<div class="section"><div class="sectionTitle">🏷️ 칭호</div><select id="charTitle" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)">'+titles+'</select></div>'+ 
+      '<div class="section"><input id="charName" maxlength="10" value="'+escapeHtml(S.name)+'" placeholder="캐릭터 이름"><button id="charSave" style="width:100%;margin-top:7px">✅ 저장하고 게임에 적용</button></div>';
+    openPanel('🧑 캐릭터 꾸미기',html);
+    const refresh=()=>{
+      const cp=$('charPreview'); if(cp)cp.textContent=j.icon+' '+a.hat;
+      const ct=$('charPreviewTitle'); if(ct)ct.textContent=a.title;
+      $('panelBody').querySelectorAll('[data-hat]').forEach(b=>b.classList.toggle('active',a.hat===CHARACTER_HATS[Number(b.dataset.hat)||0]));
+    };
+    $('panelBody').querySelectorAll('[data-hat]').forEach(b=>b.onclick=()=>{a.hat=CHARACTER_HATS[Number(b.dataset.hat)||0]||'';refresh();});
+    $('charTitle').onchange=()=>{a.title=CHARACTER_TITLES.includes($('charTitle').value)?$('charTitle').value:CHARACTER_TITLES[0];refresh();};
+    $('charSave').onclick=()=>{
+      S.name=String($('charName').value||'모험가').trim().slice(0,10)||'모험가';
+      p.name=S.name;
+      a.aura=JOB_VISUAL_AURA[j.code]||JOB_VISUAL_AURA.novice;
+      p.appearance={aura:a.aura,hat:a.hat,title:a.title};
+      p.emoji=j.icon;S.emoji=j.icon;S.characterStyle={...p.appearance};
+      saveCharacterStyle();saveLocalAccountSnapshot();
+      if(S.isHost){bcast({t:'ev',k:'appearance',id:S.uid});}
+      else if(S.hostConn&&S.hostConn.open){S.hostConn.send({t:'appearance_update',appearance:S.characterStyle,name:S.name,emoji:j.icon});}
+      updateHud();closePanel();log('🧑 캐릭터 설정을 저장했어.');
+    };
+  };
+
+  /* 직업을 바꾸는 순간 외형도 즉시 직업 외형으로 변경 */
+  const _hostRecvForV27=hostRecv;
+  hostRecv=function(c,m){
+    _hostRecvForV27(c,m);
+    if(m&&m.t==='job_choose'&&c&&c.uid&&S.players[c.uid])syncJobAppearance(S.players[c.uid]);
+  };
+  globalThis.hostRecv=hostRecv;
+
+  const _onClientDataForV27=onClientData;
+  onClientData=function(m){
+    if(m&&m.t==='job_done'&&m.job){
+      const p=S.players[S.uid];
+      if(p){p.job={...m.job};syncJobAppearance(p);}
+    }
+    _onClientDataForV27(m);
+  };
+  globalThis.onClientData=onClientData;
+
+  /* ---------- 고정된 월드 디자인 ---------- */
+  const SCENERY={
+    field:{
+      trees:[[11,10],[17,9],[23,12],[31,9],[38,13],[88,10],[95,14],[100,20],[91,58],[83,63],[73,59],[19,56],[12,50],[27,61]],
+      rocks:[[15,18],[22,23],[34,17],[42,25],[64,20],[79,24],[92,30],[70,48],[55,57],[31,48],[18,39]],
+      flowers:[[13,15],[19,28],[29,18],[36,30],[45,14],[61,28],[75,14],[86,33],[96,42],[72,57],[40,53],[24,45]],
+      grass:[[9,15],[16,32],[28,12],[33,40],[47,21],[58,13],[67,36],[79,19],[85,46],[94,23],[63,57],[44,63],[26,55],[14,44]]
+    },
+    forest:{
+      trees:[[4,5],[10,7],[16,5],[22,8],[28,5],[35,8],[42,5],[49,7],[56,5],[63,8],[70,5],[77,8],[83,5],[5,57],[12,60],[19,57],[27,61],[35,58],[44,61],[53,57],[62,60],[70,58],[79,61],[84,56],[8,16],[8,24],[80,16],[80,24],[14,42],[73,43]],
+      rocks:[[21,14],[33,11],[47,17],[61,12],[71,28],[26,45],[41,50],[59,43],[69,51]],
+      flowers:[[18,20],[31,25],[45,21],[58,24],[67,17],[25,37],[38,34],[54,38],[72,34]],
+      grass:[[12,18],[19,31],[28,18],[35,29],[46,30],[57,18],[64,31],[74,22],[30,52],[52,52],[66,46]]
+    },
+    canyon:{
+      rocks:[[8,8],[15,14],[23,7],[31,13],[41,9],[51,15],[62,8],[73,13],[84,8],[91,18],[19,48],[28,54],[39,49],[50,57],[62,50],[74,55],[86,49]],
+      flowers:[[12,24],[27,30],[46,21],[58,33],[76,24],[88,39]],
+      grass:[[18,18],[35,22],[54,15],[69,29],[81,18],[23,42],[44,40],[67,46],[90,31]]
+    },
+    dungeon:{
+      torches:[[8,11],[14,11],[22,11],[29,11],[38,11],[46,11],[56,11],[64,11],[14,31],[22,31],[31,31],[39,31],[49,31],[57,31],[65,31],[10,43],[20,43],[34,43],[48,43],[60,43]],
+      rocks:[[8,7],[24,7],[39,7],[56,7],[66,18],[29,22],[49,22],[60,36],[25,39]],
+      bones:[[11,19],[28,12],[44,17],[54,38],[68,27]]
+    },
+    catacombs:{
+      torches:[[7,8],[15,8],[27,8],[39,8],[51,8],[63,8],[71,8],[10,23],[23,23],[36,23],[49,23],[62,23],[70,23],[8,39],[20,39],[34,39],[48,39],[62,39],[71,39],[12,49],[28,49],[44,49],[58,49]],
+      bones:[[10,14],[25,18],[42,12],[57,18],[69,30],[18,31],[47,31],[65,45]]
+    },
+    abyss:{
+      torches:[[8,9],[20,9],[32,9],[46,9],[60,9],[73,9],[82,9],[8,25],[24,25],[38,25],[54,25],[68,25],[82,25],[10,43],[26,43],[42,43],[58,43],[74,43],[12,56],[32,56],[52,56],[72,56]],
+      crystals:[[17,17],[35,18],[50,13],[69,19],[21,35],[44,34],[64,37],[34,51],[57,50],[77,52]]
+    }
+  };
+
+  function pointKey(x,y){return x+','+y;}
+  function inList(list,x,y){return !!(list&&list.some(p=>p[0]===x&&p[1]===y));}
+  function sceneryAt(map,x,y){
+    const s=SCENERY[map];if(!s)return null;
+    for(const k of ['trees','rocks','flowers','grass','bones','crystals'])if(inList(s[k],x,y))return k;
+    return inList(s.torches||[],x,y)?'torches':null;
+  }
+
+  /* 신규 던전에도 고정된 방/복도 구조를 부여 */
+  const _isMapBlockedV27=isMapBlocked;
+  isMapBlocked=function(map,x,y){
+    const md=mapDef(map);
+    if(!md)return true;
+    if(map==='catacombs'||map==='abyss'){
+      const d=RPG_MAPS[map]||md;
+      if(x<0||y<0||x>=d.w||y>=d.h)return true;
+      if(portalAt(map,x,y))return false;
+      const b=buildingAt(map,x,y);if(b)return true;
+      if(x===0||y===0||x===d.w-1||y===d.h-1)return true;
+      if(map==='catacombs'){
+        if((x===17||x===34||x===51||x===66) && !(y>=18&&y<=25))return true;
+        if((y===14||y===28||y===42) && !(x>=4&&x<=13) && !(x>=30&&x<=38) && !(x>=61&&x<=69))return true;
+      } else {
+        if((x===20||x===42||x===64) && !(y>=21&&y<=28))return true;
+        if((y===15||y===31||y===47) && !(x>=4&&x<=13) && !(x>=34&&x<=42) && !(x>=70&&x<=77))return true;
+      }
+      return false;
+    }
+    if(md.kind==='field' && (map==='field'||map==='forest'||map==='canyon')){
+      const s=SCENERY[map];
+      if(s && (inList(s.trees,x,y)||inList(s.rocks,x,y)))return true;
+    }
+    return _isMapBlockedV27(map,x,y);
+  };
+  globalThis.isMapBlocked=isMapBlocked;
+  isBlocked=function(x,y){return isMapBlocked((S.players[S.uid]||{}).map||S.renderMap||'town',x,y);};
+
+  /* 고정된 길/지역 색: 지형 구조는 좌표로 설계하고, 색 농도만 좌표 기반으로 살짝 변화 */
+  const _mapTileColorV27=mapTileColor;
+  mapTileColor=function(map,x,y,css){
+    const md=mapDef(map);
+    if(md.kind==='field'){
+      if(map==='field'){
+        if(y>=33&&y<=37 || (x>=48&&x<=52&&y>=10&&y<=62))return ((x+y)%3===0)?'#c9b58a':'#d4c39a';
+      }
+      if(map==='forest'){
+        if(y>=29&&y<=33 || (x>=42&&x<=46&&y>=8&&y<=55))return ((x+y)%3===0)?'#a8a06f':'#b2aa77';
+      }
+      if(map==='canyon'){
+        if(y>=29&&y<=34 || (x>=45&&x<=49&&y>=8&&y<=56))return ((x+y)%3===0)?'#b98a62':'#c39a70';
+      }
+    }
+    if(md.kind==='dungeon'){
+      const base=_mapTileColorV27(map,x,y,css);
+      if(!isMapBlocked(map,x,y) && ((x*7+y*3)%11===0))return map==='abyss'?'#423451':map==='catacombs'?'#5b485e':'#655263';
+      return base;
+    }
+    return _mapTileColorV27(map,x,y,css);
+  };
+
+  function drawTorchAt(q,m,fg){
+    const cx=q.x+m.tw*.5, baseY=q.y+m.th*.78;
+    ctx.save();
+    const glow=ctx.createRadialGradient(cx, q.y+m.th*.42, 0, cx, q.y+m.th*.42, m.tw*.95);
+    glow.addColorStop(0,'rgba(255,184,71,.25)');glow.addColorStop(1,'rgba(255,184,71,0)');
+    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(cx,q.y+m.th*.42,m.tw*.95,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#6f4931';ctx.lineWidth=Math.max(2,m.unit*.055);ctx.beginPath();ctx.moveTo(cx,baseY);ctx.lineTo(cx,q.y+m.th*.46);ctx.stroke();
+    ctx.fillStyle='#ffcf63';ctx.beginPath();ctx.moveTo(cx,q.y+m.th*.28);ctx.quadraticCurveTo(cx-m.tw*.12,q.y+m.th*.44,cx,q.y+m.th*.58);ctx.quadraticCurveTo(cx+m.tw*.12,q.y+m.th*.44,cx,q.y+m.th*.28);ctx.fill();
+    ctx.fillStyle='#fff0a8';ctx.beginPath();ctx.arc(cx,q.y+m.th*.43,Math.max(1,m.unit*.035),0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+  function drawDecorTile(map,x,y,sx,sy,m,fg){
+    const kind=sceneryAt(map,x,y); if(!kind)return;
+    const q={x:sx,y:sy};
+    ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+    if(kind==='torches'){drawTorchAt(q,m,fg);ctx.restore();return;}
+    const icons={trees:'🌳',rocks:'🪨',flowers:'🌼',grass:'🌿',bones:'🦴',crystals:'💎'};
+    const sizes={trees:.54,rocks:.32,flowers:.25,grass:.26,bones:.25,crystals:.30};
+    ctx.font=(m.unit*(sizes[kind]||.3))+'px '+FONT;
+    ctx.globalAlpha=kind==='grass'?.72:.92;
+    ctx.fillText(icons[kind]||'',sx+m.tw/2,sy+m.th*.66);
+    ctx.restore();
+  }
+
+  const _drawMapTileV27=drawMapTileRpg;
+  drawMapTileRpg=function(map,x,y,sx,sy,m,css){
+    _drawMapTileV27(map,x,y,sx,sy,m,css);
+    if(!isMapBlocked(map,x,y))drawDecorTile(map,x,y,sx,sy,m,css&&css.fg);
+  };
+  globalThis.drawMapTileRpg=drawMapTileRpg;
+
+  /* 마을은 구조물이 아니라 고정된 생활 소품으로 채운다. */
+  const _drawTownDetailsV27=drawTownDetailsRpg;
+  drawTownDetailsRpg=function(m,fg){
+    _drawTownDetailsV27(m,fg);
+    const props=[
+      {x:17,y:20,i:'🪑'},{x:39,y:20,i:'🪑'},{x:25,y:17,i:'🌷'},{x:31,y:17,i:'🌷'},
+      {x:18,y:29,i:'🌼'},{x:26,y:29,i:'🌼'},{x:42,y:29,i:'🌼'},{x:49,y:24,i:'🌳'},
+      {x:6,y:23,i:'🌳'},{x:52,y:31,i:'🌳'},{x:34,y:23,i:'🌸'}
+    ];
+    ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+    for(const p of props){if(buildingAt('town',p.x,p.y)||isTownRoadRpg(p.x,p.y))continue;const q=worldToScreen(p.x,p.y,m);ctx.font=(m.unit*(p.i==='🪑'?.32:.28))+'px '+FONT;ctx.fillText(p.i,q.x+m.tw/2,q.y+m.th*.68);}
+    ctx.restore();
+  };
+
+  /* 최종 플레이어 그리기에서 직업 아이콘을 강제. 기존 렌더러를 유지하면서 아이콘만 교체 */
+  const _sceneV27=drawSceneRpgBetter;
+  function drawPlayerTitlesV27(){
+    const p=S.players[S.uid];if(!p)return;
+    const map=p.map||'town',md=mapDef(map),m=boardMetrics();
+    ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+    Object.values(S.players||{}).filter(pl=>pl.map===map).forEach(pl=>{
+      const a=validHatTitleStyle(pl.appearance),title=a.title;
+      if(!title)return;
+      const v=smooth('p'+pl.id,pl.x,pl.y,m),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2;
+      ctx.font='700 '+clamp(m.unit*.13,8,11)+'px sans-serif';
+      const w=ctx.measureText(title).width+8,h=clamp(m.unit*.17,11,15),x=cx-w/2,y=q.y-h*2.2;
+      ctx.fillStyle='rgba(40,29,20,.68)';
+      if(typeof ctx.roundRect==='function'){ctx.beginPath();ctx.roundRect(x,y,w,h,h*.35);ctx.fill();}
+      else ctx.fillRect(x,y,w,h);
+      ctx.fillStyle='#ffe3a0';ctx.fillText(title,cx,y+h*.56);
+    });
+    ctx.restore();
+  }
+  drawSceneRpgBetter=function(){
+    Object.values(S.players||{}).forEach(syncJobAppearance);
+    _sceneV27();
+    drawPlayerTitlesV27();
+  };
+  drawSceneRpg=drawSceneRpgBetter;drawScene=drawSceneRpgBetter;
+
+  /* 직업 아이콘과 호환되도록 저장 프로필도 다시 정리 */
+  const _saveCharacterStyleV27=saveCharacterStyle;
+  saveCharacterStyle=function(){
+    const p=S.players[S.uid];if(p)syncJobAppearance(p);
+    _saveCharacterStyleV27();
+  };
+  globalThis.saveCharacterStyle=saveCharacterStyle;
+
+  /* 사용자 경험: 다음 전직 순간 직업 아이콘이 바로 보이도록 */
+  const _showJobProgressV27=renderJobProgressPanel;
+  renderJobProgressPanel=function(){
+    const p=S.players[S.uid];if(p)syncJobAppearance(p);
+    _showJobProgressV27();
+  };
+
+  globalThis.__rpgProperV27=true;
+})();
+
+
+/* ============================================================
+   RPG 직업 정리 패치 v28
+   - 직업이 캐릭터 외형을 결정
+   - 3/4차 직업도 고유 색상을 사용
+   - 모자/칭호만 플레이어가 꾸밀 수 있음
+   - 기존 직업 능력치/전직 구조는 유지
+   ============================================================ */
+(function(){
+  const JOB_VISUAL_AURA_V28={
+    novice:'#8a8f98',
+    fighter:'#c94b42', guardian:'#4f7fc1', paladin:'#6f86d9', aegis:'#8ea2ff', templar:'#c8a85b',
+    berserker:'#b63d34', destroyer:'#a9342a', annihilator:'#8f231f', cataclysm:'#d45b2f',
+    warbringer:'#d15a2f', warlord:'#b73a2e', flamegeneral:'#e06a32',
+    swordmaster:'#b48a3c', bladeemperor:'#d0ad45', warriorking:'#c99a36',
+    mage:'#7c62c8', elementalist:'#7b4fc4', archmage:'#a35fe1', archon:'#9b6cf1', astralmage:'#7f8df5',
+    arcanist:'#416fd0', spellking:'#365bb5', runesage:'#5578c9',
+    sage:'#6077c6', grand_sage:'#586db3', worldsage:'#496cae', miracleSage:'#7a7fe0',
+    oracle:'#715ab8', fatecaller:'#7e5cc7', starprophet:'#6c7fbf',
+    archer:'#4d9464', ranger:'#42845a', windrunner:'#41a67a', stormranger:'#369a90', skywarden:'#3e7ca8',
+    sniper:'#4e77a8', marksman:'#3e6898', skyshooter:'#4d89c0', deadeye:'#416b9d',
+    heavenarcher:'#447eb4', starshooter:'#6389c0', celestialbow:'#596fd2', sunpiercer:'#c99432',
+    rogue:'#546fc0', assassin:'#5059a1', shadowlord:'#4a4b86', shadowemperor:'#3a376d', nightmare:'#683c76',
+    phantom:'#6c5ba4', ghostking:'#5f568d', soulblade:'#5b4c8d',
+    trickster:'#7763ad', nightblade:'#554884', darksovereign:'#40365e', moonassassin:'#6a568e',
+    illusionist:'#705aa4', mirageking:'#6b5da1', chaosrogue:'#68427d',
+    oneShot:'#3d6298', voidArcher:'#4a518d',
+    celestialbow:'#596fd2'
+  };
+
+  function jobVisualColor(job){
+    const code=job&&job.code?String(job.code):'novice';
+    return JOB_VISUAL_AURA_V28[code]||'#8a8f98';
+  }
+
+  const _syncV27=globalThis.syncJobAppearance;
+  function syncJobAppearanceV28(p){
+    if(!p)return p;
+    const j=_jobDataV28(p);
+    const current=(p.appearance&&typeof p.appearance==='object')?p.appearance:{};
+    const hat=CHARACTER_HATS.includes(current.hat)?current.hat:'';
+    const title=CHARACTER_TITLES.includes(current.title)?current.title:CHARACTER_TITLES[0];
+    p.emoji=j.icon||'🧑';
+    p.appearance={aura:jobVisualColor(j),hat,title};
+    if(p.id===S.uid){
+      S.emoji=p.emoji;
+      S.characterStyle={...p.appearance};
+    }
+    return p;
+  }
+  globalThis.syncJobAppearance=syncJobAppearanceV28;
+
+  /* jobData 호출만으로도 항상 직업 외형을 맞춘다. */
+  const _jobDataV28=jobData;
+  jobData=function(p){
+    const j=_jobDataV28(p);
+    if(p)syncJobAppearanceV28(p);
+    return j;
+  };
+  globalThis.jobData=jobData;
+
+  /* 모든 전직 패널에 직업 계열을 명확히 표시 */
+  const _renderJobPanelV28=renderJobPanel;
+  renderJobPanel=function(force){
+    _renderJobPanelV28(force);
+    const p=S.players[S.uid];
+    if(!p)return;
+    const j=jobData(p);
+    const body=$('panelBody');
+    if(!body)return;
+    const head=body.querySelector('.npcHint');
+    if(head && !head.querySelector('.jobVisualHint')){
+      const row=document.createElement('div');
+      row.className='jobVisualHint socialSub';
+      row.style.marginTop='6px';
+      row.textContent='🎭 캐릭터 외형: '+j.name+' · 모자/칭호만 직접 꾸밀 수 있어.';
+      head.appendChild(row);
+    }
+  };
+  globalThis.renderJobPanel=renderJobPanel;
+
+  const _renderJobProgressV28=renderJobProgressPanel;
+  renderJobProgressPanel=function(){
+    const p=S.players[S.uid];
+    if(p)syncJobAppearanceV28(p);
+    _renderJobProgressV28();
+  };
+  globalThis.renderJobProgressPanel=renderJobProgressPanel;
+
+  /* 전직 직후 즉시 외형 동기화 */
+  const _hostRecvV28=hostRecv;
+  hostRecv=function(c,m){
+    _hostRecvV28(c,m);
+    if(m&&m.t==='job_choose'&&c&&c.uid&&S.players[c.uid])syncJobAppearanceV28(S.players[c.uid]);
+  };
+  globalThis.hostRecv=hostRecv;
+
+  const _onClientDataV28=onClientData;
+  onClientData=function(m){
+    if(m&&m.t==='job_done'&&m.job){
+      const p=S.players[S.uid];
+      if(p){p.job={...m.job};syncJobAppearanceV28(p);}
+    }
+    _onClientDataV28(m);
+  };
+  globalThis.onClientData=onClientData;
+
+  /* 게임 시작/렌더마다 직업 외형을 재확인 */
+  const _startStableRenderV28=globalThis.startStableRenderLoop;
+  if(typeof _startStableRenderV28==='function'){
+    /* 기존 루프는 유지하고 렌더 직전 상태만 정리한다. */
+    globalThis.startStableRenderLoop=function(){
+      Object.values(S.players||{}).forEach(syncJobAppearanceV28);
+      return _startStableRenderV28();
+    };
+  }
+  globalThis.__rpgJobPolishV28=true;
+})();
+
+</script>
+
+<script>
+/* ============================================================
+   RPG 직업 전투 시스템 v29
+   - 직업별 사거리 / 전투 스타일 / 패시브 추가
+   - 직업별 액티브 스킬 3개(Q/E/R)
+   - 기본 공격도 직업 사거리를 사용
+   - 스킬은 호스트가 검증하여 P2P 동기화
+   - 전직 계열에 따라 스킬 이름/성능이 달라짐
+   ============================================================ */
+(function installRpgClassCombatV29(){
+  'use strict';
+
+  const ROOTS={
+    fighter:new Set(['fighter','guardian','paladin','aegis','templar','swordmaster','bladeemperor','warriorking','berserker','destroyer','annihilator','cataclysm','warbringer','warlord','flamegeneral']),
+    mage:new Set(['mage','elementalist','archmage','archon','astralmage','arcanist','spellking','runesage','sage','grand_sage','worldsage','miracleSage','oracle','fatecaller','starprophet']),
+    archer:new Set(['archer','ranger','windrunner','stormranger','skywarden','marksman','heavenarcher','starshooter','sniper','skyshooter','deadeye','celestialbow','sunpiercer','oneShot','voidArcher']),
+    rogue:new Set(['rogue','assassin','shadowlord','shadowemperor','nightmare','phantom','ghostking','soulblade','trickster','nightblade','darksovereign','moonassassin','illusionist','mirageking','chaosrogue'])
+  };
+  const BRANCH={
+    guardian:new Set(['guardian','paladin','aegis','templar']),
+    berserker:new Set(['berserker','destroyer','annihilator','cataclysm','warbringer','warlord','flamegeneral']),
+    swordmaster:new Set(['swordmaster','bladeemperor','warriorking']),
+    elementalist:new Set(['elementalist','archmage','archon','astralmage','arcanist','spellking','runesage']),
+    sage:new Set(['sage','grand_sage','worldsage','miracleSage','oracle','fatecaller','starprophet']),
+    ranger:new Set(['ranger','windrunner','stormranger','skywarden']),
+    sniper:new Set(['sniper','skyshooter','deadeye','heavenarcher','starshooter','celestialbow','sunpiercer','oneShot','voidArcher','marksman']),
+    assassin:new Set(['assassin','shadowlord','shadowemperor','nightmare','phantom','ghostking','soulblade']),
+    trickster:new Set(['trickster','nightblade','darksovereign','moonassassin','illusionist','mirageking','chaosrogue'])
+  };
+  const stageOf={
+    novice:0,
+    fighter:1,mage:1,archer:1,rogue:1,
+    guardian:2,berserker:2,elementalist:2,sage:2,ranger:2,sniper:2,assassin:2,trickster:2,
+    paladin:3,swordmaster:3,destroyer:3,warbringer:3,archmage:3,arcanist:3,grand_sage:3,oracle:3,windrunner:3,marksman:3,skyshooter:3,deadeye:3,shadowlord:3,phantom:3,nightblade:3,illusionist:3,
+    aegis:4,templar:4,bladeemperor:4,warriorking:4,annihilator:4,cataclysm:4,warlord:4,flamegeneral:4,archon:4,astralmage:4,spellking:4,runesage:4,worldsage:4,miracleSage:4,fatecaller:4,starprophet:4,stormranger:4,skywarden:4,heavenarcher:4,starshooter:4,celestialbow:4,sunpiercer:4,oneShot:4,voidArcher:4,shadowemperor:4,nightmare:4,ghostking:4,soulblade:4,darksovereign:4,moonassassin:4,mirageking:4,chaosrogue:4
+  };
+
+  const base={
+    novice:{root:'novice',range:1,role:'견습',power:1,crit:0,dodge:0,defMult:1},
+    fighter:{root:'fighter',range:1,role:'근접 방어형',power:1.04,crit:.04,dodge:0,defMult:1.12},
+    mage:{root:'mage',range:4,role:'원거리 마법형',power:1.08,crit:.06,dodge:.01,defMult:.94},
+    archer:{root:'archer',range:5,role:'장거리 사격형',power:1.03,crit:.16,dodge:.03,defMult:1},
+    rogue:{root:'rogue',range:2,role:'기습·기동형',power:1.02,crit:.24,dodge:.09,defMult:1.01}
+  };
+
+  function rootOf(code){
+    code=String(code||'novice');
+    for(const [k,set] of Object.entries(ROOTS))if(set.has(code))return k;
+    return 'novice';
+  }
+  function branchOf(code){
+    code=String(code||'');
+    for(const [k,set] of Object.entries(BRANCH))if(set.has(code))return k;
+    return '';
+  }
+  function classProfile(p){
+    const j=jobData(p),code=String(j.code||'novice'),root=rootOf(code),stage=Number(stageOf[code]??j.stage??0);
+    if(root==='novice')return {code,root,branch:'',stage,range:1,role:'견습',power:1,crit:0,dodge:0,defMult:1,skills:noviceSkills()};
+    const b=base[root];
+    let range=b.range;
+    if(root==='mage')range += stage>=2?1:0;
+    if(root==='archer')range += stage>=2?1:0;
+    if(root==='rogue')range += stage>=3?1:0;
+    if(root==='fighter' && ['swordmaster','berserker'].includes(branchOf(code)) && stage>=3)range=2;
+    if(branchOf(code)==='sniper'&&stage>=3)range=7;
+    if(branchOf(code)==='ranger'&&stage>=3)range=6;
+    if(branchOf(code)==='elementalist'&&stage>=3)range=6;
+    if(branchOf(code)==='sage'&&stage>=3)range=5;
+    if(branchOf(code)==='assassin'&&stage>=3)range=3;
+    if(branchOf(code)==='trickster'&&stage>=3)range=4;
+    let power=b.power*(1+Math.max(0,stage-1)*.055);
+    let crit=b.crit,dodge=b.dodge,defMult=b.defMult;
+    const branch=branchOf(code);
+    if(branch==='guardian'){defMult+=.18;dodge=Math.min(.16,dodge+.03);}
+    else if(branch==='berserker'){power+=.10;crit+=.08;defMult-=.08;}
+    else if(branch==='swordmaster'){power+=.08;crit+=.10;}
+    else if(branch==='elementalist'){power+=.12;crit+=.07;}
+    else if(branch==='sage'){defMult+=.12;dodge+=.03;}
+    else if(branch==='ranger'){crit+=.09;}
+    else if(branch==='sniper'){power+=.13;crit+=.12;dodge=Math.max(0,dodge-.02);}
+    else if(branch==='assassin'){power+=.14;crit+=.14;dodge+=.06;}
+    else if(branch==='trickster'){dodge+=.11;defMult+=.04;}
+    return {code,root,branch,stage,range,role:branch?branchRole(branch):b.role,power,crit:Math.min(.75,crit),dodge:Math.min(.45,dodge),defMult,skills:skillsFor(root,branch,stage,code,range)};
+  }
+  function branchRole(branch){
+    return ({guardian:'방어·수호형',berserker:'공격·분노형',swordmaster:'검술·근접형',elementalist:'원소·광역형',sage:'지원·회복형',ranger:'기동·연사형',sniper:'초장거리 저격형',assassin:'극딜·기습형',trickster:'회피·교란형'})[branch]||'';
+  }
+  function noviceSkills(){return [{id:'novice_strike',name:'초보 강타',icon:'✦',cd:3.5,power:1.35,range:1,aoe:0},{id:'novice_guard',name:'집중',icon:'🛡️',cd:8,power:0,range:0,buff:{def:1.35,crit:.08,duration:4}},{id:'novice_burst',name:'돌파',icon:'💥',cd:10,power:1.7,range:1,aoe:1}];}
+  function skillsFor(root,branch,stage,code,range){
+    if(root==='fighter'){
+      if(branch==='guardian')return [{id:'shield_bash',name:'방패 강타',icon:'🛡️',cd:4.5,power:1.6,range,aoe:0},{id:'fortress',name:'수호 진형',icon:'🏰',cd:8,power:0,range:0,buff:{def:1.8,duration:5}},{id:'sanctuary',name:'성역',icon:'✨',cd:13,power:1.5,range:1,aoe:2}];
+      if(branch==='berserker')return [{id:'rage_slash',name:'분노 베기',icon:'🪓',cd:4,power:1.85,range,aoe:0},{id:'blood_rush',name:'피의 질주',icon:'🔥',cd:7,power:1.5,range:2,aoe:1},{id:'berserk',name:'광폭화',icon:'💢',cd:12,power:0,range:0,buff:{power:1.45,crit:.15,duration:5}}];
+      if(branch==='swordmaster')return [{id:'blade_wave',name:'검기',icon:'⚔️',cd:4,power:1.65,range,aoe:0},{id:'cross_slash',name:'십자 베기',icon:'✖️',cd:7,power:1.45,range,aoe:1},{id:'blade_storm',name:'검무',icon:'🌪️',cd:12,power:1.9,range:2,aoe:2}];
+      return [{id:'heavy_strike',name:'강타',icon:'🔨',cd:4,power:1.65,range,aoe:0},{id:'cleave',name:'분쇄',icon:'💥',cd:7,power:1.35,range,aoe:1},{id:'iron_will',name:'철벽',icon:'🛡️',cd:11,power:0,range:0,buff:{def:1.75,duration:5}}];
+    }
+    if(root==='mage'){
+      if(branch==='sage')return [{id:'holy_pulse',name:'신성 파동',icon:'✨',cd:4.5,power:1.55,range,aoe:1},{id:'greater_heal',name:'대회복',icon:'💚',cd:9,power:0,range:0,heal:.30},{id:'prophecy',name:'예지',icon:'🔯',cd:13,power:1.8,range,aoe:2}];
+      return [{id:'fireball',name:stage>=3?'원소 폭발':'파이어볼',icon:'🔥',cd:4,power:1.55,range,aoe:1},{id:'frost_nova',name:'빙결 폭풍',icon:'❄️',cd:7,power:1.25,range,aoe:2},{id:'meteor',name:stage>=4?'천궁 메테오':'메테오',icon:'☄️',cd:14,power:2.25,range,aoe:2}];
+    }
+    if(root==='archer'){
+      if(branch==='sniper')return [{id:'snipe',name:'정밀 저격',icon:'🎯',cd:4.5,power:1.95,range,aoe:0},{id:'piercing_arrow',name:'관통 사격',icon:'🏹',cd:7.5,power:1.55,range,aoe:1},{id:'skyshot',name:'천공 일격',icon:'☀️',cd:13,power:2.45,range,aoe:2}];
+      if(branch==='ranger')return [{id:'rapid_shot',name:'연속 사격',icon:'🏹',cd:4,power:1.5,range,aoe:0},{id:'wind_volley',name:'바람 폭우',icon:'🌪️',cd:7,power:1.35,range,aoe:1},{id:'storm_rain',name:'폭풍 화살',icon:'⛈️',cd:12,power:2.0,range,aoe:2}];
+      return [{id:'aimed_shot',name:'정밀 사격',icon:'🎯',cd:4,power:1.8,range,aoe:0},{id:'volley',name:'연사',icon:'🏹',cd:7,power:1.25,range,aoe:1},{id:'arrow_rain',name:'화살비',icon:'🌧️',cd:12,power:2.0,range,aoe:2}];
+    }
+    if(root==='rogue'){
+      if(branch==='assassin')return [{id:'ambush',name:'급습',icon:'🗡️',cd:4,power:2.05,range,aoe:0},{id:'poison_flurry',name:'독무',icon:'☠️',cd:7,power:1.4,range,aoe:1},{id:'shadow_cloak',name:'그림자 망토',icon:'🌑',cd:12,power:0,range:0,buff:{dodge:.32,power:1.2,duration:5}}];
+      if(branch==='trickster')return [{id:'illusion_barrage',name:'환영 난사',icon:'🃏',cd:4.5,power:1.65,range,aoe:1},{id:'confusion',name:'혼란',icon:'🌀',cd:7.5,power:1.2,range,aoe:2},{id:'mirage',name:'환상극',icon:'🪞',cd:13,power:1.95,range,aoe:2}];
+      return [{id:'backstab',name:'기습',icon:'🗡️',cd:4,power:2.0,range,aoe:0},{id:'poison_fan',name:'독무도',icon:'☠️',cd:7,power:1.3,range,aoe:1},{id:'smoke',name:'연막',icon:'💨',cd:11,power:0,range:0,buff:{dodge:.28,power:1.12,duration:5}}];
+    }
+    return noviceSkills();
+  }
+
+  const _classProfileOld=globalThis.classProfile;
+  globalThis.classProfile=classProfile;
+
+  function nowCd(p,id){return Math.max(0,Number((p&&p._skillCd&&p._skillCd[id])||0)-Date.now());}
+  function skillReady(p,skill){return nowCd(p,skill.id)<=0;}
+  function nearestRpgMonsterFor(p,range){
+    return S.mons.filter(m=>m.map===p.map&&m.hp>0&&cheb(m,p)<=range).sort((a,b)=>cheb(a,p)-cheb(b,p))[0]||null;
+  }
+  function setSkillCooldown(p,skill){p._skillCd=p._skillCd||{};p._skillCd[skill.id]=Date.now()+Math.round(skill.cd*1000);}
+  function skillCandidates(target,rad){return S.mons.filter(m=>m.map===target.map&&m.hp>0&&cheb(m,target)<=rad);}
+  function applyClassBuff(p,buff){
+    p._classBuff={end:Date.now()+Math.round((buff.duration||4)*1000),def:Number(buff.def)||1,power:Number(buff.power)||1,dodge:Number(buff.dodge)||0,crit:Number(buff.crit)||0};
+  }
+  function activeClassBuff(p){
+    const b=p&&p._classBuff;
+    if(!b||Date.now()>(b.end||0)){if(p)p._classBuff=null;return {def:1,power:1,dodge:0,crit:0};}
+    return b;
+  }
+
+  function classDamage(p,baseDmg,skill){
+    const prof=classProfile(p),buff=activeClassBuff(p);
+    let mult=prof.power*buff.power;
+    if(skill&&skill.power)mult*=skill.power;
+    if(prof.root==='berserker' || prof.branch==='berserker'){
+      if(p.hp<=Math.max(1,maxHp(p)*.4))mult*=1.25;
+    }
+    let crit=prof.crit+buff.crit;
+    if(Math.random()<Math.min(.85,crit)){mult*=1.55;return {dmg:Math.max(1,Math.floor(baseDmg*mult)),crit:true};}
+    return {dmg:Math.max(1,Math.floor(baseDmg*mult)),crit:false};
+  }
+
+  function doPlayerAttackV29(uid){
+    if(!S.isHost)return false;
+    const p=S.players[uid];if(!p||p.hp<=0)return false;
+    const prof=classProfile(p),now=Date.now();p._lastAttack=p._lastAttack||0;
+    if(now-p._lastAttack<350)return false;
+    const target=nearestRpgMonsterFor(p,prof.range);
+    if(!target)return false;
+    p._lastAttack=now;
+    const result=classDamage(p,Math.max(1,effectiveAtkRpg(p)),null);
+    target.hp-=result.dmg;
+    broadcastEvent({k:'hit',id:p.id,x:target.x,y:target.y,dmg:result.dmg});
+    if(result.crit)broadcastEvent({k:'monster_fx',x:target.x,y:target.y,s:'CRIT!',c:'#ffe08a',life:650});
+    if(target.hp<=0)defeatMonsterV29(p,target);
+    return true;
+  }
+
+  function defeatMonsterV29(p,target){
+    const e=target.e,defeatedBoss=!!target.isBoss;
+    S.mons=S.mons.filter(m=>m.id!==target.id);
+    const monDef=MONS[e]||{};
+    p.gold+=Number(monDef.gold)||0;
+    awardXpRpg(p,Number(monDef.xp)||0);
+    addMonsterReward(p,e);
+    if(defeatedBoss){
+      S.rpgBossRespawns=S.rpgBossRespawns||{};
+      const bossDef=(typeof BOSS_DEFS_V17!=='undefined'?BOSS_DEFS_V17:[]).find(x=>x.map===target.map);
+      S.rpgBossRespawns[target.map]=Date.now()+Number(bossDef&&bossDef.respawn||90000);
+      broadcastEvent({k:'log',s:'🏆 '+(target.bossName||'던전 보스')+'를 쓰러뜨렸습니다!'});
+    }
+    const allies=partyMembersNearby(p).filter(q=>q.id!==p.id);
+    allies.forEach(q=>awardXpRpg(q,Math.max(1,Math.floor((monDef.xp||0)*.5))));
+    broadcastEvent({k:'log',s:'⚔️ '+p.name+' 님이 '+e+' 처치! +'+(monDef.xp||0)+' XP'});
+  }
+
+  function useSkillHostV29(uid,skillId){
+    if(!S.isHost)return false;
+    const p=S.players[uid];if(!p||p.hp<=0)return false;
+    const prof=classProfile(p),skill=prof.skills.find(s=>s.id===String(skillId));
+    if(!skill||!skillReady(p,skill))return false;
+    const now=Date.now();
+    if(skill.buff){
+      setSkillCooldown(p,skill);
+      applyClassBuff(p,skill.buff);
+      broadcastEvent({k:'monster_fx',x:p.x,y:p.y,s:skill.icon,c:'#9fe3ff',life:950});
+      broadcastEvent({k:'log',s:'✨ '+p.name+' 님이 '+skill.name+' 사용!'});
+      return true;
+    }
+    if(skill.heal){
+      setSkillCooldown(p,skill);
+      const heal=Math.max(5,Math.floor(maxHp(p)*skill.heal));
+      p.hp=Math.min(maxHp(p),p.hp+heal);
+      broadcastEvent({k:'monster_fx',x:p.x,y:p.y,s:skill.icon,c:'#63e6be',life:900});
+      broadcastEvent({k:'log',s:'💚 '+p.name+' 님이 '+skill.name+'으로 '+heal+' 회복!'});
+      return true;
+    }
+    const range=Number(skill.range||prof.range||1);
+    const target=nearestRpgMonsterFor(p,range);
+    if(!target)return false;
+    const area=skillCandidates(target,Number(skill.aoe||0));
+    setSkillCooldown(p,skill);
+    const baseAtk=Math.max(1,effectiveAtkRpg(p));
+    area.forEach(mon=>{
+      const result=classDamage(p,baseAtk,skill);
+      mon.hp-=result.dmg;
+      broadcastEvent({k:'hit',id:p.id,x:mon.x,y:mon.y,dmg:result.dmg});
+      if(result.crit)broadcastEvent({k:'monster_fx',x:mon.x,y:mon.y,s:'CRIT!',c:'#ffe08a',life:600});
+    });
+    broadcastEvent({k:'monster_fx',x:target.x,y:target.y,s:skill.icon,c:'#b7a7ff',life:750});
+    broadcastEvent({k:'log',s:'💥 '+p.name+' 님이 '+skill.icon+' '+skill.name+' 사용!'});
+    area.filter(mon=>mon.hp<=0).forEach(mon=>defeatMonsterV29(p,mon));
+    return true;
+  }
+
+  /* 기본 공격을 새 사거리 규칙으로 교체 */
+  globalThis.doAttackRpg=doPlayerAttackV29;
+  globalThis.doAttack=doPlayerAttackV29;
+  doAttackRpg=doPlayerAttackV29;
+  doAttack=doPlayerAttackV29;
+
+  /* 호스트의 피해 계산에 직업 방어/회피 버프 반영 */
+  const _monsterBasicAttackV29=monsterBasicAttack;
+  monsterBasicAttack=function(mon,target,now,mult=1){
+    const prof=classProfile(target),buff=activeClassBuff(target);
+    if(Math.random()<Math.min(.7,prof.dodge+buff.dodge)){
+      broadcastEvent({k:'monster_fx',x:target.x,y:target.y,s:'MISS',c:'#8ecae6',life:500});
+      return true;
+    }
+    const oldDef=effectiveDefRpg(target);
+    const fakeDef=Math.floor(oldDef*prof.defMult*buff.def);
+    const d=MONS[mon.e],cooldown=d.ai==='boss'?850:950;
+    if(!target||target.hp<=0||now-(mon.lastAtk||0)<cooldown)return false;
+    mon.lastAtk=now;mon.attackCount=(mon.attackCount||0)+1;mon.state='attack';
+    const dmg=Math.max(1,Math.floor(d.dmg*mult)-fakeDef);
+    target.hp=Math.max(0,target.hp-dmg);
+    broadcastEvent({k:'hurt',id:target.id,dmg});
+    broadcastEvent({k:'monster_fx',x:mon.x,y:mon.y,s:d.ai==='boss'?'💥':'✦',c:d.ai==='boss'?'#ff6b6b':'#ffd166',life:520});
+    if(target.hp<=0)monsterDefeatPlayer(target);
+    return true;
+  };
+  globalThis.monsterBasicAttack=monsterBasicAttack;
+
+  /* hostRecv 최종 래퍼: 스킬 메시지를 기존 P2P 메시지 처리보다 먼저 검증 */
+  const _hostRecvCombatV29=hostRecv;
+  hostRecv=function(c,m){
+    if(m&&m.t==='skill'&&c&&c.uid&&S.players[c.uid]){useSkillHostV29(c.uid,m.id);return;}
+    _hostRecvCombatV29(c,m);
+  };
+  globalThis.hostRecv=hostRecv;
+
+  /* 클라이언트 스킬 요청 */
+  function requestSkillV29(skillId){
+    const p=S.players[S.uid];if(!p)return;
+    const prof=classProfile(p),skill=prof.skills.find(s=>s.id===skillId);if(!skill)return;
+    if(!skillReady(p,skill))return;
+    S._skillPulse=S._skillPulse||{};S._skillPulse[skillId]=Date.now();
+    if(S.isHost)useSkillHostV29(S.uid,skillId);
+    else if(S.hostConn&&S.hostConn.open)S.hostConn.send({t:'skill',id:skillId});
+    refreshSkillBarV29();
+  }
+  globalThis.requestSkillV29=requestSkillV29;
+
+  function formatCd(ms){return ms<=0?'READY':(ms/1000).toFixed(1)+'s';}
+  function refreshSkillBarV29(){
+    const wrap=$('skillBarV29'),p=S.players[S.uid];if(!wrap||!p)return;
+    const prof=classProfile(p);
+    wrap.innerHTML=prof.skills.map((s,i)=>{
+      const rem=nowCd(p,s.id),disabled=rem>0;
+      return '<button type="button" class="skillBtnV29" data-skill="'+escapeHtml(s.id)+'" title="'+escapeHtml(s.name)+' · 사거리 '+(s.range||prof.range||0)+' · 쿨타임 '+s.cd+'초" '+(disabled?'disabled':'')+'><span>'+s.icon+'</span><b>'+(i+1)+'</b><small>'+escapeHtml(s.name)+'</small><em>'+formatCd(rem)+'</em></button>';
+    }).join('');
+    wrap.querySelectorAll('[data-skill]').forEach(btn=>btn.addEventListener('click',()=>requestSkillV29(btn.dataset.skill),{once:false}));
+  }
+  function installSkillBarV29(){
+    const pad=$('pad');if(!pad)return;
+    if(!$('skillBarV29')){
+      const row=document.createElement('div');row.id='skillBarV29';row.className='skillBarV29';pad.appendChild(row);
+    }
+    refreshSkillBarV29();
+  }
+
+  /* 전투 HUD에 직업/역할/사거리/스킬 상태 표시 */
+  const _updateHudCombatV29=updateHud;
+  updateHud=function(){
+    _updateHudCombatV29();
+    try{
+      const p=S.players[S.uid];if(!p)return;
+      const prof=classProfile(p),el=$('miniHud');
+      if(el)el.textContent='❤️ '+Math.max(0,p.hp)+'/'+maxHp(p)+' · 💰 '+p.gold+' · Lv.'+p.lv+' · '+p.job.icon+' '+p.job.name+' · ⚔️ '+prof.range;
+      installSkillBarV29();
+    }catch(_e){}
+  };
+  globalThis.updateHud=updateHud;
+
+  /* 전직 패널에 전투 특성 표시 */
+  const _renderJobPanelCombatV29=renderJobPanel;
+  renderJobPanel=function(force){
+    _renderJobPanelCombatV29(force);
+    try{
+      const p=S.players[S.uid];if(!p)return;
+      const prof=classProfile(p),body=$('panelBody');if(!body)return;
+      const head=body.querySelector('.npcHint');
+      const box=document.createElement('div');box.className='npcHint';box.style.marginTop='6px';
+      box.innerHTML='<b>⚔️ 전투 특징</b> · '+escapeHtml(prof.role)+' · 사거리 <b>'+prof.range+'</b><br>패시브 · 치명타 '+Math.round(prof.crit*100)+'% · 회피 '+Math.round(prof.dodge*100)+'%<br><span class="socialSub">1 · '+escapeHtml(prof.skills[0].name)+' / 2 · '+escapeHtml(prof.skills[1].name)+' / 3 · '+escapeHtml(prof.skills[2].name)+'</span>';
+      (head||body.firstChild||body).after(box);
+    }catch(_e){}
+  };
+  globalThis.renderJobPanel=renderJobPanel;
+
+  /* 1/2/3 단축키: 기존 메뉴/상호작용 단축키와 겹치지 않게 사용 */
+  if(!window.__rpgSkillKeysV31){
+    window.__rpgSkillKeysV31=true;
+    window.addEventListener('keydown',e=>{
+      if(!S.started)return;
+      const t=e.target,tag=String(t&&t.tagName||'').toUpperCase();
+      if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(t&&t.isContentEditable))return;
+      const k=String(e.key||'');
+      if(k!=='1'&&k!=='2'&&k!=='3')return;
+      const p=S.players[S.uid];if(!p)return;
+      const prof=classProfile(p),idx=Number(k)-1,skill=prof.skills[idx];
+      if(skill){e.preventDefault();requestSkillV29(skill.id);}
+    },true);
+  }
+
+  /* 스킬바는 게임 시작/레벨업/전직/쿨다운 동안 계속 갱신 */
+  if(!S._skillUiTimer){
+    S._skillUiTimer=setInterval(()=>{try{if(S.started){installSkillBarV29();refreshSkillBarV29();}}catch(_e){}},200);
+  }
+
+  /* 플레이어 데이터 정리: 낡은 버전에도 전투 상태가 없어도 정상 작동 */
+  const _normalizeCombatV29=normalizePlayer;
+  normalizePlayer=function(p){
+    const out=_normalizeCombatV29(p||{});
+    if(out){if(!out._skillCd||typeof out._skillCd!=='object')out._skillCd={};delete out._skillCd._tmp;}
+    return out;
+  };
+  globalThis.normalizePlayer=normalizePlayer;
+
+  /* 안내 문구 */
+  if(!$('classCombatGuideV29')){
+    const guide=document.createElement('div');
+    guide.id='classCombatGuideV29';
+    guide.textContent='1 / 2 / 3 = 직업 스킬 · 기본 공격은 스페이스 · 기존 메뉴 단축키와 겹치지 않음';
+    guide.style.cssText='position:absolute;z-index:5;left:50%;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 160px);transform:translateX(-50%);padding:6px 9px;border-radius:9px;background:color-mix(in srgb,var(--card) 88%,transparent);border:1px solid var(--line);color:var(--sub);font-size:10px;white-space:nowrap;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.12)';
+    $('stage').appendChild(guide);
+  }
+
+  /* v29 CSS */
+  if(!document.getElementById('rpgCombatStyleV29')){
+    const st=document.createElement('style');st.id='rpgCombatStyleV29';st.textContent=`
+      .skillBarV29{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%;}
+      .skillBtnV29{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;align-items:center;gap:1px 5px;padding:5px 4px;min-height:52px;font-size:12px;line-height:1.05;overflow:hidden;}
+      .skillBtnV29 span{font-size:19px;grid-row:1 / 3;}
+      .skillBtnV29 b{font-size:10px;opacity:.8;text-align:left;}
+      .skillBtnV29 small{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
+      .skillBtnV29 em{grid-column:2;font-size:9px;font-style:normal;opacity:.86;text-align:left;}
+      #classCombatGuideV29{max-width:min(330px,calc(100vw - 20px));overflow:hidden;text-overflow:ellipsis;}
+      @media(max-width:520px){.skillBtnV29{min-height:49px;padding:4px 3px}.skillBtnV29 span{font-size:17px}.skillBtnV29 small{font-size:9px}}
+    `;document.head.appendChild(st);
+  }
+
+  globalThis.__rpgClassCombatV29=true;
+})();
+</script>
+
+
+<!-- RPG UI 최소 반응형 보정 v31: 기존 PC UI 유지, 모바일 UI 분리 -->
+<style id="rpgResponsiveUiV31">
+  /* PC: 기존 메뉴 그대로 + 스킬바만 남기고 스마트폰용 방향키/공격 버튼 숨김 */
+  @media (min-width:721px) and (pointer:fine){
+    #pad{
+      display:block;
+      left:50%; right:auto; top:auto; bottom:14px;
+      width:min(420px,calc(100vw - 24px));
+      transform:translateX(-50%);
+      padding:6px;
+      z-index:6;
+    }
+    #pad > button[data-dx], #pad > #btnAtk{display:none!important;}
+    #skillBarV29{display:grid!important; width:100%; margin:0;}
+    #classCombatGuideV29{bottom:82px!important;}
+  }
+
+  /* 모바일: PC 메뉴 숨김, 스마트폰 조작 UI만 사용 */
+  @media (max-width:720px), (pointer:coarse){
+    #menu{display:none!important;}
+    #pad{display:grid;}
+    #skillBarV29{display:grid!important;}
+    #classCombatGuideV29{bottom:calc(max(150px,env(safe-area-inset-bottom) + 140px))!important;}
+    /* 패널이 열렸을 때도 상단 HUD/미니맵과 부딪히지 않도록 기존 패널 위치만 유지 */
+    #overlayPanel{top:100px!important;right:8px!important;width:min(390px,calc(100vw - 16px));max-height:calc(100dvh - 112px);} 
+  }
+
+  /* 마우스/터치 판별이 애매한 브라우저에서도 PC에서 방향키 패드가 나타나지 않도록 */
+  @media (min-width:721px){
+    #pad > button[data-dx], #pad > #btnAtk{display:none!important;}
+  }
+</style>
+
+<!-- RPG 튜토리얼 + NPC 대화 연출 v32 -->
+<style id="rpgTutorialNpcV32">
+  #rpgTutorialV32{position:absolute;inset:0;z-index:90;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(12,16,24,.46);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+  #rpgTutorialV32.show{display:flex}
+  .tutorialCardV32{width:min(560px,calc(100% - 24px));max-height:min(78%,620px);overflow:auto;border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb,var(--card) 97%,transparent);box-shadow:0 22px 70px rgba(0,0,0,.34);padding:18px}
+  .tutorialTopV32{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+  .tutorialLogoV32{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--acc) 15%,var(--bg));font-size:26px;border:1px solid var(--line)}
+  .tutorialTitleV32{font-size:18px;font-weight:900}.tutorialSubV32{color:var(--muted);font-size:11px;margin-top:2px}
+  .tutorialStepV32{color:var(--muted);font-size:11px;margin-bottom:8px}
+  .tutorialBodyV32{padding:13px;border-radius:13px;background:color-mix(in srgb,var(--bg) 90%,transparent);border:1px solid var(--line);line-height:1.62;font-size:13px;white-space:pre-line}
+  .tutorialControlsV32{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}.tutorialControlsV32 button{min-width:104px}
+  .tutorialDotsV32{display:flex;gap:5px;margin-top:11px}.tutorialDotsV32 i{display:block;width:7px;height:7px;border-radius:999px;background:var(--line)}.tutorialDotsV32 i.on{background:var(--acc);width:18px}
+
+  #npcDialogueV32{position:absolute;left:50%;bottom:98px;transform:translateX(-50%);z-index:44;width:min(760px,calc(100% - 28px));display:none;pointer-events:auto}
+  #npcDialogueV32.show{display:block}
+  .npcDialogueCardV32{display:grid;grid-template-columns:88px 1fr;gap:11px;padding:10px;border-radius:16px;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 96%,transparent);box-shadow:0 15px 38px rgba(0,0,0,.28);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .npcPortraitV32{border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--bg) 84%,transparent);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:88px;padding:7px;text-align:center}
+  .npcPortraitV32 .ico{font-size:34px;line-height:1}.npcPortraitV32 b{font-size:12px;margin-top:5px}.npcPortraitV32 small{color:var(--muted);font-size:9px;margin-top:2px}
+  .npcDialogueHeadV32{display:flex;align-items:center;justify-content:space-between;gap:8px}.npcDialogueNameV32{font-size:13px;font-weight:900}.npcDialoguePageV32{font-size:10px;color:var(--muted)}
+  .npcDialogueTextV32{margin-top:7px;min-height:48px;padding:10px 11px;border-radius:11px;background:color-mix(in srgb,var(--tile2) 78%,transparent);line-height:1.52;font-size:12px;white-space:pre-line}
+  .npcDialogueChoicesV32{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.npcDialogueChoicesV32 button{min-height:32px;flex:1 1 130px}
+  #mobileNpcTalkV32{display:none;grid-column:1 / -1;width:100%;min-height:34px}
+  @media (max-width:720px),(pointer:coarse){
+    #npcDialogueV32{bottom:calc(max(190px,env(safe-area-inset-bottom) + 185px));width:min(520px,calc(100% - 16px))}
+    .npcDialogueCardV32{grid-template-columns:62px 1fr;gap:8px;padding:8px}.npcPortraitV32{min-height:68px;padding:5px}.npcPortraitV32 .ico{font-size:26px}.npcPortraitV32 b{font-size:10px}
+    .npcDialogueTextV32{min-height:42px;font-size:11px;padding:8px}.npcDialogueChoicesV32{gap:5px}.npcDialogueChoicesV32 button{flex:1 1 112px;min-height:30px;font-size:11px}
+  }
+  @media (min-width:721px){#mobileNpcTalkV32{display:none!important}}
+</style>
+<script>
+(function(){
+  'use strict';
+  const TUTORIAL_KEY='emoji-rpg-tutorial-v32';
+  const stage=()=>document.getElementById('stage');
+  const isMobileV32=()=>window.matchMedia('(max-width:720px)').matches||window.matchMedia('(pointer:coarse)').matches;
+  const nearestNpcV32=()=>{
+    const p=S.players&&S.players[S.uid];if(!p)return null;
+    let best=null,d=999;const list=typeof RPG_NPCS!=='undefined'?Object.values(RPG_NPCS):[];
+    list.forEach(n=>{if(String(n.map)!==String(p.map))return;const dd=cheb(p,n);if(dd<d){d=dd;best=n;}});
+    return d<=2?best:null;
+  };
+
+  const tutorialSteps=[
+    {title:'1. 먼저 움직여 보자',text:`PC에서는 WASD 또는 방향키를 사용해.
+스마트폰에서는 화면의 방향키를 눌러 이동하면 돼.
+루미나 마을 안에서는 전투 없이 천천히 익숙해질 수 있어.`},
+    {title:'2. 몬스터와 싸우기',text:`전투가 시작되면 스페이스로 기본 공격을 할 수 있어.
+직업마다 공격 사거리와 전투 방식이 달라.
+처음에는 바람초원의 약한 몬스터부터 상대해 봐.`},
+    {title:'3. 직업 스킬 사용하기',text:`키보드 1 / 2 / 3은 현재 직업의 스킬이야.
+스킬마다 쿨타임과 사거리가 다르니 직접 눌러 보자.
+스마트폰에서는 스킬 버튼을 터치하면 돼.`},
+    {title:'4. NPC에게 말을 걸자',text:`NPC 가까이 가면 대화 안내가 나타나.
+PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말을 걸 수 있어.
+상인·여관 주인·대장장이·치유사·길드 NPC가 각각 다른 역할을 맡고 있어.`},
+    {title:'5. 월드와 모험',text:`🌀 이동석 근처에서 M을 누르거나 월드맵을 열면 다른 지역으로 갈 수 있어.
+퀘스트와 장비, 전직을 하나씩 익히면서 성장하면 돼.
+이제 루미나 마을을 둘러보고 첫 모험을 시작해 보자!`}
+  ];
+  let tutorialIndex=0,tutorialOpen=false;
+  function ensureTutorial(){
+    if($('rpgTutorialV32')||!stage())return;
+    const box=document.createElement('div');box.id='rpgTutorialV32';
+    box.innerHTML=`<div class="tutorialCardV32">
+      <div class="tutorialTopV32"><div class="tutorialLogoV32">🧭</div><div><div class="tutorialTitleV32">루미나 모험가 안내</div><div class="tutorialSubV32">처음 시작한 모험가를 위한 짧은 튜토리얼</div></div></div>
+      <div class="tutorialStepV32" id="tutorialStepTextV32"></div>
+      <div class="tutorialBodyV32" id="tutorialBodyV32"></div>
+      <div class="tutorialDotsV32" id="tutorialDotsV32"></div>
+      <div class="tutorialControlsV32"><button type="button" id="tutorialSkipV32">건너뛰기</button><button type="button" id="tutorialNextV32">다음 ▶</button></div>
+    </div>`;
+    stage().appendChild(box);
+  }
+  function renderTutorial(){
+    const s=tutorialSteps[tutorialIndex];if(!$('tutorialBodyV32'))return;
+    $('tutorialStepTextV32').textContent=s.title;$('tutorialBodyV32').textContent=s.text;
+    $('tutorialDotsV32').innerHTML=tutorialSteps.map((_,i)=>`<i class="${i===tutorialIndex?'on':''}"></i>`).join('');
+    $('tutorialNextV32').textContent=tutorialIndex===tutorialSteps.length-1?'모험 시작!':'다음 ▶';
+  }
+  function showTutorial(){
+    if(!S.started)return;ensureTutorial();tutorialIndex=0;tutorialOpen=true;S._tutorialShown=true;S.walkTo=null;
+    $('rpgTutorialV32').classList.add('show');renderTutorial();
+  }
+  function tutorialReady(){
+    if(!S.started||S._tutorialShown)return false;
+    let saved='';try{saved=localStorage.getItem(TUTORIAL_KEY)||'';}catch(e){}
+    if(saved){S._tutorialShown=true;return false;}
+    const p=S.players&&S.players[S.uid];
+    return !!(S._firstTimePlayer&&p&&Number(p.lv||1)<=1&&Number(p.xp||0)<=0);
+  }
+  function closeTutorial(skipped){
+    tutorialOpen=false;const el=$('rpgTutorialV32');if(el)el.classList.remove('show');
+    try{localStorage.setItem(TUTORIAL_KEY,skipped?'skipped':'done');}catch(e){}
+    S._tutorialShown=true;
+  }
+  document.addEventListener('click',e=>{
+    const id=e.target&&e.target.id;
+    if(id==='tutorialSkipV32'){closeTutorial(true);return;}
+    if(id==='tutorialNextV32'){if(tutorialIndex>=tutorialSteps.length-1)closeTutorial(false);else{tutorialIndex++;renderTutorial();}}
+  });
+  window.addEventListener('keydown',e=>{
+    if(!tutorialOpen)return;
+    const k=String(e.key||'').toLowerCase();
+    if(k==='enter'||k===' '){e.preventDefault();e.stopPropagation();if(tutorialIndex>=tutorialSteps.length-1)closeTutorial(false);else{tutorialIndex++;renderTutorial();}}
+    else if(k==='escape'){e.preventDefault();e.stopPropagation();closeTutorial(true);}
+    else if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','1','2','3','e','m'].includes(k)){e.preventDefault();e.stopPropagation();}
+  },true);
+
+  const NPC_DIALOGS={
+    merchant:{icon:'🧑‍🍳',name:'상인 루루',role:'달빛시장 상인',lines:[`어서 와, 모험가! 나는 루루야.
+여행에 필요한 물건이라면 꽤 갖춰 두었지.`,`무엇을 도와줄까? 필요한 물건을 골라 봐.`]},
+    innkeeper:{icon:'🧑‍🦰',name:'여관 주인 모아',role:'별빛쉼터 주인',lines:[`어서 오렴. 긴 여행이었다면 잠깐 쉬어 가도 좋아.
+여관은 모험가가 숨을 돌리는 곳이니까.`,`푹 쉬고 떠나거나, 여기 루미나 마을을 귀환 지점으로 정할 수도 있단다.`]},
+    smith:{icon:'🧔',name:'대장장이 브람',role:'붉은 모루 대장장이',lines:[`좋은 장비는 좋은 모험의 시작이지.
+가방 속 장비를 가져와 보게.`,`장착한 장비는 강화도 할 수 있다네.
+물론 골드와 재료가 조금 필요하지.`]},
+    guide:{icon:'🧙',name:'길잡이 세라',role:'월드 안내자',lines:[`이 마을 밖에는 바람초원과 잊힌 광산이 있어.
+지역마다 위험도와 몬스터가 다르지.`,`이동석 근처에서는 다른 지역으로 이동할 수 있어.
+처음이라면 바람초원부터 둘러보는 걸 추천해.`]},
+    healer:{icon:'🧑‍⚕️',name:'치유사 리엔',role:'새벽빛 치유소',lines:[`괜찮니? 얼굴이 조금 지쳐 보이는구나.
+상처가 있다면 내가 바로 치료해 줄게.`,`마을은 안전한 곳이니 언제든 다시 찾아와.`]},
+    classmaster:{icon:'🧙‍♂️',name:'전직관 아렌',role:'길드 전직 담당',lines:[`모험가의 길은 네가 선택하는 거야.
+레벨이 오르면 새로운 직업을 선택할 수 있지.`,`직업마다 사거리와 스킬이 다르니 신중하게 선택해.`]},
+    guildmaster:{icon:'🧑‍✈️',name:'길드장 레온',role:'모험가 길드 의뢰 담당',lines:[`모험가 길드에 온 걸 환영한다.
+의뢰를 받으면 어디로 가야 할지 더 분명해질 거다.`,`사냥과 던전 탐험을 하면서 보상도 챙길 수 있지.`]},
+    storage:{icon:'🧑‍💼',name:'창고지기 토토',role:'루미나 공용창고',lines:[`귀중한 물건은 가방에만 넣어 두지 말라고.
+창고에 맡겨 두면 안전하게 보관해 줄게.`,`필요할 때 다시 꺼내면 된다네. 꽤 편리하지?`]}
+  };
+  let activeNpcId='',npcMode='first';
+  function ensureNpcDialogue(){
+    if($('npcDialogueV32')||!stage())return;
+    const box=document.createElement('div');box.id='npcDialogueV32';box.setAttribute('aria-live','polite');
+    box.innerHTML=`<div class="npcDialogueCardV32"><div class="npcPortraitV32"><div class="ico" id="npcPortraitIconV32"></div><b id="npcPortraitNameV32"></b><small id="npcPortraitRoleV32"></small></div><div><div class="npcDialogueHeadV32"><div class="npcDialogueNameV32" id="npcDialogueNameV32"></div><div class="npcDialoguePageV32" id="npcDialoguePageV32"></div></div><div class="npcDialogueTextV32" id="npcDialogueTextV32"></div><div class="npcDialogueChoicesV32" id="npcDialogueChoicesV32"></div></div></div>`;
+    stage().appendChild(box);
+  }
+  function syncNpcQuickWithDialogueV32(){
+    const q=$('npcQuick'),d=$('npcDialogueV32'),st=stage();
+    if(!q||!d||!st)return;
+    if(!d.classList.contains('show')){q.style.removeProperty('bottom');q.style.removeProperty('z-index');return;}
+    const sr=st.getBoundingClientRect(),dr=d.getBoundingClientRect();
+    const gap=10;
+    const bottom=Math.max(8,Math.round(sr.bottom-(dr.top-gap)));
+    q.style.bottom=bottom+'px';
+    q.style.zIndex='45';
+  }
+
+  function closeNpcDialogueV32(){const box=$('npcDialogueV32');if(box)box.classList.remove('show');activeNpcId='';npcMode='first';syncNpcQuickWithDialogueV32();}
+  const bypass=fn=>{S._npcDialogueBypass=true;try{return fn();}finally{S._npcDialogueBypass=false;}};
+  function npcChoices(id){
+    const more=()=>{npcMode='second';renderNpcDialogue();};
+    if(id==='merchant')return [{label:'🛒 상점 열기',fn:()=>bypass(()=>renderShop())},{label:'💬 이야기 더 듣기',fn:more},{label:'👋 나가기',fn:closeNpcDialogueV32}];
+    if(id==='innkeeper')return [{label:'🛏️ 여기서 쉬기',fn:()=>{sendLocalHost({t:'npc_action',npc:'innkeeper',action:'rest'});closeNpcDialogueV32;}},{label:'🏠 귀환 지점 저장',fn:()=>{sendLocalHost({t:'npc_action',npc:'innkeeper',action:'home'});closeNpcDialogueV32;}},{label:'👋 다음에 올게',fn:closeNpcDialogueV32}];
+    if(id==='smith')return [{label:'⚒️ 대장간 보기',fn:()=>bypass(()=>globalThis.__rpgNpcApiV32?.open('smith'))},{label:'💬 강화 이야기 듣기',fn:more},{label:'👋 나가기',fn:closeNpcDialogueV32}];
+    if(id==='guide')return [{label:'🗺️ 월드맵 열기',fn:()=>bypass(()=>renderTeleportPanelRpg())},{label:'📍 지역 설명 듣기',fn:more},{label:'👋 나가기',fn:closeNpcDialogueV32}];
+    if(id==='healer')return [{label:'❤️ 치료받기',fn:()=>{sendLocalHost({t:'npc_action',npc:'healer',action:'heal'});closeNpcDialogueV32;}},{label:'💬 마을 이야기 듣기',fn:more},{label:'👋 나가기',fn:closeNpcDialogueV32}];
+    if(id==='classmaster')return [{label:'🎓 전직 확인하기',fn:()=>bypass(()=>renderJobPanel(false))},{label:'💬 직업 이야기 듣기',fn:more},{label:'👋 나가기',fn:closeNpcDialogueV32}];
+    if(id==='guildmaster')return [{label:'📜 의뢰 게시판 보기',fn:()=>bypass(()=>globalThis.__rpgNpcApiV32?.guild())},{label:'💬 길드 이야기 듣기',fn:more},{label:'👋 나가기',fn:closeNpcDialogueV32}];
+    if(id==='storage')return [{label:'📦 창고 열기',fn:()=>bypass(()=>globalThis.__rpgNpcApiV32?.storage())},{label:'💬 창고 이야기 듣기',fn:more},{label:'👋 나가기',fn:closeNpcDialogueV32}];
+    return [{label:'💬 더 이야기하기',fn:more},{label:'👋 나가기',fn:closeNpcDialogueV32}];
+  }
+  function renderNpcDialogue(){
+    const d=NPC_DIALOGS[activeNpcId];if(!d)return;ensureNpcDialogue();$('npcDialogueV32').classList.add('show');
+    requestAnimationFrame(syncNpcQuickWithDialogueV32);
+    $('npcPortraitIconV32').textContent=d.icon;$('npcPortraitNameV32').textContent=d.name;$('npcPortraitRoleV32').textContent=d.role;$('npcDialogueNameV32').textContent=d.name;
+    const second=npcMode==='second';$('npcDialoguePageV32').textContent=second?'대화 2/2':'대화 1/2';$('npcDialogueTextV32').textContent=second?d.lines[1]:d.lines[0];
+    const choices=$('npcDialogueChoicesV32');choices.innerHTML='';
+    if(!second){
+      const next=document.createElement('button');next.type='button';next.textContent='다음 ▶';next.onclick=()=>{npcMode='second';renderNpcDialogue();};choices.appendChild(next);
+      const close=document.createElement('button');close.type='button';close.textContent='👋 나가기';close.onclick=closeNpcDialogueV32;choices.appendChild(close);
+    }else{
+      npcChoices(activeNpcId).forEach(c=>{const b=document.createElement('button');b.type='button';b.textContent=c.label;b.onclick=c.fn;choices.appendChild(b);});
+    }
+  }
+  function showNpcDialogueV32(id){
+    const p=S.players&&S.players[S.uid],n=(typeof RPG_NPCS!=='undefined'?RPG_NPCS[id]:null);
+    if(!p||!n||String(p.map)!==String(n.map)||cheb(p,n)>2){log('📍 NPC에게 2칸 이내로 가까이 가야 해.');return;}
+    activeNpcId=id;npcMode='first';S.walkTo=null;renderNpcDialogue();
+  }
+  globalThis.showNpcDialogueV32=showNpcDialogueV32;
+
+  function ensureMobileNpcButton(){
+    const pad=$('pad');if(!pad||$('mobileNpcTalkV32'))return;
+    const b=document.createElement('button');b.id='mobileNpcTalkV32';b.type='button';b.textContent='💬 NPC와 대화';
+    b.onclick=()=>{const n=nearestNpcV32();if(n)showNpcDialogueV32(n.id);};
+    pad.insertBefore(b,pad.firstChild);
+  }
+  ensureMobileNpcButton();
+  let lastNpcSig='';
+  function refreshNpcUi(){
+    if(!S.started)return;const n=nearestNpcV32(),sig=n?String(n.id):'';const b=$('mobileNpcTalkV32');
+    if(b)b.style.display=n&&isMobileV32()?'block':'none';
+    const q=$('npcQuick');
+    if(q&&n&&isMobileV32()){q.innerHTML='💬 <b>'+escapeHtml(n.name)+'</b> · 대화 버튼을 눌러줘';q.style.display='flex';}
+    if(sig!==lastNpcSig&&!n){const d=$('npcDialogueV32');if(d&&d.classList.contains('show'))closeNpcDialogueV32();}
+    lastNpcSig=sig;
+  }
+
+  const tutorialTimer=setInterval(()=>{try{if(tutorialReady()){showTutorial();clearInterval(tutorialTimer);}refreshNpcUi();}catch(e){}},350);
+  window.addEventListener('resize',()=>requestAnimationFrame(syncNpcQuickWithDialogueV32));
+
+  globalThis.__rpgTutorialNpcV32=true;
+})();
 </script>
 </body>
 </html>
