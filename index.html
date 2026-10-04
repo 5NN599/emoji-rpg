@@ -302,6 +302,8 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 const maxHp = p => { const lv=Math.max(1,Math.floor(Number(p.lv)||1)); const d=Math.max(0,lv-1); return 80 + d*9 + Math.floor(Math.sqrt(d)*4); };
 const hostId = (code, gen) => 'erpg-' + code + '-h' + gen;
+const PUBLIC_ROOM_CODE = 'PUB00';
+const ROOM_RETAIN_TTL_MS = 120000;
 const PEER_OPTIONS = {
   host:'0.peerjs.com',
   port:443,
@@ -537,6 +539,13 @@ function lobbyMsg(s) { $('msg').textContent = s || ''; }
    ============================================================ */
 function initDirectory() {
   try {
+    /* 중복 MQTT 클라이언트/구독 방지 */
+    if (S.mq) {
+      try { S.mq.removeAllListeners?.(); } catch (e) {}
+      try { S.mq.end?.(true); } catch (e) {}
+      S.mq = null;
+    }
+    S.rooms = {};
     S.directoryReady = false;
     if (typeof mqtt === 'undefined') {
       S.directoryLastError = 'MQTT 라이브러리가 로드되지 않았어.';
@@ -556,6 +565,7 @@ function initDirectory() {
       resubscribe: true
     });
     S.mq.on('connect', () => {
+      S.rooms = {};
       S.directoryReady = true;
       S.directoryLastError = '';
       S.directorySubscribed = false;
@@ -601,7 +611,10 @@ function initDirectory() {
           const seenAt = Date.now();
           const peerId = String(r && r.peerId || '').trim();
           const valid = r && typeof r === 'object' && r.public !== false && String(r.code || '').toUpperCase() === code && ts > 0;
-          if (valid) {
+          const now = Date.now();
+          const clockAge = now - ts;
+          const freshEnough = clockAge <= ROOM_RETAIN_TTL_MS && clockAge >= -ROOM_RETAIN_TTL_MS;
+          if (valid && freshEnough) {
             S.rooms[code] = {
               code,
               public: true,
@@ -654,7 +667,12 @@ function unpublishRoom() {
 function renderRooms() {
   const box = $('rooms'), now = Date.now();
   const list = Object.values(S.rooms)
-    .filter(r => now - Number(r.seenAt || 0) < 12000)
+    .filter(r => {
+      const seenOk = now - Number(r.seenAt || 0) < 12000;
+      const clockAge = now - Number(r.ts || 0);
+      const tsOk = clockAge <= ROOM_RETAIN_TTL_MS && clockAge >= -ROOM_RETAIN_TTL_MS;
+      return seenOk && tsOk;
+    })
     .sort((a, b) => (Number(b.seenAt || 0) - Number(a.seenAt || 0)) || a.name.localeCompare(b.name, 'ko'));
   box.textContent = '';
   if (!list.length) {
@@ -958,8 +976,11 @@ function finishQuickJoinSearch() {
     return;
   }
 
-  lobbyMsg('공개 방이 없어서 새 공개 방을 만들고 있어…');
-  createRoom(true);
+  lobbyMsg('🌐 현재 공개 방이 없어. 방을 만들거나 공개 방 목록이 나타날 때까지 기다려 줘.');
+  try{
+    const input=$('roomName');
+    if(input){ input.focus(); input.placeholder='방이 없으면 여기에 방 이름을 입력하고 방 만들기'; }
+  }catch(_e){}
 }
 
 function quickJoin() {
@@ -1006,7 +1027,7 @@ function createRoom(isPublic=false) {
   S.hostUid = '';
   S.quickFallbackUsed = !!S.quickFallbackUsed;
   S.quick = !!isPublic;
-  S.code = Math.random().toString(36).slice(2, 7).toUpperCase();
+  S.code = isPublic ? PUBLIC_ROOM_CODE : Math.random().toString(36).slice(2, 7).toUpperCase();
   S.roomName = isPublic ? '🌍 공개 광장' : ($('roomName').value.trim() || S.name + '의 방').slice(0, 16);
   S.recoverySession={code:S.code,gen:0,roomName:S.roomName,ts:Date.now()};
   S.players = {}; S.mons = []; S.trades = {}; S.tradeSeq = 1; S.chat = []; S.chatGuard = {}; S.parties = {}; S.partyInvites = {}; S.reports = []; S.reportGuard = {};
@@ -1298,6 +1319,7 @@ function onClientData(m) {
     window.rpgGameConfirm?.('🤝 거래 요청',nm+' 님이 거래를 요청했어.\n거래 창을 열고 서로 확인한 뒤 교환할 수 있어.','수락','거절').then(ok=>{ if(ok){ const msg={t:'trade_accept',from:who}; if(S.isHost) hostRecv({uid:S.uid,open:true,send:()=>{}},msg); else if(S.hostConn&&S.hostConn.open) S.hostConn.send(msg); }});
   } else if (m.t === 'trade_state') { S.activeTrades=[m.trade]; renderTradeFromEvent();
   } else if (m.t === 'trade_end') { S.activeTrades=[]; closePanel(); log(m.reason||'거래 종료');
+  } else if (m.t === 'trade_error') { window.rpgGameNotice?.(String(m.s||'거래를 진행할 수 없어.'),'warn','error');
   } else if (m.t === 'chat') { if(m.m&&!isBlockedChatMessage(m.m)){ S.chat.push(m.m); if(S.chat.length>60) S.chat.shift(); } if($('overlayPanel').classList.contains('open')&&$('panelTitle').textContent.includes('채팅')) renderChat();
   } else if (m.t === 'party_invite') {
     const from=String(m.from||''),nm=String(m.name||'플레이어');
@@ -1348,7 +1370,7 @@ function onClientData(m) {
    - 직접 연결이 없거나 실패하면 호스트 P2P로 릴레이
    - 두 경로가 모두 실패하면 연결 오류 창 표시
    ============================================================ */
-const DIRECT_REQUEST_TYPES = new Set(['trade_request', 'party_invite']);
+const DIRECT_REQUEST_TYPES = new Set(['party_invite']);
 const DIRECT_HOST_TYPES = new Set(['trade_state', 'trade_end', 'party_state', 'party_end', 'chat', 'report_ack', 'shop_result']);
 
 function expectedUidForPeer(peerId) {
@@ -1568,6 +1590,7 @@ function acceptClient(c) {
       delete S.moveAck[c.uid];
       delete S.hostStats[c.uid];
       const tr=tradeForPlayer(c.uid);if(tr)clearTrade(tr,'상대방이 나가 거래가 취소되었습니다.');
+      if(S.tradeRequests){delete S.tradeRequests[c.uid];Object.keys(S.tradeRequests).forEach(k=>{if(S.tradeRequests[k]?.from===c.uid)delete S.tradeRequests[k];});}
       partyLeaveHost(c.uid, '👥 '+(p?p.name:'유저')+' 님이 나가 파티가 변경되었습니다.');
       Object.keys(S.partyInvites||{}).forEach(k=>{const inv=S.partyInvites[k];if(k===c.uid||(inv&&inv.from===c.uid))delete S.partyInvites[k];});
       broadcastEvent({ k: 'log', s: '👋 ' + (p ? p.name : '유저') + ' 님이 퇴장했습니다.' });
@@ -1584,11 +1607,27 @@ function sendTo(uid,msg){
   return false;
 }
 function tradeForPlayer(uid){ return Object.values(S.trades).find(t=>t.a===uid||t.b===uid)||null; }
+function tradeWithinRange(t){const a=S.players[t?.a],b=S.players[t?.b];return !!a&&!!b&&String(a.map||'')===String(b.map||'')&&cheb(a,b)<=5;}
+function tradeCanReceive(p,items){if(!p||!items||typeof items!=='object')return false;const inv=p.inv&&typeof p.inv==='object'?p.inv:{};const used=new Set(Object.keys(inv).filter(id=>ITEMS[id]&&itemCount(p,id)>0));for(const [id,raw] of Object.entries(items)){const d=ITEMS[id],n=Math.floor(Number(raw)||0);if(!d||n<=0)return false;const cur=itemCount(p,id),max=Math.max(1,Math.floor(Number(d.max)||99));if(cur+n>max)return false;if(cur===0)used.add(id);}return used.size <= (globalThis.BAG_SLOTS||24);}
 function sanitizeTrade(t){ return {id:t.id,a:t.a,b:t.b,ai:{...t.ai},bi:{...t.bi},ag:t.ag,bg:t.bg,ar:!!t.ar,br:!!t.br}; }
 function pushTrade(t){ if(!t)return; const clean=sanitizeTrade(t), msg={t:'trade_state',trade:clean}; S.activeTrades=S.activeTrades||[]; if(t.a===S.uid){S.activeTrades=[clean];renderTradeFromEvent();} else sendTo(t.a,msg); if(t.b===S.uid){S.activeTrades=[clean];renderTradeFromEvent();} else sendTo(t.b,msg); }
 function clearTrade(t,reason){ if(!t)return; delete S.trades[t.id]; if(t.a===S.uid) {closePanel();log(reason||'거래가 종료되었습니다.');} else sendTo(t.a,{t:'trade_end',reason:reason||'거래가 종료되었습니다.'}); if(t.b===S.uid) {closePanel();log(reason||'거래가 종료되었습니다.');} else sendTo(t.b,{t:'trade_end',reason:reason||'거래가 종료되었습니다.'}); }
-function tradeValidateOffers(t){ const a=S.players[t.a],b=S.players[t.b]; if(!a||!b)return false; for(const [id,n] of Object.entries(t.ai)){if(!ITEMS[id]||n<0||n>itemCount(a,id))return false;} for(const [id,n] of Object.entries(t.bi)){if(!ITEMS[id]||n<0||n>itemCount(b,id))return false;} return t.ag>=0&&t.ag<=a.gold&&t.bg>=0&&t.bg<=b.gold; }
-function executeTrade(t){ if(!tradeValidateOffers(t)){clearTrade(t,'거래 조건이 변경되어 취소되었습니다.');return;} const a=S.players[t.a],b=S.players[t.b]; Object.entries(t.ai).forEach(([id,n])=>{removeItem(a,id,n);addItem(b,id,n);}); Object.entries(t.bi).forEach(([id,n])=>{removeItem(b,id,n);addItem(a,id,n);}); a.gold-=t.ag;b.gold-=t.bg;a.gold+=t.bg;b.gold+=t.ag; delete S.trades[t.id]; if(t.a===S.uid||t.b===S.uid){closePanel();log('✅ 거래 완료');} if(t.a!==S.uid)sendTo(t.a,{t:'trade_end',reason:'✅ 거래 완료'}); if(t.b!==S.uid)sendTo(t.b,{t:'trade_end',reason:'✅ 거래 완료'}); broadcastEvent({k:'log',s:'🤝 '+a.name+' ↔ '+b.name+' 거래 완료!'}); }
+function tradeValidateOffers(t){ const a=S.players[t.a],b=S.players[t.b]; if(!a||!b||!tradeWithinRange(t))return false; for(const [id,n] of Object.entries(t.ai)){if(!ITEMS[id]||!Number.isInteger(Number(n))||n<0||n>itemCount(a,id))return false;} for(const [id,n] of Object.entries(t.bi)){if(!ITEMS[id]||!Number.isInteger(Number(n))||n<0||n>itemCount(b,id))return false;} return t.ag>=0&&t.ag<=a.gold&&t.bg>=0&&t.bg<=b.gold&&tradeCanReceive(b,t.ai)&&tradeCanReceive(a,t.bi); }
+function executeTrade(t){
+  if(!tradeValidateOffers(t)){clearTrade(t,'거래 조건이 변경되었거나 가방 공간이 부족해서 거래가 취소됐어.');return;}
+  const a=S.players[t.a],b=S.players[t.b],aInv={...(a.inv||{})},bInv={...(b.inv||{})},aGold=a.gold,bGold=b.gold;
+  const rollback=()=>{a.inv={...aInv};b.inv={...bInv};a.gold=aGold;b.gold=bGold;};
+  try{
+    for(const [id,n] of Object.entries(t.ai)){if(removeItem(a,id,n)!==n){rollback();clearTrade(t,'거래 도중 내 아이템 확인에 실패해서 취소됐어.');return;}if(addItem(b,id,n)!==n){rollback();clearTrade(t,'상대방 가방 공간이 부족해서 거래가 취소됐어.');return;}}
+    for(const [id,n] of Object.entries(t.bi)){if(removeItem(b,id,n)!==n){rollback();clearTrade(t,'거래 도중 상대 아이템 확인에 실패해서 취소됐어.');return;}if(addItem(a,id,n)!==n){rollback();clearTrade(t,'내 가방 공간이 부족해서 거래가 취소됐어.');return;}}
+    a.gold-=t.ag;b.gold-=t.bg;a.gold+=t.bg;b.gold+=t.ag;
+  }catch(e){rollback();clearTrade(t,'거래 처리 중 오류가 발생해서 거래를 안전하게 취소했어.');return;}
+  delete S.trades[t.id];
+  if(t.a===S.uid||t.b===S.uid){closePanel();log('✅ 거래 완료');}
+  if(t.a!==S.uid)sendTo(t.a,{t:'trade_end',reason:'✅ 거래 완료'});
+  if(t.b!==S.uid)sendTo(t.b,{t:'trade_end',reason:'✅ 거래 완료'});
+  broadcastEvent({k:'log',s:'🤝 '+a.name+' ↔ '+b.name+' 거래 완료!'});
+}
 function claimQuest(p){ const q=p.quest||{},d=QUESTS[q.id]; if(!d||q.claimed||q.progress<d.need)return false; q.claimed=true;p.gold+=d.gold;addItem(p,d.item,d.count);return true; }
 function addMonsterReward(p,e){ const drop=MON_DROPS[e]; if(drop&&Math.random()<drop.chance){const n=drop.min+rnd(drop.max-drop.min+1),got=addItem(p,drop.item,n);if(got)broadcastEvent({k:'log',s:'📦 '+p.name+' 님이 '+ITEMS[drop.item].icon+' '+ITEMS[drop.item].name+' x'+got+' 획득'});} if(e==='🦠'&&p.quest&&!p.quest.claimed){p.quest.progress=Math.min(QUESTS.slime_hunt.need,(p.quest.progress||0)+1);if(p.quest.progress>=QUESTS.slime_hunt.need)broadcastEvent({k:'log',s:'📜 '+p.name+' 님의 퀘스트 완료!'});} }
 const CHAT_BAD_WORDS = [
@@ -1880,18 +1919,29 @@ function hostRecv(c, m) {
   } else if (m.t === 'equip_item' && c.uid && S.players[c.uid]) {
     const p=S.players[c.uid], id=String(m.id||''), def=ITEMS[id];
     if(!def||(def.type!=='weapon'&&def.type!=='armor')||!itemCount(p,id))return;
+    if(def.type==='weapon'&&typeof window.__rpgV57CanEquip==='function'&&!window.__rpgV57CanEquip(p,id)){
+      sendTo(c.uid,{t:'npc_result',s:'🚫 '+def.icon+' '+def.name+'은(는) 현재 직업에서 사용할 수 없는 무기야. 거래하거나 다른 플레이어에게 넘기거나 상점에서 판매해 줘.'});
+      return;
+    }
     if(def.type==='weapon')p.equip.weapon=id;else p.equip.armor=id;broadcastEvent({k:'log',s:'🛡️ '+p.name+' 님이 '+def.icon+' '+def.name+' 장착'});
   } else if (m.t === 'trade_request' && c.uid && S.players[c.uid]) {
-    const to=String(m.to||''); if(to===c.uid||!S.players[to]||tradeForPlayer(c.uid)||tradeForPlayer(to))return; sendTo(to,{t:'trade_request',from:c.uid,name:S.players[c.uid].name,emoji:S.players[c.uid].emoji});
+    const from=c.uid,to=String(m.to||''),target=S.players[to];
+    if(to===from||!target||tradeForPlayer(from)||tradeForPlayer(to)){sendTo(from,{t:'trade_error',s:'⚠️ 지금 거래할 수 있는 플레이어가 아니야.'});return;}
+    if(!tradeWithinRange({a:from,b:to})){sendTo(from,{t:'trade_error',s:'📍 거래는 같은 맵에서 5칸 이내의 플레이어끼리만 가능해.'});return;}
+    S.tradeRequests=S.tradeRequests||{};S.tradeRequests[to]={from,ts:Date.now()};
+    sendTo(to,{t:'trade_request',from,name:S.players[from].name,emoji:S.players[from].emoji});
   } else if (m.t === 'trade_accept' && c.uid) {
-    const from=String(m.from||''); if(from===c.uid||!S.players[from]||tradeForPlayer(c.uid)||tradeForPlayer(from))return;
-    const t={id:S.tradeSeq++,a:from,b:c.uid,ai:{},bi:{},ag:0,bg:0,ar:false,br:false}; S.trades[t.id]=t;pushTrade(t);
+    const to=c.uid,from=String(m.from||''),req=S.tradeRequests&&S.tradeRequests[to];
+    if(!req||req.from!==from||Date.now()-req.ts>30000||!S.players[from]||tradeForPlayer(to)||tradeForPlayer(from)){if(S.tradeRequests)delete S.tradeRequests[to];return;}
+    delete S.tradeRequests[to];
+    if(!tradeWithinRange({a:from,b:to})){sendTo(to,{t:'trade_error',s:'📍 두 플레이어가 너무 멀어졌어.'});return;}
+    const t={id:S.tradeSeq++,a:from,b:to,ai:{},bi:{},ag:0,bg:0,ar:false,br:false}; S.trades[t.id]=t;pushTrade(t);
   } else if (m.t === 'trade_offer' && c.uid) {
-    const t=tradeForPlayer(c.uid);if(!t||t.ar||t.br)return; const mine=t.a===c.uid?'ai':'bi',goldKey=t.a===c.uid?'ag':'bg',p=S.players[c.uid];
+    const t=tradeForPlayer(c.uid);if(!t||t.ar||t.br||!tradeWithinRange(t))return; const mine=t.a===c.uid?'ai':'bi',goldKey=t.a===c.uid?'ag':'bg',p=S.players[c.uid];
     const list=m.items&&typeof m.items==='object'?m.items:{};const next={};Object.entries(list).forEach(([id,n])=>{if(ITEMS[id]){const q=Math.max(0,Math.min(itemCount(p,id),Math.floor(Number(n)||0)));if(q)next[id]=q;}});
-    t[mine]=next;t[goldKey]=Math.max(0,Math.min(p.gold,Math.floor(Number(m.gold)||0)));t.a===c.uid?(t.ar=false):(t.br=false);pushTrade(t);
+    t[mine]=next;t[goldKey]=Math.max(0,Math.min(p.gold,Math.floor(Number(m.gold)||0)));t.ar=false;t.br=false;pushTrade(t);
   } else if (m.t === 'trade_ready' && c.uid) {
-    const t=tradeForPlayer(c.uid);if(!t||!tradeValidateOffers(t))return clearTrade(t,'거래 조건이 변경되어 취소되었습니다.');if(t.a===c.uid)t.ar=!!m.ready;else t.br=!!m.ready;pushTrade(t);if(t.ar&&t.br)executeTrade(t);
+    const t=tradeForPlayer(c.uid);if(!t||!tradeWithinRange(t)||!tradeValidateOffers(t))return clearTrade(t,'거래 조건이 변경되었거나 두 플레이어가 멀어져서 거래가 취소됐어.');if(t.a===c.uid)t.ar=!!m.ready;else t.br=!!m.ready;pushTrade(t);if(t.ar&&t.br)executeTrade(t);
   } else if (m.t === 'trade_cancel' && c.uid) {
     const t=tradeForPlayer(c.uid);if(t)clearTrade(t,'거래가 취소되었습니다.');
   } else if (m.t === 'chat' && c.uid) {
@@ -13322,11 +13372,12 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     if(typeof oldHostRecv80==='function'){
       window.hostRecv=function(c,m){
         if(m&&m.t==='trade_request'&&c&&c.uid){
-          const from=String(c.uid),to=String(m.to||'');
-          if(!to||to===from||!S.players?.[to]){sendTo(from,{t:'trade_error',s:'⚠️ 거래할 플레이어를 찾지 못했어.'});return;}
-          if(String(S.players[from]?.map||'')!==String(S.players[to]?.map||'')){sendTo(from,{t:'trade_error',s:'📍 같은 맵에 있는 플레이어와 거래할 수 있어.'});return;}
+          const from=String(c.uid),to=String(m.to||''),a=S.players?.[from],b=S.players?.[to];
+          if(!to||to===from||!a||!b){sendTo(from,{t:'trade_error',s:'⚠️ 거래할 플레이어를 찾지 못했어.'});return;}
+          if(String(a.map||'')!==String(b.map||'')||cheb(a,b)>5){sendTo(from,{t:'trade_error',s:'📍 거래는 같은 맵에서 5칸 이내의 플레이어끼리만 가능해.'});return;}
           if(tradeForPlayer(from)||tradeForPlayer(to)){sendTo(from,{t:'trade_error',s:'🤝 한 명이 이미 다른 거래를 진행 중이야.'});return;}
-          sendTo(to,{t:'trade_request',from,name:String(S.players[from]?.name||'플레이어'),emoji:String(S.players[from]?.emoji||'🙂')});
+          S.tradeRequests=S.tradeRequests||{};S.tradeRequests[to]={from,ts:Date.now()};
+          sendTo(to,{t:'trade_request',from,name:String(a.name||'플레이어'),emoji:String(a.emoji||'🙂')});
           return;
         }
         return oldHostRecv80.apply(this,arguments);
@@ -13366,214 +13417,101 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
-<style id="rpg-v81-layout-style">
-/* v81: PC/모바일 UI를 확실히 분리 */
-#stage:not(.rpg-phone-device) #pad,
-#stage:not(.rpg-phone-device) #rpgTouchAction,
-#stage:not(.rpg-phone-device) #rpgMobileMenuToggle{display:none!important;}
 
-/* PC 메뉴: 접었다 펼치는 모바일 메뉴가 아니라 기존 아이콘 버튼을 한 줄로 표시 */
-#stage:not(.rpg-phone-device) #menu{
-  display:flex!important;
-  position:absolute!important;
-  top:58px!important;
-  right:250px!important;
-  left:auto!important;
-  width:auto!important;
-  max-width:none!important;
-  flex-wrap:nowrap!important;
-  gap:6px!important;
-  padding:0!important;
-  align-items:center!important;
-  justify-content:flex-end!important;
-  z-index:12!important;
-}
-#stage:not(.rpg-phone-device) #menu button{
-  width:40px!important;
-  min-width:40px!important;
-  height:40px!important;
-  min-height:40px!important;
-  padding:0!important;
-  border-radius:11px!important;
-  font-size:20px!important;
-  line-height:1!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  white-space:nowrap!important;
-}
-#stage:not(.rpg-phone-device) #menu button:hover{transform:translateY(-1px);}
-#stage:not(.rpg-phone-device) #rpgMusicV52{
-  position:static!important;
-  width:40px!important;
-  min-width:40px!important;
-  height:40px!important;
-  min-height:40px!important;
-  margin:0!important;
-  padding:0!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-}
-#stage:not(.rpg-phone-device) #rpgMusicV52 button{
-  width:40px!important;
-  min-width:40px!important;
-  height:40px!important;
-  min-height:40px!important;
-  padding:0!important;
-  border-radius:11px!important;
-  font-size:19px!important;
-}
+<style id="rpg-v82-safe-layout-style">
+/* v82: UI ONLY. 게임/맵/P2P 로직에 개입하지 않는다. */
+/* PC에서는 기존 메뉴를 아이콘 버튼으로만 표시 */
+@media (min-width: 901px) and (pointer:fine){
+  #stage #menu{
+    display:flex!important;
+    position:absolute!important;
+    top:58px!important;
+    right:250px!important;
+    left:auto!important;
+    width:auto!important;
+    max-width:calc(100vw - 560px)!important;
+    flex-wrap:nowrap!important;
+    gap:6px!important;
+    padding:0!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    z-index:12!important;
+  }
+  #stage #menu > button{
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    border-radius:11px!important;
+    font-size:0!important;
+    line-height:1!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    white-space:nowrap!important;
+  }
+  #btnInv::before{content:'🎒';font-size:20px}
+  #btnTrade::before{content:'🤝';font-size:20px}
+  #btnChat::before{content:'💬';font-size:20px}
+  #btnQuest::before{content:'📜';font-size:20px}
+  #btnSocial::before{content:'👥';font-size:20px}
+  #btnMap::before{content:'🗺️';font-size:20px}
+  #btnCharacter::before{content:'🧑';font-size:20px}
+  #btnGuide::before{content:'❔';font-size:20px}
+  #btnRecovery::before{content:'🗝️';font-size:20px}
+  #btnJob::before{content:'🎓';font-size:20px}
 
-/* 데스크톱에서는 모바일식 전체폭 음악 버튼 자체를 제거 */
-#stage:not(.rpg-phone-device) #rpgMusicV52 .musicText,
-#stage:not(.rpg-phone-device) #rpgMusicV52 small,
-#stage:not(.rpg-phone-device) #rpgMusicV52 span.label{display:none!important;}
+  /* PC에서는 기존 음악 버튼도 독립 아이콘 버튼만 유지 */
+  #stage #rpgMusicV52{
+    position:absolute!important;
+    right:14px!important;
+    bottom:14px!important;
+    display:flex!important;
+    width:auto!important;
+    margin:0!important;
+    z-index:58!important;
+  }
+  #stage #rpgMusicV52 button{
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    border-radius:11px!important;
+    font-size:0!important;
+  }
+  #stage #rpgMusicV52 button::before{content:'🎵';font-size:19px}
 
-/* PC에서 스킬은 유지하되 모바일식 큰 원형 공격 버튼은 숨김 */
-#stage:not(.rpg-phone-device) #skillBarV29{
-  right:16px!important;
-  left:auto!important;
-  bottom:16px!important;
-  width:min(285px,30vw)!important;
-  position:absolute!important;
-  z-index:9!important;
-}
+  /* PC에서는 모바일 전용 조작부 숨김 */
+  #stage #rpgMobileMenuToggle{display:none!important}
+  #stage #rpgTouchAction{display:none!important}
+  #stage #pad{display:none!important}
 
-/* 미니맵: PC는 더 크게, 메뉴와 수평 충돌하지 않게 고정 */
-#stage:not(.rpg-phone-device) #minimapWrap{
-  width:240px!important;
-  right:12px!important;
-  top:58px!important;
-  z-index:8!important;
+  /* 데스크톱 미니맵은 충분히 크게 */
+  #stage #minimapWrap{width:240px!important;right:12px!important;top:58px!important;z-index:8!important}
 }
 
-/* 패널이 열리면 하단 조작부/스킬을 완전히 제거해서 겹침 방지 */
-#stage.rpg-panel-open-80 #pad,
-#stage.rpg-panel-open-80 #rpgTouchAction,
-#stage.rpg-panel-open-80 #skillBarV29{
-  display:none!important;
-  visibility:hidden!important;
-  pointer-events:none!important;
+/* 중간 폭 PC/노트북 */
+@media (min-width:721px) and (max-width:1200px) and (pointer:fine){
+  #stage #menu{right:206px!important;max-width:390px!important;flex-wrap:wrap!important}
+  #stage #minimapWrap{width:220px!important}
 }
-#stage.rpg-panel-open-80 #overlayPanel{z-index:90!important;}
 
-/* PC에서 메뉴와 미니맵이 겹치지 않는 범위가 좁을 때만 2줄 */
-@media (min-width:901px) and (max-width:1200px){
-  #stage:not(.rpg-phone-device) #menu{
-    right:206px!important;
-    max-width:390px!important;
-    flex-wrap:wrap!important;
+/* 모바일 쪽은 v80의 기존 동작을 유지하고, 패널이 열릴 때만 하단 조작부를 가린다. */
+@media (max-width:900px){
+  #stage.rpg-panel-open-80 #pad,
+  #stage.rpg-panel-open-80 #rpgTouchAction,
+  #stage.rpg-panel-open-80 #skillBarV29{
+    visibility:hidden!important;
+    pointer-events:none!important;
   }
 }
 
-/* 작은 터치 기기: 모바일 미니맵을 충분히 크게 */
-@media (pointer:coarse) and (max-width:900px){
-  #stage.rpg-phone-device #minimapWrap{width:190px!important;right:8px!important;top:58px!important;}
-}
-@media (pointer:coarse) and (orientation:landscape) and (max-width:900px){
-  #stage.rpg-phone-device #minimapWrap{width:220px!important;right:8px!important;top:54px!important;}
-}
-@media (pointer:coarse) and (orientation:portrait) and (max-width:900px){
-  #stage.rpg-phone-device #minimapWrap{width:190px!important;right:8px!important;top:58px!important;}
-}
-
-/* 모바일 메뉴는 항상 닫혀 있을 때 화면을 차지하지 않음 */
-#stage.rpg-phone-device #menu{z-index:120!important;}
-#stage.rpg-phone-device #menu.rpg-mobile-open{display:flex!important;}
+/* 데스크톱에서만 모바일 가로전환 게이트를 숨긴다. */
+@media (min-width:901px) and (pointer:fine){#rpgLandscapeGate80{display:none!important}}
 </style>
-
-<script id="rpg-v81-layout-runtime">
-(function(){
-  'use strict';
-  if(window.__rpgV81Layout)return;
-  window.__rpgV81Layout=true;
-  const $=id=>document.getElementById(id), stage=$('stage');
-  if(!stage)return;
-
-  /* 스마트폰만 phone-device로 분류한다. 터치 가능한 데스크톱/노트북은 PC UI 유지. */
-  function isPhoneDevice(){
-    const w=Math.max(0,window.innerWidth||0),h=Math.max(0,window.innerHeight||0);
-    const ua=String(navigator.userAgent||'');
-    const mobileUA=/(Android|iPhone|iPod|Windows Phone|Mobile)/i.test(ua);
-    const coarse=!!(window.matchMedia?.('(pointer:coarse)').matches||window.matchMedia?.('(hover:none)').matches||navigator.maxTouchPoints>0);
-    return mobileUA && coarse && Math.min(w,h)<=900;
-  }
-
-  const iconMap={
-    btnInv:['🎒','가방'],
-    btnTrade:['🤝','거래'],
-    btnChat:['💬','채팅'],
-    btnQuest:['📜','퀘스트'],
-    btnSocial:['👥','친구/파티'],
-    btnMap:['🗺️','월드맵'],
-    btnCharacter:['🧑','캐릭터'],
-    btnGuide:['❔','도움말'],
-    btnRecovery:['🗝️','계정 복구'],
-    btnJob:['🎓','전직 진행도']
-  };
-
-  function sync(){
-    const phone=isPhoneDevice();
-    stage.classList.toggle('rpg-phone-device',phone);
-    document.documentElement.style.setProperty('--rpg-vvh',Math.max(280,Math.round(window.visualViewport?.height||window.innerHeight||800))+'px');
-
-    const menu=$('menu');
-    if(menu&&!phone){
-      menu.classList.remove('rpg-mobile-open');
-      menu.style.display='flex';
-      menu.querySelectorAll('button').forEach(b=>{
-        const id=b.id,meta=iconMap[id];
-        if(!meta)return;
-        b.textContent=meta[0];
-        b.title=meta[1];
-        b.setAttribute('aria-label',meta[1]);
-      });
-    }
-    if(menu&&phone){
-      menu.querySelectorAll('button').forEach(b=>{
-        const id=b.id,meta=iconMap[id];
-        if(!meta)return;
-        b.textContent=meta[0]+' '+meta[1];
-        b.title=meta[1];
-        b.setAttribute('aria-label',meta[1]);
-      });
-    }
-
-    const toggle=$('rpgMobileMenuToggle');
-    if(toggle){
-      toggle.style.display=phone?'block':'none';
-      toggle.setAttribute('aria-hidden',phone?'false':'true');
-      if(!phone){toggle.classList.remove('show');toggle.textContent='☰';}
-    }
-
-    /* 음악 버튼도 PC에서는 아이콘 하나로 메뉴에 합친다. */
-    const music=$('rpgMusicV52');
-    if(menu&&music){
-      if(music.parentElement!==menu)menu.appendChild(music);
-      const mb=music.querySelector('button');
-      if(mb&&!phone){
-        const txt=(mb.textContent||'').includes('꺼')?'🎵':'🎵';
-        mb.textContent=txt;
-        mb.title='음악 켜기/끄기';
-        mb.setAttribute('aria-label','음악 켜기/끄기');
-      }
-    }
-
-    /* 패널이 열린 동안은 어떤 기기에서도 하단 터치/스킬 조작이 위로 튀어나오지 않게 한다. */
-    const panel=$('overlayPanel');
-    const panelOpen=!!panel?.classList.contains('open');
-    stage.classList.toggle('rpg-panel-open-80',panelOpen);
-  }
-
-  sync();
-  window.addEventListener('resize',sync,{passive:true});
-  window.addEventListener('orientationchange',()=>setTimeout(sync,120),{passive:true});
-  window.visualViewport?.addEventListener('resize',sync,{passive:true});
-  const panel=$('overlayPanel');
-  if(panel)new MutationObserver(sync).observe(panel,{attributes:true,attributeFilter:['class']});
-  setInterval(sync,500);
-})();
-</script>
 </body>
+
+
 </html>
