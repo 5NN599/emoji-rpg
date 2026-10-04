@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2a5fd1">
-<meta name="rpg-build-version" content="97">
+<meta name="rpg-build-version" content="99">
 <title>이모지 RPG · P2P 멀티플레이</title>
 <style>
  :root { color-scheme:light dark; --bg:#f5f7fb; --card:#ffffff; --fg:#1b2033; --sub:#65708f; --line:#d8deeb; --acc:#2f68d8; --btnfg:#ffffff; --tile1:#edf1f7; --tile2:#e5eaf3; --ok:#1f9d5b; --bad:#d63a4c; --shadow:rgba(38,46,74,.12); }
@@ -13908,7 +13908,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 </script>
 
 
-\n\n<!-- RPG v95: town entrances + live market refresh + elite monsters + boss enhancement -->
+<!-- RPG v95: town entrances + live market refresh + elite monsters + boss enhancement -->
 <style id="rpgV95Style">
   .rpgV95ElitePulse{animation:rpgV95ElitePulse 1.2s ease-in-out infinite}
   @keyframes rpgV95ElitePulse{0%,100%{opacity:.72}50%{opacity:1}}
@@ -14171,7 +14171,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 
   window.__rpgV95Ready=true;
 })();
-</script>\n
+</script>
 
 <!-- RPG v97: nameplate overlap fix + building names drawn directly on minimap -->
 <style id="rpgV97Style">
@@ -14183,7 +14183,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   'use strict';
   if(window.__RPG_V97_PATCH__)return;
   window.__RPG_V97_PATCH__=true;
-  window.__RPG_BUILD_VERSION__='97';
+  window.__RPG_BUILD_VERSION__='98';
 
   /* =========================================================
      1) 플레이어 이름표 중복/겹침 정리
@@ -14331,5 +14331,109 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
-<script src="./rpg-updater.js"></script>
+<!-- RPG v99: self-contained update checker -->
+
+<script id="rpgV99Updater">
+(function(){
+  'use strict';
+  if(window.__RPG_AUTO_UPDATER_V99__)return;
+  window.__RPG_AUTO_UPDATER_V99__=true;
+
+  const CHECK_MS=30000, START_DELAY=1500, UPDATE_QUERY='_rpg_update';
+  let localVersion='0', remoteVersion='0', busy=false, notice=null;
+  const num=v=>{const m=String(v??'').match(/\d+(?:\.\d+)*/);return m?parseFloat(m[0]):0};
+  function baseIndex(){
+    const u=new URL(location.href);
+    u.hash='';u.search='';
+    if(u.pathname.endsWith('/'))u.pathname+='index.html';
+    return u;
+  }
+  function bust(input){
+    const u=new URL(input,location.href);
+    u.searchParams.set('_rpg_check',Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9));
+    return u.toString();
+  }
+  function readLocal(){
+    const m=document.querySelector('meta[name="rpg-build-version"]');
+    const a=m?String(m.getAttribute('content')||''):'0';
+    const b=String(window.__RPG_BUILD_VERSION__||'0');
+    localVersion=String(Math.max(num(a),num(b))||0);
+  }
+  async function fetchRemoteHtml(){
+    const r=await fetch(bust(baseIndex()),{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache, no-store, max-age=0'}});
+    if(!r.ok)throw new Error('index HTTP '+r.status);
+    const h=await r.text();
+    const m=h.match(/<meta[^>]+name=["']rpg-build-version["'][^>]+content=["']([^"']+)["'][^>]*>/i)
+         ||h.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']rpg-build-version["'][^>]*>/i);
+    if(!m)throw new Error('build marker missing');
+    return String(m[1]);
+  }
+  async function fetchRemote(){
+    // HTML is authoritative; version.json is only a fallback.
+    try{return await fetchRemoteHtml();}catch(_e){}
+    const r=await fetch(bust('./version.json'),{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache, no-store, max-age=0'}});
+    if(!r.ok)throw new Error('version.json HTTP '+r.status);
+    const x=await r.json();
+    if(!x||x.version==null)throw new Error('version missing');
+    return String(x.version);
+  }
+  function style(){
+    if(document.getElementById('rpgV99UpdateStyle'))return;
+    const st=document.createElement('style');st.id='rpgV99UpdateStyle';
+    st.textContent=`
+      #rpgUpdateNoticeV99{position:fixed;top:16px;right:16px;z-index:2147483647;display:none;width:min(410px,calc(100vw - 28px));font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+      #rpgUpdateNoticeV99.show{display:block}
+      #rpgUpdateNoticeV99 .card{background:#fff;border:2px solid #2d69d7;border-radius:15px;box-shadow:0 16px 42px rgba(0,0,0,.2);padding:13px;display:flex;gap:10px;align-items:flex-start;color:#17233b}
+      #rpgUpdateNoticeV99 .icon{font-size:26px;line-height:1}
+      #rpgUpdateNoticeV99 .body{flex:1;min-width:0}
+      #rpgUpdateNoticeV99 b{font-size:15px}
+      #rpgUpdateNoticeV99 .txt{margin-top:5px;color:#53627a;font-size:12px;line-height:1.45}
+      #rpgUpdateNoticeV99 .actions{display:flex;gap:7px;margin-top:10px}
+      #rpgUpdateNoticeV99 button{border:0;border-radius:9px;padding:8px 11px;font-weight:800;cursor:pointer}
+      #rpgUpdateNoticeV99 .now{background:#2d69d7;color:#fff}.rpgV99Later{background:#eef2f7;color:#31405a}
+      @media(max-width:560px){#rpgUpdateNoticeV99{left:10px;right:10px;top:10px;width:auto}}
+    `;
+    document.head.appendChild(st);
+  }
+  function ensure(){
+    if(notice&&notice.isConnected)return notice;
+    notice=document.createElement('div');notice.id='rpgUpdateNoticeV99';
+    notice.innerHTML='<div class="card"><div class="icon">🔄</div><div class="body"><b>새 게임 업데이트가 있어!</b><div class="txt" id="rpgUpdateTextV99"></div><div class="actions"><button class="now" id="rpgUpdateNowV99">지금 업데이트</button><button class="rpgV99Later" id="rpgUpdateLaterV99">나중에</button></div></div></div>';
+    document.body.appendChild(notice);
+    notice.querySelector('#rpgUpdateNowV99').onclick=()=>reload();
+    notice.querySelector('#rpgUpdateLaterV99').onclick=()=>notice.classList.remove('show');
+    return notice;
+  }
+  function show(){
+    const el=ensure(),t=el.querySelector('#rpgUpdateTextV99');
+    if(t)t.textContent=`현재 v${localVersion} → 최신 v${remoteVersion}. 최신 버전으로 업데이트할 수 있어.`;
+    el.classList.add('show');
+  }
+  function reload(){
+    const u=baseIndex();
+    u.searchParams.set(UPDATE_QUERY,String(Date.now()));
+    location.replace(u.toString());
+  }
+  async function check(){
+    if(busy)return false;
+    busy=true;
+    try{
+      readLocal();
+      const v=await fetchRemote();
+      remoteVersion=String(v);
+      if(num(remoteVersion)>num(localVersion)){show();return true;}
+      return false;
+    }catch(_e){return false}
+    finally{busy=false}
+  }
+  function boot(){
+    readLocal();style();
+    setTimeout(check,START_DELAY);
+    setInterval(check,CHECK_MS);
+    window.RPGUpdater={check,update:reload,getVersions:()=>({local:localVersion,remote:remoteVersion,pending:num(remoteVersion)>num(localVersion)})};
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
+</script>
 </html>
