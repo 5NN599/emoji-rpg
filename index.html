@@ -3,11 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2f68d8">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%97%A1%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <title>이모지 RPG · P2P 멀티플레이</title>
 <style>
- :root { color-scheme:light dark; --muted:var(--sub); --warn:#e3a63a; --bg:#f5f7fb; --card:#ffffff; --fg:#1b2033; --sub:#65708f; --line:#d8deeb; --acc:#2f68d8; --btnfg:#ffffff; --tile1:#edf1f7; --tile2:#e5eaf3; --ok:#1f9d5b; --bad:#d63a4c; --shadow:rgba(38,46,74,.12); }
+ :root { color-scheme:light dark; --bg:#f5f7fb; --card:#ffffff; --fg:#1b2033; --sub:#65708f; --line:#d8deeb; --acc:#2f68d8; --btnfg:#ffffff; --tile1:#edf1f7; --tile2:#e5eaf3; --ok:#1f9d5b; --bad:#d63a4c; --shadow:rgba(38,46,74,.12); }
 @media (prefers-color-scheme:dark) { :root { --bg:#12162b; --card:#1c2240; --fg:#eef0ff; --sub:#9aa3d0; --line:#313a6b; --acc:#6ea1ff; --btnfg:#07111f; --tile1:#232a4d; --tile2:#1f2645; --ok:#5fe39b; --bad:#ff6b7a; --shadow:rgba(0,0,0,.24); } }
 * { box-sizing: border-box; }
 html, body { width:100%; height:100%; margin:0; }
@@ -51,7 +49,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   #pad { width:min(330px,calc(100vw - 12px)); }
   #top { font-size:13px; }
 }
-@media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }
+@media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto; } }
 
 #menu { position:absolute; z-index:6; top:64px; right:12px; display:flex; gap:6px; }
 #menu button { min-height:36px; padding:7px 10px; font-size:13px; background:color-mix(in srgb,var(--card) 88%,transparent); color:var(--fg); border:1px solid var(--line); backdrop-filter:blur(10px); }
@@ -87,7 +85,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 .chatInput { display:flex; gap:6px; margin-top:7px; }
 .chatInput input { min-width:0; }
 .quest { background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:9px; font-size:12px; }
-.socialList{display:flex;flex-direction:column;gap:6px}.socialRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.socialMain{min-width:0}.socialMain b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.socialSub{color:var(--muted);font-size:10px}.socialActions{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}.socialActions button{min-height:30px;padding:5px 7px;font-size:11px}.partyBar{padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg);margin-bottom:8px}.partyMember{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);font-size:12px}.partyMember:first-child{border-top:0}.shopGrid{display:grid;gap:6px}.shopRow{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.shopIcon{font-size:23px;text-align:center}.shopInfo{min-width:0}.shopInfo b{display:block}.shopInfo small{color:var(--muted)}.npcHint{padding:8px 9px;border-radius:8px;background:color-mix(in srgb,var(--tile2) 85%,transparent);color:var(--muted);font-size:11px;line-height:1.4;margin-bottom:8px}.friendCodeBox{display:flex;gap:6px;margin-bottom:8px}.friendCodeBox input{min-width:0;font-weight:700;letter-spacing:.06em;text-transform:uppercase}.recoveryLobby{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}.recoveryCode{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;line-height:1.45;word-break:break-all;padding:8px;border:1px dashed var(--line);border-radius:8px;background:color-mix(in srgb,var(--card) 70%,transparent);margin-bottom:7px}.recoveryWarn{padding:8px 9px;border-radius:8px;background:color-mix(in srgb,var(--warn) 12%,var(--bg));color:var(--sub);font-size:11px;line-height:1.45;margin-top:7px}.recoveryActions{display:flex;gap:6px;flex-wrap:wrap}.recoveryActions button{flex:1;min-width:120px}
+.socialList{display:flex;flex-direction:column;gap:6px}.socialRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.socialMain{min-width:0}.socialMain b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.socialSub{color:var(--muted);font-size:10px}.socialActions{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}.socialActions button{min-height:30px;padding:5px 7px;font-size:11px}.partyBar{padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg);margin-bottom:8px}.partyMember{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);font-size:12px}.partyMember:first-child{border-top:0}.shopGrid{display:grid;gap:6px}.shopRow{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.shopIcon{font-size:23px;text-align:center}.shopInfo{min-width:0}.shopInfo b{display:block}.shopInfo small{color:var(--muted)}.npcHint{padding:8px 9px;border-radius:8px;background:color-mix(in srgb,var(--tile2) 85%,transparent);color:var(--muted);font-size:11px;line-height:1.4;margin-bottom:8px}.friendCodeBox{display:flex;gap:6px;margin-bottom:8px}.friendCodeBox input{min-width:0;font-weight:700;letter-spacing:.06em;text-transform:uppercase}.recoveryLobby{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}.recoveryCode{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;line-height:1.45;word-break:break-all;padding:8px;border:1px dashed var(--line);border-radius:8px;background:color-mix(in srgb,var(--card) 70%,transparent);margin-bottom:7px}.recoveryWarn{padding:8px 9px;border-radius:8px;background:color-mix(in srgb,#f0b 8%,var(--bg));color:var(--sub);font-size:11px;line-height:1.45;margin-top:7px}.recoveryActions{display:flex;gap:6px;flex-wrap:wrap}.recoveryActions button{flex:1;min-width:120px}
 
 /* RPG 확장 UI */
 #menu{flex-wrap:wrap;max-width:min(760px,calc(100vw - 24px));justify-content:flex-end}
@@ -164,7 +162,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   <h1>🗡️ 이모지 RPG<small>P2P 멀티플레이</small></h1>
   <div class="empty">방을 만들거나 공개 방 목록에서 바로 입장하세요.</div>
   <div class="row">
-    <input id="roomName" maxlength="16" placeholder="방 이름" aria-label="방 이름" autocomplete="off" enterkeyhint="go">
+    <input id="roomName" maxlength="16" placeholder="방 이름" aria-label="방 이름">
     <button id="btnCreate">방 만들기</button>
     <button id="btnQuick" type="button">⚡ 빠른 참가</button>
   </div>
@@ -174,7 +172,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   <div class="recoveryLobby">
     <div class="recoveryCode" id="lobbyRecoveryCode">연결하면 복구 코드가 발급돼.</div>
     <div class="row"><button id="btnCopyRecovery" type="button">📋 코드 복사</button><button id="btnNewRecovery" type="button">🔄 새 코드</button></div>
-    <div class="row"><input id="recoveryInput" maxlength="12000" placeholder="복구 코드를 붙여넣으면 마지막 방도 찾아줘" aria-label="계정 복구 코드" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"><button id="btnRecover" type="button">🔐 복구 + 접속</button></div>
+    <div class="row"><input id="recoveryInput" maxlength="12000" placeholder="복구 코드를 붙여넣으면 마지막 방도 찾아줘"><button id="btnRecover" type="button">🔐 복구 + 접속</button></div>
     <div id="recoverySessionHint" class="empty">복구 코드를 입력하면 계정 데이터를 복원하고, 코드에 기록된 마지막 세션을 공개 방 디렉터리에서 찾아 마지막 공개 세션으로 접속해.</div>
   </div>
   <div id="msg" role="alert"></div>
@@ -184,7 +182,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   <div id="stage">
     <canvas id="cv" width="800" height="560"></canvas>
     <div id="top">
-      <div id="roomTopTitle"><button id="btnMenuToggle" type="button" aria-label="메뉴 열기" aria-expanded="false" aria-controls="menu">☰</button><b id="roomTitle">공개 방</b></div>
+      <div id="roomTopTitle"><b id="roomTitle">공개 방</b></div>
       <div style="display:flex;align-items:center;gap:8px"><span id="miniHud">❤️ -- · 💰 --</span><div id="badge"></div></div>
     </div>
     <div id="zoneHud"><div id="zoneName">🗺️ 루미나 마을</div><div id="zoneMeta">안전구역 · 전투 불가</div></div>
@@ -197,7 +195,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
       <button id="btnSocial">👥 친구/파티</button>
       <button id="btnMap" class="iconBtn" title="월드맵 / 순간이동" aria-label="월드맵 / 순간이동">🗺️</button>
       <button id="btnCharacter" class="iconBtn" title="캐릭터 꾸미기" aria-label="캐릭터 꾸미기">🧑</button>
-      <button id="btnGuide" class="iconBtn" title="게임 도움말" aria-label="게임 도움말">❓</button>
+      <button id="btnGuide" class="iconBtn" title="게임 도움말" aria-label="게임 도움말">❔</button>
       <button id="btnRecovery" class="iconBtn" title="계정 복구" aria-label="계정 복구">🗝️</button>
     </div>
     <div id="overlayPanel" aria-live="polite">
@@ -820,7 +818,7 @@ function renderGuide(){
   };
   const first=topics.move;let detail=first.d;
   let html='<div class="guideGrid">';Object.entries(topics).forEach(([k,v],idx)=>{html+='<button class="guideBtn '+(idx===0?'active':'')+'" data-guide="'+k+'"><strong>'+v.i+'</strong><span>'+v.t+'</span></button>';});html+='</div><div class="guideDetail" id="guideDetail">'+escapeHtml(detail)+'</div>';
-  openPanel('❓ 게임 설명',html);
+  openPanel('❔ 게임 설명',html);
   $('panelBody').querySelectorAll('[data-guide]').forEach(b=>b.onclick=()=>{$('panelBody').querySelectorAll('[data-guide]').forEach(x=>x.classList.remove('active'));b.classList.add('active');const d=topics[b.dataset.guide];$('guideDetail').textContent=d?d.d:'';});
 }
 
@@ -2313,9 +2311,9 @@ function requestTrade(uid){if(!uid||uid===S.uid)return;const ok=sendPeerOrHost(u
 function renderTradeFromEvent(){if($('overlayPanel').classList.contains('open'))openTradePanel();}
 function openTradePanel(){
   const p=S.players[S.uid],t=tradeForPlayerClient(S.uid);
-  if(!t){let html='<div class="section"><div class="sectionTitle">거래할 플레이어</div>';Object.values(S.players).filter(x=>x.id!==S.uid).forEach(x=>html+='<div class="tradeTarget"><span>'+escapeHtml(x.emoji)+' '+escapeHtml(x.name)+' · Lv.'+escapeHtml(x.lv)+'</span><button data-trade="'+escapeHtml(x.id)+'">요청</button></div>');html+='</div>';openPanel('🤝 거래',html);$('panelBody').querySelectorAll('[data-trade]').forEach(b=>b.onclick=()=>requestTrade(b.dataset.trade));return;}
-  const mine=t.a===S.uid?t.ai:t.bi,other=t.a===S.uid?t.bi:t.ai,mg=t.a===S.uid?t.ag:t.bg,og=t.a===S.uid?t.bg:t.ag,otherP=S.players[t.a===S.uid?t.b:t.a]||{emoji:'👤',name:'(나간 플레이어)'};
-  let html='<div class="section"><div class="sectionTitle">상대방</div><div class="tradeOffer">'+escapeHtml(otherP.emoji)+' '+escapeHtml(otherP.name)+'</div></div><div class="section"><div class="sectionTitle">내 제안 · 아이템 클릭으로 수량 선택</div><div class="panelGrid">';Object.entries(p.inv||{}).forEach(([id,n])=>{if(!ITEMS[id])return;html+='<button class="itemBtn" data-item="'+escapeHtml(id)+'"><strong>'+ITEMS[id].icon+'</strong><span>'+ITEMS[id].name+'</span><small>x'+(mine[id]||0)+'</small></button>';});html+='</div><div class="tradeLine">💰 골드 <input id="tradeGold" type="number" min="0" value="'+mg+'"></div></div><div class="section"><div class="sectionTitle">상대방 제안</div><div class="tradeOffer">';Object.entries(other).forEach(([id,n])=>{if(ITEMS[id])html+='<div class="tradeLine"><span>'+ITEMS[id].icon+' '+ITEMS[id].name+'</span><b>x'+n+'</b></div>';});html+='<div class="tradeLine"><span>💰 골드</span><b>'+og+'</b></div></div></div><div class="tradeActions"><button id="tradeSend">제안 갱신</button><button id="tradeReady">'+((t.a===S.uid?t.ar:t.br)?'확정 취소':'✅ 확정')+'</button><button id="tradeCancel">취소</button></div>';
+  if(!t){let html='<div class="section"><div class="sectionTitle">거래할 플레이어</div>';Object.values(S.players).filter(x=>x.id!==S.uid).forEach(x=>html+='<div class="tradeTarget"><span>'+x.emoji+' '+x.name+' · Lv.'+x.lv+'</span><button data-trade="'+x.id+'">요청</button></div>');html+='</div>';openPanel('🤝 거래',html);$('panelBody').querySelectorAll('[data-trade]').forEach(b=>b.onclick=()=>requestTrade(b.dataset.trade));return;}
+  const mine=t.a===S.uid?t.ai:t.bi,other=t.a===S.uid?t.bi:t.ai,mg=t.a===S.uid?t.ag:t.bg,og=t.a===S.uid?t.bg:t.ag,otherP=S.players[t.a===S.uid?t.b:t.a];
+  let html='<div class="section"><div class="sectionTitle">상대방</div><div class="tradeOffer">'+otherP.emoji+' '+otherP.name+'</div></div><div class="section"><div class="sectionTitle">내 제안 · 아이템 클릭으로 수량 선택</div><div class="panelGrid">';Object.entries(p.inv||{}).forEach(([id,n])=>{html+='<button class="itemBtn" data-item="'+id+'"><strong>'+ITEMS[id].icon+'</strong><span>'+ITEMS[id].name+'</span><small>x'+(mine[id]||0)+'</small></button>';});html+='</div><div class="tradeLine">💰 골드 <input id="tradeGold" type="number" min="0" value="'+mg+'"></div></div><div class="section"><div class="sectionTitle">상대방 제안</div><div class="tradeOffer">';Object.entries(other).forEach(([id,n])=>{if(ITEMS[id])html+='<div class="tradeLine"><span>'+ITEMS[id].icon+' '+ITEMS[id].name+'</span><b>x'+n+'</b></div>';});html+='<div class="tradeLine"><span>💰 골드</span><b>'+og+'</b></div></div></div><div class="tradeActions"><button id="tradeSend">제안 갱신</button><button id="tradeReady">'+((t.a===S.uid?t.ar:t.br)?'확정 취소':'✅ 확정')+'</button><button id="tradeCancel">취소</button></div>';
   openPanel('🤝 거래',html);let selected={...mine};$('panelBody').querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const id=b.dataset.item,cur=selected[id]||0,max=itemCount(p,id);selected[id]=cur>=max?0:cur+1;b.querySelector('small').textContent='x'+selected[id];if(!selected[id])delete selected[id];});$('tradeSend').onclick=()=>sendLocalHost({t:'trade_offer',items:selected,gold:Number($('tradeGold').value)||0});$('tradeReady').onclick=()=>sendLocalHost({t:'trade_ready',ready:!(t.a===S.uid?t.ar:t.br)});$('tradeCancel').onclick=()=>sendLocalHost({t:'trade_cancel'});
 }
 function tradeForPlayerClient(uid){if(!S.activeTrades)return null;return S.activeTrades.find(t=>t.a===uid||t.b===uid)||null;}
@@ -9007,6 +9005,8 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
+</body>
+
 
 <!-- RPG v49: 단계형 실전 튜토리얼 + NPC 대화 안내 복구 -->
 <style id="rpgTutorialV49Style">
@@ -9151,12 +9151,11 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       el.classList.remove('show');return;
     }
     try{
-      const m=boardMetrics(),q=worldToScreen(t.x,t.y,m),cv=document.getElementById('cv'),st=stageEl();
+      const m=boardMetrics(),q=worldToScreen(t.x,t.y,m),cv=document.getElementById('board'),st=stageEl();
       if(!cv||!st)return;
       const cr=cv.getBoundingClientRect(),sr=st.getBoundingClientRect();
-      const mkx=Math.round(cr.left-sr.left+q.x+m.tw/2),mky=Math.round(cr.top-sr.top+q.y+m.th/2-6);
-      if(mkx<0||mky<0||mkx>sr.width||mky>sr.height){el.classList.remove('show');return;}
-      el.style.left=mkx+'px';el.style.top=mky+'px';
+      el.style.left=Math.round(cr.left-sr.left+q.x+m.tw/2)+'px';
+      el.style.top=Math.round(cr.top-sr.top+q.y+m.th/2-6)+'px';
       const lab=document.getElementById('tutorialV49MarkerLabel');
       if(lab)lab.textContent=state.step===1?'E · 말 걸기':state.step===2?'M · 이동 메뉴':state.step===4?'⚔️ · 공격':'목표';
       el.classList.add('show');
@@ -9374,6 +9373,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   };
 })();
 </script>
+</html>
 
 <!-- RPG v44: 건물별 NPC 위치 정합성 + avatar/colors 초기화 오류 수정 -->
 <script>
@@ -12343,7 +12343,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 
   function refreshEntryStateV71(force){
     if(refreshBusy) return;
-    if(S.started || $('lobby')?.hidden) return;
+    if(S.started && !$('lobby')?.hidden) return;
     const now=Date.now();
     if(!force && now-lastRefreshAt<5000) return;
     refreshBusy=true;
@@ -12377,71 +12377,3 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   setTimeout(()=>refreshEntryStateV71(true),350);
 })();
 </script>
-
-<style id="reviewFixesCss">
-#roomTopTitle{display:flex;align-items:center;gap:8px;min-width:0}
-#btnMenuToggle{display:none;min-height:36px;min-width:40px;padding:4px 10px;font-size:18px;line-height:1}
-@media (max-width:720px),(pointer:coarse){
-  #btnMenuToggle{display:inline-flex;align-items:center;justify-content:center}
-  #roomTopTitle{flex:0 1 auto}
-  #roomTitle{display:block;max-width:24vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #menu.mOpen{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;position:fixed;left:50%;top:50%;right:auto;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 24px));max-width:none;padding:10px;border-radius:14px;background:color-mix(in srgb,var(--card) 97%,transparent);border:1px solid var(--line);box-shadow:0 14px 40px rgba(0,0,0,.35);z-index:200}
-  #menu.mOpen button{min-height:50px;font-size:13px;line-height:1.25;white-space:normal}
-  #menu.mOpen button.iconBtn::after{content:attr(aria-label);margin-left:4px;font-size:11px;font-weight:700}
-  /* 음악 버튼이 3번 스킬 버튼을 가리던 문제 / HUD 겹침 완화 */
-  #rpgMusicV52{top:calc(env(safe-area-inset-top,0px) + 70px)!important;bottom:auto!important;right:8px!important}
-  #zoneHud{top:68px!important;max-width:calc(100vw - 214px)!important}
-}
-</style>
-<script id="review-fixes">
-(function(){
-  'use strict';
-  if(globalThis.__reviewFixesInstalled) return;
-  globalThis.__reviewFixesInstalled=true;
-  const $$=id=>document.getElementById(id);
-  const LIB_MSG='필수 네트워크 라이브러리(PeerJS/MQTT)를 불러오지 못했어. 인터넷 연결이나 방화벽·광고 차단 설정을 확인한 뒤 새로고침해줘.';
-  const peerOk=()=>typeof Peer==='function';
-  const mqttOk=()=>typeof mqtt!=='undefined'&&!!mqtt&&typeof mqtt.connect==='function';
-  const warn=()=>{ try{ lobbyMsg(LIB_MSG); }catch(_e){ const m=$$('msg'); if(m) m.textContent=LIB_MSG; } };
-
-  /* 1) CDN 로드 실패 시 조용히 죽지 않고 원인을 알려준다 */
-  ['createRoom','joinRoom'].forEach(name=>{
-    const orig=globalThis[name];
-    if(typeof orig!=='function') return;
-    globalThis[name]=function(){ if(!peerOk()){ warn(); return; } return orig.apply(this,arguments); };
-  });
-  ['btnCreate','btnQuick','btnRecover'].forEach(id=>{
-    const b=$$(id); if(!b||typeof b.onclick!=='function') return;
-    const orig=b.onclick;
-    b.onclick=function(e){ if(!peerOk()){ warn(); return; } return orig.call(this,e); };
-  });
-  if(typeof renderRooms==='function'){
-    const origRender=renderRooms;
-    globalThis.renderRooms=function(){
-      const r=origRender.apply(this,arguments);
-      try{
-        if(!mqttOk()){ const box=$$('rooms'); if(box&&!box.querySelector('.room')){ box.textContent=''; const d=document.createElement('div'); d.className='empty'; d.textContent='공개 방 목록 서버(MQTT) 라이브러리를 불러오지 못했어.'; box.appendChild(d);} }
-      }catch(_e){}
-      return r;
-    };
-  }
-  window.addEventListener('load',()=>setTimeout(()=>{ if(!peerOk()||!mqttOk()) warn(); },600),{once:true});
-
-  /* 2) 모바일 메뉴: PC 메뉴가 숨겨진 뒤 대체 UI가 없던 문제 */
-  (function(){
-    const btn=$$('btnMenuToggle'), menu=$$('menu'); if(!btn||!menu) return;
-    const setOpen=o=>{ menu.classList.toggle('mOpen',o); btn.setAttribute('aria-expanded',String(o)); btn.setAttribute('aria-label',o?'메뉴 닫기':'메뉴 열기'); btn.textContent=o?'✕':'☰'; };
-    btn.addEventListener('click',e=>{ e.stopPropagation(); setOpen(!menu.classList.contains('mOpen')); });
-    menu.addEventListener('click',e=>{ if(e.target.closest('button')) setOpen(false); });
-    document.addEventListener('click',e=>{ if(menu.classList.contains('mOpen')&&!menu.contains(e.target)&&e.target!==btn) setOpen(false); });
-    document.addEventListener('keydown',e=>{ if(e.key==='Escape') setOpen(false); });
-  })();
-
-  /* 3) 로비: Enter로 방 만들기/복구 (한글 IME 조합 중 Enter는 무시) */
-  const bindEnter=(inputId,btnId)=>{ const i=$$(inputId); if(!i) return; i.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){ e.preventDefault(); const b=$$(btnId); if(b&&!b.disabled) b.click(); } }); };
-  bindEnter('roomName','btnCreate');
-  bindEnter('recoveryInput','btnRecover');
-})();
-</script>
-</body>
-</html>
