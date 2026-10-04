@@ -12553,3 +12553,204 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   setTimeout(()=>refreshEntryStateV71(true),350);
 })();
 </script>
+
+
+<!-- RPG v88: 친구/파티 요청 호스트 권위화 + 거래 제안 실시간 표시 -->
+<style id="rpgV88SocialTradeStyle">
+  .tradeLiveBadge{display:inline-flex;align-items:center;gap:5px;margin-left:6px;padding:2px 7px;border:1px solid var(--line);border-radius:999px;font-size:10px;color:var(--sub);background:var(--bg)}
+  .tradeOffer.live{border-color:var(--acc);box-shadow:0 0 0 1px color-mix(in srgb,var(--acc) 18%,transparent)}
+  .tradeSummaryV88{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .tradeSummaryBoxV88{border:1px solid var(--line);border-radius:10px;padding:9px;background:var(--bg);min-width:0}
+  .tradeSummaryBoxV88 b{display:block;margin-bottom:6px;font-size:11px}
+  .tradeSummaryRowV88{display:flex;justify-content:space-between;gap:8px;font-size:11px;margin:3px 0}
+  @media(max-width:520px){.tradeSummaryV88{grid-template-columns:1fr}}
+</style>
+<script>
+(function installRpgV88SocialTradeFix(){
+  'use strict';
+  if(typeof window==='undefined'||typeof S==='undefined')return;
+
+  /* ---------------------------------------------------------
+     1) 친구/파티 초대는 직접 P2P가 아니라 항상 호스트를 거친다.
+        그래야 호스트가 요청 상태를 기억하고 수락/거절을 검증할 수 있다.
+     --------------------------------------------------------- */
+  try{
+    if(typeof DIRECT_REQUEST_TYPES!=='undefined'){
+      DIRECT_REQUEST_TYPES.delete('friend_request');
+      DIRECT_REQUEST_TYPES.delete('party_invite');
+    }
+  }catch(_e){}
+
+  function sendHostAuthoritativeRequest(uid,msg){
+    const target=String(uid||'');
+    if(!target||target===S.uid||!msg||typeof msg!=='object')return false;
+    try{
+      if(S.isHost){
+        hostRecv({uid:S.uid,open:true,send:()=>{}},msg);
+        return true;
+      }
+      if(S.hostConn&&S.hostConn.open){
+        S.hostConn.send(msg);
+        return true;
+      }
+    }catch(_e){}
+    return false;
+  }
+
+  function requestFriendV88(uid){
+    uid=String(uid||'');
+    const p=S.players&&S.players[uid];
+    if(!p||uid===S.uid)return;
+    const fc=String(p.friendCode||'').toUpperCase();
+    if(!/^[A-Z0-9]{6,8}$/.test(fc)){
+      window.rpgGameNotice?.('친구 추가','상대방의 친구 코드가 아직 준비되지 않았어.','warn');
+      return;
+    }
+    if(S.friends&&S.friends[fc]){
+      window.rpgGameNotice?.('친구 추가',p.name+' 님은 이미 친구 목록에 있어.','info');
+      return;
+    }
+    const msg={t:'friend_request',to:uid,from:S.uid,name:S.name,emoji:S.emoji,friendCode:S.friendCode};
+    if(sendHostAuthoritativeRequest(uid,msg)){
+      window.rpgGameNotice?.('친구 요청','👥 '+p.name+' 님에게 친구 요청을 보냈어. 상대방이 수락하면 친구가 돼.','success');
+    }else{
+      window.rpgGameNotice?.('친구 요청','현재 방장과 연결되어 있지 않아서 요청을 보낼 수 없어.','warn');
+    }
+  }
+  window.requestFriend=requestFriendV88;
+  addFriend=requestFriendV88;
+  globalThis.addFriend=requestFriendV88;
+
+  function partyInviteV88(uid){
+    uid=String(uid||'');
+    const p=S.players&&S.players[uid];
+    if(!p||uid===S.uid)return;
+    const pt=partyForPlayer(S.uid);
+    if(pt&&pt.leader!==S.uid){
+      window.rpgGameNotice?.('파티','현재 파티장은 너가 아니야.','warn');
+      return;
+    }
+    if(pt&&pt.members.length>=4){
+      window.rpgGameNotice?.('파티','파티가 이미 4명으로 가득 찼어.','warn');
+      return;
+    }
+    if(partyForPlayer(uid)){
+      window.rpgGameNotice?.('파티',p.name+' 님은 이미 다른 파티에 있어.','warn');
+      return;
+    }
+    const msg={t:'party_invite',to:uid,from:S.uid,name:S.name,emoji:S.emoji};
+    if(sendHostAuthoritativeRequest(uid,msg)){
+      window.rpgGameNotice?.('파티 초대','👥 '+p.name+' 님에게 파티 초대를 보냈어.','success');
+    }else{
+      window.rpgGameNotice?.('파티 초대','현재 방장과 연결되어 있지 않아서 초대를 보낼 수 없어.','warn');
+    }
+  }
+  partyInvite=partyInviteV88;
+  globalThis.partyInvite=partyInviteV88;
+
+  /* ---------------------------------------------------------
+     2) 거래 상태가 들어오면 거래창을 항상 실시간 갱신한다.
+     --------------------------------------------------------- */
+  renderTradeFromEvent=function(){
+    const t=tradeForPlayerClient(S.uid);
+    if(!t){return;}
+    try{openTradePanel();}catch(_e){}
+  };
+  globalThis.renderTradeFromEvent=renderTradeFromEvent;
+
+  /* 거래창 최종 렌더러: 내 제안/상대 제안을 명확히 분리하고,
+     상대가 보낸 아이템과 골드를 항상 보여준다. */
+  openTradePanel=function(){
+    const p=S.players[S.uid],t=tradeForPlayerClient(S.uid);
+    if(!p)return;
+    if(!t){
+      let html='<div class="section"><div class="sectionTitle">거래할 플레이어</div>';
+      Object.values(S.players).filter(x=>x.id!==S.uid).forEach(x=>{
+        html+='<div class="tradeTarget"><span>'+escapeHtml(x.emoji+' '+x.name+' · Lv.'+x.lv)+'</span><button data-trade="'+escapeHtml(x.id)+'">요청</button></div>';
+      });
+      html+='</div>';
+      openPanel('🤝 거래',html);
+      $('panelBody').querySelectorAll('[data-trade]').forEach(b=>b.onclick=()=>requestTrade(b.dataset.trade));
+      return;
+    }
+
+    const mine=t.a===S.uid?t.ai:t.bi;
+    const other=t.a===S.uid?t.bi:t.ai;
+    const mg=t.a===S.uid?t.ag:t.bg;
+    const og=t.a===S.uid?t.bg:t.ag;
+    const otherId=t.a===S.uid?t.b:t.a;
+    const otherP=S.players[otherId];
+    if(!otherP){return;}
+
+    const renderItemLines=(obj)=>{
+      const entries=Object.entries(obj||{}).filter(([,n])=>Number(n)>0);
+      if(!entries.length)return '<div class="empty">없음</div>';
+      return entries.map(([id,n])=>{
+        const d=ITEMS[id];
+        return d?'<div class="tradeSummaryRowV88"><span>'+escapeHtml(d.icon+' '+d.name)+'</span><b>x'+Math.max(0,Math.floor(Number(n)||0))+'</b></div>':'';
+      }).join('')||'<div class="empty">없음</div>';
+    };
+
+    let html='<div class="section"><div class="sectionTitle">거래 상대</div><div class="tradeOffer live">'+escapeHtml(otherP.emoji+' '+otherP.name)+' <span class="tradeLiveBadge">실시간 동기화</span></div></div>';
+    html+='<div class="tradeSummaryV88">';
+    html+='<div class="tradeSummaryBoxV88"><b>📦 내가 주는 것</b>'+renderItemLines(mine)+'<div class="tradeSummaryRowV88"><span>💰 골드</span><b>'+mg+'</b></div></div>';
+    html+='<div class="tradeSummaryBoxV88"><b>🎁 상대가 주는 것</b>'+renderItemLines(other)+'<div class="tradeSummaryRowV88"><span>💰 골드</span><b>'+og+'</b></div></div>';
+    html+='</div>';
+
+    html+='<div class="section"><div class="sectionTitle">내 제안 · 아이템을 클릭해서 수량 변경</div><div class="panelGrid">';
+    Object.entries(p.inv||{}).forEach(([id,n])=>{
+      const d=ITEMS[id];if(!d)return;
+      html+='<button class="itemBtn" data-item="'+escapeHtml(id)+'"><strong>'+escapeHtml(d.icon)+'</strong><span>'+escapeHtml(d.name)+'</span><small>x'+(mine[id]||0)+'</small></button>';
+    });
+    html+='</div><div class="tradeLine">💰 골드 <input id="tradeGold" type="number" min="0" max="'+Math.max(0,p.gold)+'" value="'+Math.max(0,Math.floor(Number(mg)||0))+'"></div></div>';
+
+    html+='<div class="tradeActions"><button id="tradeSend">제안 갱신</button><button id="tradeReady">'+((t.a===S.uid?t.ar:t.br)?'확정 취소':'✅ 확정')+'</button><button id="tradeCancel">취소</button></div>';
+    html+='<div class="npcHint">상대방 제안은 서버에서 실시간으로 갱신돼. 한쪽이 제안을 바꾸면 다시 확정해야 해.</div>';
+
+    openPanel('🤝 거래',html);
+    let selected={...mine};
+    $('panelBody').querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{
+      const id=b.dataset.item,cur=selected[id]||0,max=itemCount(p,id);
+      selected[id]=cur>=max?0:cur+1;
+      b.querySelector('small').textContent='x'+selected[id];
+      if(!selected[id])delete selected[id];
+    });
+    $('tradeSend').onclick=()=>sendLocalHost({t:'trade_offer',items:selected,gold:Math.max(0,Math.floor(Number($('tradeGold').value)||0))});
+    $('tradeReady').onclick=()=>sendLocalHost({t:'trade_ready',ready:!(t.a===S.uid?t.ar:t.br)});
+    $('tradeCancel').onclick=()=>sendLocalHost({t:'trade_cancel'});
+  };
+  globalThis.openTradePanel=openTradePanel;
+
+  /* trade_state가 직접/호스트 어느 경로로 와도 바로 최신 화면으로 반영 */
+  const _onClientDataV88=onClientData;
+  onClientData=function(m){
+    if(m&&m.t==='trade_state'){
+      if(m.trade&& (m.trade.a===S.uid||m.trade.b===S.uid)){
+        S.activeTrades=[m.trade];
+        try{openTradePanel();}catch(_e){}
+      }
+      return;
+    }
+    if(m&&m.t==='trade_end'){
+      S.activeTrades=[];
+      closePanel();
+      log(m.reason||'거래 종료');
+      return;
+    }
+    return _onClientDataV88.apply(this,arguments);
+  };
+  globalThis.onClientData=onClientData;
+
+  /* 거래 요청도 가능하면 호스트 상태를 만들도록 일관되게 보낸다. */
+  requestTrade=function(uid){
+    uid=String(uid||'');
+    if(!uid||uid===S.uid||!S.players[uid])return;
+    const msg={t:'trade_request',to:uid,from:S.uid,name:S.name,emoji:S.emoji};
+    if(sendHostAuthoritativeRequest(uid,msg)) notice('🤝 '+S.players[uid].name+' 님에게 거래 요청을 보냈어.','success','sys');
+    else notice('거래 요청을 보낼 방장 연결이 없어.','warn','error');
+  };
+  globalThis.requestTrade=requestTrade;
+
+  try{renderSocialIfOpen();}catch(_e){}
+})();
+</script>
