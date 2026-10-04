@@ -2835,7 +2835,7 @@ function drawMapTileRpg(map,x,y,sx,sy,m,css){const blocked=isMapBlocked(map,x,y)
 function drawTownBuildingsRpg(m,fg){for(const b of RPG_BUILDINGS.filter(b=>b.map==='town')){const q=worldToScreen(b.x,b.y,m),w=b.w*m.tw,h=b.h*m.th;ctx.save();ctx.fillStyle=b.wall;ctx.strokeStyle='rgba(0,0,0,.3)';ctx.fillRect(q.x+2,q.y+2,w-4,h-4);ctx.strokeRect(q.x+2,q.y+2,w-4,h-4);ctx.fillStyle=b.roof;ctx.beginPath();ctx.moveTo(q.x,q.y+m.th*.55);ctx.lineTo(q.x+w/2,q.y);ctx.lineTo(q.x+w,q.y+m.th*.55);ctx.closePath();ctx.fill();ctx.font=(m.unit*.52)+'px '+FONT;ctx.textAlign='center';ctx.fillStyle=fg;ctx.fillText(b.icon,q.x+w/2,q.y+h*.38);ctx.font='700 '+clamp(m.unit*.2,10,14)+'px sans-serif';ctx.fillText(b.name,q.x+w/2,q.y+h*.68);ctx.restore();}}
 function drawRpgPortals(m,fg,map){for(const t of RPG_PORTALS[map]||[]){const q=worldToScreen(t.x,t.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.save();ctx.shadowColor='rgba(80,170,255,.6)';ctx.shadowBlur=10;ctx.font=(m.unit*.58)+'px '+FONT;ctx.textAlign='center';ctx.fillText(t.icon,cx,cy);ctx.shadowBlur=0;ctx.font='700 '+clamp(m.unit*.18,9,12)+'px sans-serif';ctx.fillStyle=fg;ctx.fillText(t.name,cx,cy+m.th*.58);ctx.restore();}}
 
-function drawSceneRpg(){if(!S.started){S.drawStarted=false;return;}const rc=resizeCanvas();if(rc.w<=1||rc.h<=1)return;const p=S.players[S.uid];if(!p)return;const map=p.map||'town';S.renderMap=map;const md=mapDef(map),m=boardMetrics();const halfX=m.w/(2*m.tw),halfY=m.h/(2*m.th);S.camera.x=clamp(p.x,halfX,md.w-halfX-1);S.camera.y=clamp(p.y,halfY,md.h-halfY-1);const css=getComputedStyle(document.documentElement),c1=css.getPropertyValue('--tile1').trim(),c2=css.getPropertyValue('--tile2').trim(),fg=css.getPropertyValue('--fg').trim(),acc=css.getPropertyValue('--acc').trim(),ok=css.getPropertyValue('--ok').trim(),bad=css.getPropertyValue('--bad').trim();ctx.globalAlpha=1;ctx.fillStyle=css.getPropertyValue('--bg').trim();ctx.fillRect(0,0,m.w,m.h);const sx0=Math.max(0,Math.floor(S.camera.x-m.w/(2*m.tw))-2),sx1=Math.min(md.w-1,Math.ceil(S.camera.x+m.w/(2*m.tw))+2),sy0=Math.max(0,Math.floor(S.camera.y-m.h/(2*m.th))-2),sy1=Math.min(md.h-1,Math.ceil(S.camera.y+m.h/(2*m.th))+2);for(let y=sy0;y<=sy1;y++)for(let x=sx0;x<=sx1;x++){const q=worldToScreen(x,y,m);drawMapTileRpg(map,x,y,q.x,q.y,m,{c1,c2});}if(map==='town')drawTownBuildingsRpg(m,fg);drawRpgPortals(m,fg,map);const portal=nearestRpgPortal(p);if(portal){const q=worldToScreen(portal.x,portal.y,m);ctx.strokeStyle=acc;ctx.lineWidth=2;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}if(S.walkTo){const q=worldToScreen(S.walkTo.x,S.walkTo.y,m);ctx.strokeStyle=acc;ctx.lineWidth=3;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}Object.values(RPG_NPCS).filter(n=>n.map===map).forEach(npc=>{const q=worldToScreen(npc.x,npc.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*.7)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(npc.icon,cx,cy);drawNameplate(npc.role+' · '+npc.name,cx,q.y-2,m.unit,ok);});S.mons.filter(mon=>mon.map===map).forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*(mon.isBoss?.86:.68))+'px '+FONT;ctx.fillText(mon.e,cx,cy);if(mon.isBoss){ctx.font='900 '+Math.max(11,m.unit*.2)+'px sans-serif';ctx.fillStyle='#ffd166';ctx.textAlign='center';ctx.fillText(mon.bossName||'던전 보스',cx,q.y-5);ctx.fillStyle=bad;}bar(q.x+4,q.y+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);});Object.values(S.players).filter(q=>q.map===map).forEach(pl=>{const v=smooth('p'+pl.id,pl.x,pl.y),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,ap=sanitizeAppearance(pl.appearance),j=jobData(pl);if(pl.id===S.uid){ctx.strokeStyle=ap.aura;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.45,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.fillText(pl.emoji,cx,cy);if(ap.hat){ctx.font=(m.unit*.34)+'px '+FONT;ctx.fillText(ap.hat,cx,q.y);};drawNameplate(j.icon+' '+pl.name,cx,q.y-m.th*.05,m.unit,pl.id===S.uid?ap.aura:fg);bar(q.x+4,q.y+m.th-8,Math.max(8,m.tw-8),pl.hp/Math.max(1,maxHp(pl)),ok);});const now=Date.now();S.fx=S.fx.filter(f=>now-f.t0<f.life);S.fx.forEach(f=>{const a=(now-f.t0)/f.life;let x=f.x,y=f.y;if(f.id){const v=S.vis['p'+f.id];if(!v)return;x=v.x;y=v.y;}const q=worldToScreen(x,y,m);ctx.globalAlpha=1-a;ctx.font='700 '+clamp(m.unit*.33,13,22)+'px sans-serif';ctx.fillStyle=f.c;ctx.fillText(f.s,q.x+m.tw/2,q.y+m.th/2-a*m.unit*.8);});ctx.globalAlpha=1;updateZoneHudRpg();if(now-S.minimapLast>220){drawMinimapRpg();S.minimapLast=now;}}
+function drawSceneRpg(){if(!S.started){S.drawStarted=false;return;}const rc=resizeCanvas();if(rc.w<=1||rc.h<=1)return;const p=S.players[S.uid];if(!p)return;const map=p.map||'town';S.renderMap=map;const md=mapDef(map),m=boardMetrics();const halfX=m.w/(2*m.tw),halfY=m.h/(2*m.th);S.camera.x=clamp(p.x,halfX,md.w-halfX-1);S.camera.y=clamp(p.y,halfY,md.h-halfY-1);const css=getComputedStyle(document.documentElement),c1=css.getPropertyValue('--tile1').trim(),c2=css.getPropertyValue('--tile2').trim(),fg=css.getPropertyValue('--fg').trim(),acc=css.getPropertyValue('--acc').trim(),ok=css.getPropertyValue('--ok').trim(),bad=css.getPropertyValue('--bad').trim();ctx.globalAlpha=1;ctx.fillStyle=css.getPropertyValue('--bg').trim();ctx.fillRect(0,0,m.w,m.h);const sx0=Math.max(0,Math.floor(S.camera.x-m.w/(2*m.tw))-2),sx1=Math.min(md.w-1,Math.ceil(S.camera.x+m.w/(2*m.tw))+2),sy0=Math.max(0,Math.floor(S.camera.y-m.h/(2*m.th))-2),sy1=Math.min(md.h-1,Math.ceil(S.camera.y+m.h/(2*m.th))+2);for(let y=sy0;y<=sy1;y++)for(let x=sx0;x<=sx1;x++){const q=worldToScreen(x,y,m);drawMapTileRpg(map,x,y,q.x,q.y,m,{c1,c2});}if(map==='town')drawTownBuildingsRpg(m,fg);drawRpgPortals(m,fg,map);const portal=nearestRpgPortal(p);if(portal){const q=worldToScreen(portal.x,portal.y,m);ctx.strokeStyle=acc;ctx.lineWidth=2;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}if(S.walkTo){const q=worldToScreen(S.walkTo.x,S.walkTo.y,m);ctx.strokeStyle=acc;ctx.lineWidth=3;ctx.strokeRect(q.x+2,q.y+2,m.tw-4,m.th-4);}Object.values(RPG_NPCS).filter(n=>n.map===map).forEach(npc=>{const q=worldToScreen(npc.x,npc.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*.7)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(npc.icon,cx,cy);drawNameplate(npc.role+' · '+npc.name,cx,q.y-2,m.unit,ok);});S.mons.filter(mon=>mon.map===map).forEach(mon=>{const v=smooth('m'+mon.id,mon.x,mon.y),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;ctx.font=(m.unit*(mon.isBoss?(mon.renderScale||1.45):(mon.isElite?.82:.68)))+'px '+FONT;ctx.fillText(mon.e,cx,cy);if(mon.isBoss){ctx.font='900 '+Math.max(11,m.unit*.2)+'px sans-serif';ctx.fillStyle='#ffd166';ctx.textAlign='center';ctx.fillText(mon.bossName||'던전 보스',cx,q.y-5);ctx.fillStyle=bad;}bar(q.x+4,q.y+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);});Object.values(S.players).filter(q=>q.map===map).forEach(pl=>{const v=smooth('p'+pl.id,pl.x,pl.y),q=worldToScreen(v.x,v.y,m),cx=q.x+m.tw/2,cy=q.y+m.th/2,ap=sanitizeAppearance(pl.appearance),j=jobData(pl);if(pl.id===S.uid){ctx.strokeStyle=ap.aura;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,m.unit*.45,0,Math.PI*2);ctx.stroke();}ctx.font=(m.unit*.68)+'px '+FONT;ctx.fillText(pl.emoji,cx,cy);if(ap.hat){ctx.font=(m.unit*.34)+'px '+FONT;ctx.fillText(ap.hat,cx,q.y);};drawNameplate(j.icon+' '+pl.name,cx,q.y-m.th*.05,m.unit,pl.id===S.uid?ap.aura:fg);bar(q.x+4,q.y+m.th-8,Math.max(8,m.tw-8),pl.hp/Math.max(1,maxHp(pl)),ok);});const now=Date.now();S.fx=S.fx.filter(f=>now-f.t0<f.life);S.fx.forEach(f=>{const a=(now-f.t0)/f.life;let x=f.x,y=f.y;if(f.id){const v=S.vis['p'+f.id];if(!v)return;x=v.x;y=v.y;}const q=worldToScreen(x,y,m);ctx.globalAlpha=1-a;ctx.font='700 '+clamp(m.unit*.33,13,22)+'px sans-serif';ctx.fillStyle=f.c;ctx.fillText(f.s,q.x+m.tw/2,q.y+m.th/2-a*m.unit*.8);});ctx.globalAlpha=1;updateZoneHudRpg();if(now-S.minimapLast>220){drawMinimapRpg();S.minimapLast=now;}}
 drawScene=drawSceneRpg;
 function drawMinimapRpg(){const p=S.players[S.uid];if(!p)return;const map=p.map||'town',md=mapDef(map),mc=$('minimap'),mx=mc.getContext('2d'),sx=mc.width/md.w,sy=mc.height/md.h;mx.clearRect(0,0,mc.width,mc.height);for(let y=0;y<md.h;y++)for(let x=0;x<md.w;x++){let col=map==='town'?((x+y)%2?'#a1c18f':'#acc995'):map==='field'?((x+y)%2?'#a8c57d':'#b2ce83'):'#5c4b5e';if(isMapBlocked(map,x,y))col=map==='dungeon'?'#302735':'#58764e';mx.fillStyle=col;mx.fillRect(x*sx,y*sy,Math.ceil(sx),Math.ceil(sy));}if(map==='town'){for(const b of RPG_BUILDINGS.filter(b=>b.map===map)){mx.fillStyle='#c8a77d';mx.fillRect(b.x*sx,b.y*sy,b.w*sx,b.h*sy);}}Object.values(S.players).filter(q=>q.map===map).forEach(q=>{mx.fillStyle=q.id===S.uid?'#ffd54a':'#eaf1ff';mx.fillRect(q.x*sx,q.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));});S.mons.filter(m=>m.map===map).forEach(m=>{mx.fillStyle='#e86a6a';mx.fillRect(m.x*sx,m.y*sy,Math.max(1,sx),Math.max(1,sy));});(RPG_PORTALS[map]||[]).forEach(t=>{mx.fillStyle='#7ed0ff';mx.fillRect(t.x*sx,t.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));});const view=boardMetrics(),hx=Math.min(md.w/2,Math.ceil(view.w/(2*view.tw))),hy=Math.min(md.h/2,Math.ceil(view.h/(2*view.th)));mx.strokeStyle='rgba(255,255,255,.78)';mx.lineWidth=1;mx.strokeRect((p.x-hx)*sx,(p.y-hy)*sy,(hx*2)*sx,(hy*2)*sy);}
 drawMinimap=drawMinimapRpg;
@@ -3155,7 +3155,7 @@ function drawSceneRpgBetter(){
       ctx.globalAlpha=Math.max(0,mm.alpha)*.55;ctx.font='900 '+clamp(m.unit*.52,22,40)+'px sans-serif';ctx.fillText('💥',0,-m.unit*.08);
     }
     ctx.restore();
-    if(mon.isBoss){ctx.font='900 '+Math.max(11,m.unit*.2)+'px sans-serif';ctx.fillStyle='#ffd166';ctx.fillText(mon.bossName||'던전 보스',baseCx,q.y-5);ctx.fillStyle=bad;}
+    if(mon.isBoss){ctx.font='900 '+Math.max(11,m.unit*.2)+'px sans-serif';ctx.fillStyle='#ffd166';ctx.fillText(mon.bossName||'던전 보스',baseCx,q.y-5);ctx.fillStyle=bad;}else if(mon.isElite){ctx.font='900 '+Math.max(10,m.unit*.18)+'px sans-serif';ctx.fillStyle='#8cf0c2';ctx.fillText('✨ '+(mon.eliteName||'정예 몬스터'),baseCx,q.y-5);}
     bar(q.x+4,q.y+2,Math.max(8,m.tw-8),mon.hp/mon.mx,bad);
     if(mon.targetId&&mon.state==='chase'){ctx.fillStyle=bad;ctx.font='700 '+Math.max(10,m.unit*.2)+'px sans-serif';ctx.fillText('!',baseCx,q.y+1);}
   });
@@ -3413,7 +3413,7 @@ window.__rpgOverhaulReady=true;
 
   /* 던전 보스: 잊힌 광산의 고정 보스 */
   MONS['👹']={
-    hp:900,dmg:30,gold:420,xp:650,spd:680,aggro:18,leash:30,range:3,
+    hp:2400,dmg:52,gold:900,xp:1400,spd:650,aggro:20,leash:34,range:4,
     ai:'boss',skillEvery:2,skill:'roar',bossName:'광산 군주 모르그'
   };
   ITEMS.dungeonCore={id:'dungeonCore',name:'광산 심핵',icon:'💎',type:'material',max:99,price:90};
@@ -5622,8 +5622,11 @@ initLobby();
     const e=target.e,defeatedBoss=!!target.isBoss;
     S.mons=S.mons.filter(m=>m.id!==target.id);
     const monDef=MONS[e]||{};
-    p.gold+=Number(monDef.gold)||0;
-    awardXpRpg(p,Number(monDef.xp)||0);
+    const eliteMul=target&&target.isElite?1.7:1;
+    const rewardGold=Math.max(0,Math.floor((Number(monDef.gold)||0)*eliteMul));
+    const rewardXp=Math.max(0,Math.floor((Number(monDef.xp)||0)*eliteMul));
+    p.gold+=rewardGold;
+    awardXpRpg(p,rewardXp);
     addMonsterReward(p,e);
     if(defeatedBoss){
       S.rpgBossRespawns=S.rpgBossRespawns||{};
@@ -5632,8 +5635,8 @@ initLobby();
       broadcastEvent({k:'log',s:'🏆 '+(target.bossName||'던전 보스')+'를 쓰러뜨렸습니다!'});
     }
     const allies=partyMembersNearby(p).filter(q=>q.id!==p.id);
-    allies.forEach(q=>awardXpRpg(q,Math.max(1,Math.floor((monDef.xp||0)*.5))));
-    broadcastEvent({k:'log',s:'⚔️ '+p.name+' 님이 '+e+' 처치! +'+(monDef.xp||0)+' XP'});
+    allies.forEach(q=>awardXpRpg(q,Math.max(1,Math.floor(rewardXp*.5))));
+    broadcastEvent({k:'log',s:'⚔️ '+p.name+' 님이 '+(target.isElite?'✨ 정예 ':'')+e+' 처치! +'+rewardXp+' XP'+(target.isElite?' · 💰 +'+rewardGold:'')});
   }
 
   function useSkillHostV29(uid,skillId){
@@ -9054,8 +9057,6 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   try{ensureUi();}catch(_){ }
 })();
 </script>
-
-<script src="./rpg-updater.js"></script>
 
 </body>
 
@@ -13673,4 +13674,271 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
+
+\n\n<!-- RPG v95: town entrances + live market refresh + elite monsters + boss enhancement -->
+<style id="rpgV95Style">
+  .rpgV95ElitePulse{animation:rpgV95ElitePulse 1.2s ease-in-out infinite}
+  @keyframes rpgV95ElitePulse{0%,100%{opacity:.72}50%{opacity:1}}
+</style>
+<script id="rpgV95Patch">
+(function installRpgV95(){
+  'use strict';
+  if(window.__RPG_V95_PATCH__)return;
+  window.__RPG_V95_PATCH__=true;
+  if(typeof RPG_MAPS==='undefined'||typeof RPG_BUILDINGS==='undefined'||typeof RPG_NPCS==='undefined'||typeof S==='undefined')return;
+
+  /* =========================================================
+     1) 시장/결투장은 '지역 워프'가 아니라 마을 건물로 출입
+     ========================================================= */
+  const BLOCKED_TELEPORT_INTERIORS=new Set(['market','arena']);
+
+  /* 기존 시장 건물은 그대로 사용하고, 시장 맵을 그 건물의 실내로 취급 */
+  if(RPG_MAPS.market){
+    Object.assign(RPG_MAPS.market,{
+      kind:'interior',
+      buildingId:'market',
+      safe:true,
+      name:'달빛시장',
+      meta:'공개 장터 · 시장 관리인 유리 / 상인 루루'
+    });
+  }
+
+  /* 결투장도 마을의 실제 건물로 만든다. */
+  if(!RPG_BUILDINGS.some(b=>b&&b.id==='arena'&&b.map==='town')){
+    RPG_BUILDINGS.push({
+      id:'arena',map:'town',x:71,y:49,w:13,h:9,
+      icon:'⚔️',name:'루미나 결투장',
+      wall:'#d9d1c5',roof:'#6b596d',
+      interior:'arena',sign:'루미나 결투장'
+    });
+  }else{
+    const arenaBuilding=RPG_BUILDINGS.find(b=>b.id==='arena'&&b.map==='town');
+    Object.assign(arenaBuilding,{x:71,y:49,w:13,h:9,icon:'⚔️',name:'루미나 결투장',wall:'#d9d1c5',roof:'#6b596d',interior:'arena',sign:'루미나 결투장'});
+  }
+  const arenaBuilding=RPG_BUILDINGS.find(b=>b.id==='arena'&&b.map==='town');
+  if(arenaBuilding)arenaBuilding.door={x:arenaBuilding.x+Math.floor(arenaBuilding.w/2),y:arenaBuilding.y+arenaBuilding.h-1};
+
+  /* 결투장 맵은 건물 내부처럼 동작한다. */
+  if(RPG_MAPS.arena){
+    Object.assign(RPG_MAPS.arena,{
+      kind:'interior',buildingId:'arena',safe:false,
+      name:'루미나 결투장',
+      meta:'관중석 + 중앙 결투 구역 · 접수원 카이에게 참가 신청',
+      spawn:{x:5,y:15}
+    });
+  }
+
+  /* 건물 출입 시스템이 사용할 내부 정의를 보장한다. */
+  if(typeof buildingInteriorDefs!=='undefined'){
+    buildingInteriorDefs.market=Object.assign(buildingInteriorDefs.market||{}, {
+      interior:'market',returnX:47,returnY:19,
+      exit:{x:4,y:24},
+      title:'달빛시장 · 공개 장터'
+    });
+    buildingInteriorDefs.arena=Object.assign(buildingInteriorDefs.arena||{}, {
+      interior:'arena',returnX:77,returnY:58,
+      exit:{x:5,y:27},
+      decor:[
+        {x:2,y:3,icon:'🪑',w:5,h:2},
+        {x:9,y:3,icon:'🪑',w:5,h:2},
+        {x:27,y:3,icon:'🪑',w:5,h:2},
+        {x:34,y:3,icon:'🪑',w:5,h:2},
+        {x:3,y:25,icon:'🏆',w:3,h:2}
+      ],
+      title:'관중석과 중앙 경기장이 있는 공식 결투장'
+    });
+  }
+
+  /* 시장/결투장 관련 포탈 제거: 들어가는 건 문, 나오는 것도 문 */
+  for(const t of (RPG_PORTALS.town||[])){
+    if(Array.isArray(t.dest))t.dest=t.dest.filter(id=>!BLOCKED_TELEPORT_INTERIORS.has(id));
+  }
+  RPG_PORTALS.market=[];
+  RPG_PORTALS.arena=[];
+
+  /* 불안정한 워프석에서도 두 실내 지역은 선택 대상에서 제외 */
+  const baseGlobalHostRecv=globalThis.hostRecv;
+  if(typeof baseGlobalHostRecv==='function'){
+    globalThis.hostRecv=function(c,m){
+      if(m&&m.t==='use_unstable_warp'&&BLOCKED_TELEPORT_INTERIORS.has(String(m.dest||''))){
+        if(c&&c.uid)sendTo(c.uid,{t:'market_notice',s:'🚪 시장과 결투장은 마을의 건물 입구에서 들어가야 해.'});
+        return;
+      }
+      return baseGlobalHostRecv.apply(this,arguments);
+    };
+    try{hostRecv=globalThis.hostRecv;}catch(_e){}
+  }
+  const baseRequestTeleport=globalThis.requestTeleportRpg;
+  if(typeof baseRequestTeleport==='function'){
+    globalThis.requestTeleportRpg=function(dest){
+      if(BLOCKED_TELEPORT_INTERIORS.has(String(dest||''))){
+        log('🚪 시장과 결투장은 마을 건물의 문으로 들어가 줘.');
+        return;
+      }
+      return baseRequestTeleport.apply(this,arguments);
+    };
+    try{requestTeleportRpg=globalThis.requestTeleportRpg;}catch(_e){}
+  }
+
+  /* =========================================================
+     2) 건물 입구/실내 출구에 🚪 표시
+     ========================================================= */
+  const oldTownRenderer=globalThis.drawTownBuildingsRpgBetter;
+  if(typeof oldTownRenderer==='function'){
+    globalThis.drawTownBuildingsRpgBetter=function(m,fg){
+      oldTownRenderer.apply(this,arguments);
+      try{
+        ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+        for(const b of RPG_BUILDINGS.filter(x=>x&&x.map==='town'&&x.interior&&x.door)){
+          const d=b.door,q=worldToScreen(d.x,d.y,m);
+          ctx.font=Math.max(16,m.unit*.40)+'px '+FONT;
+          ctx.fillText('🚪',q.x+m.tw*.5,q.y+m.th*.55);
+        }
+        ctx.restore();
+      }catch(_e){}
+    };
+    try{drawTownBuildingsRpgBetter=globalThis.drawTownBuildingsRpgBetter;}catch(_e){}
+  }
+
+  /* 실내 출구에도 🚪을 그린다. */
+  const oldScene=globalThis.drawScene;
+  if(typeof oldScene==='function'){
+    globalThis.drawScene=function(){
+      oldScene.apply(this,arguments);
+      try{
+        const p=S.players&&S.players[S.uid];
+        if(!p)return;
+        const d=typeof interiorDefByMap==='function'?interiorDefByMap(p.map):null;
+        if(!d||!d.exit)return;
+        const m=boardMetrics(),q=worldToScreen(d.exit.x,d.exit.y,m);
+        ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font=Math.max(16,m.unit*.44)+'px '+FONT;
+        ctx.fillText('🚪',q.x+m.tw*.5,q.y+m.th*.55);
+        ctx.restore();
+      }catch(_e){}
+    };
+    try{drawSceneRpg=globalThis.drawScene; }catch(_e){}
+  }
+
+  /* =========================================================
+     3) 시장 게시물 실시간 갱신
+     ========================================================= */
+  function marketPanelOpen(){
+    const panel=$('overlayPanel'),title=$('panelTitle'),p=S.players&&S.players[S.uid];
+    return !!(panel&&panel.classList.contains('open')&&title&&title.textContent.includes('시장')&&p&&p.map==='market');
+  }
+  function marketSig(){
+    return Object.values(S.marketListings||{}).map(x=>[x.id,x.item,x.count,x.price,x.seller,x.ts].join(':')).sort().join('|');
+  }
+  const oldRenderMarket=globalThis.renderMarketPanel;
+  if(typeof oldRenderMarket==='function'){
+    globalThis.renderMarketPanel=function(){
+      const out=oldRenderMarket.apply(this,arguments);
+      S.__rpgV95MarketSig=marketSig();
+      if(S.__rpgV95MarketTimer)clearInterval(S.__rpgV95MarketTimer);
+      S.__rpgV95MarketTimer=setInterval(()=>{
+        try{
+          if(!marketPanelOpen()){clearInterval(S.__rpgV95MarketTimer);S.__rpgV95MarketTimer=null;return;}
+          const next=marketSig();
+          if(next!==S.__rpgV95MarketSig){
+            S.__rpgV95MarketSig=next;
+            oldRenderMarket();
+          }
+        }catch(_e){}
+      },500);
+      return out;
+    };
+    try{renderMarketPanel=globalThis.renderMarketPanel;}catch(_e){}
+  }
+  const oldClosePanel=globalThis.closePanel;
+  if(typeof oldClosePanel==='function'){
+    globalThis.closePanel=function(){
+      if(S.__rpgV95MarketTimer){clearInterval(S.__rpgV95MarketTimer);S.__rpgV95MarketTimer=null;}
+      return oldClosePanel.apply(this,arguments);
+    };
+    try{closePanel=globalThis.closePanel;}catch(_e){}
+  }
+
+  /* snap이 왔을 때 열린 시장창을 즉시 다시 그린다. */
+  const oldClientData=globalThis.onClientData;
+  if(typeof oldClientData==='function'){
+    globalThis.onClientData=function(m){
+      const out=oldClientData.apply(this,arguments);
+      try{
+        if(m&&m.t==='snap'&&m.market&&marketPanelOpen()){
+          S.__rpgV95MarketSig='';
+          setTimeout(()=>{if(marketPanelOpen()&&typeof globalThis.renderMarketPanel==='function')globalThis.renderMarketPanel();},0);
+        }
+      }catch(_e){}
+      return out;
+    };
+    try{onClientData=globalThis.onClientData;}catch(_e){}
+  }
+
+  /* =========================================================
+     4) 사냥터 정예 몬스터
+     ========================================================= */
+  const oldSpawn=globalThis.spawnMon;
+  if(typeof oldSpawn==='function'){
+    globalThis.spawnMon=function(){
+      const before=new Set((S.mons||[]).map(m=>m.id));
+      const out=oldSpawn.apply(this,arguments);
+      if(!out||!S.isHost)return out;
+      const fresh=(S.mons||[]).find(m=>!before.has(m.id));
+      if(!fresh||fresh.isBoss)return out;
+      const chance=fresh.map==='field'?.12:fresh.map==='forest'?.10:fresh.map==='canyon'?.08:0;
+      if(chance>0&&Math.random()<chance){
+        fresh.isElite=true;
+        fresh.eliteName='정예 '+({ '🦠':'슬라임','👺':'도깨비','🐉':'드레이크','🐺':'늑대','🦇':'박쥐','🪨':'바위거인' }[fresh.e]||'몬스터');
+        fresh.renderScale=1.08;
+        fresh.hp=Math.max(1,Math.floor(fresh.hp*2.35));
+        fresh.mx=fresh.hp;
+        fresh.eliteDamageMult=1.45;
+        fresh.eliteGoldMult=1.7;
+        fresh.eliteXpMult=1.7;
+        broadcastEvent({k:'log',s:'✨ '+fresh.eliteName+'가 '+mapDef(fresh.map).name+'에 나타났습니다!'});
+      }
+      return out;
+    };
+    try{spawnMon=globalThis.spawnMon;}catch(_e){}
+  }
+
+  /* 정예 기본 공격은 더 아프게 */
+  const oldMonsterBasic=globalThis.monsterBasicAttack;
+  if(typeof oldMonsterBasic==='function'){
+    globalThis.monsterBasicAttack=function(mon,target,now,mult=1){
+      const eliteMult=mon&&mon.isElite?Number(mon.eliteDamageMult||1.45):1;
+      return oldMonsterBasic.call(this,mon,target,now,mult*eliteMult);
+    };
+    try{monsterBasicAttack=globalThis.monsterBasicAttack;}catch(_e){}
+  }
+
+  /* 정예도 클라이언트에 이름/HP가 보이도록 이벤트 */
+  const oldSnapshot=globalThis.snapshot;
+  if(typeof oldSnapshot==='function'){
+    globalThis.snapshot=function(){return oldSnapshot.apply(this,arguments);};
+  }
+
+  /* =========================================================
+     5) 던전 보스 강화
+     ========================================================= */
+  const boss=MONS['👹'];
+  if(boss){
+    Object.assign(boss,{hp:2400,dmg:52,gold:900,xp:1400,spd:650,aggro:20,leash:34,range:4,skillEvery:2,skill:'roar',bossName:'광산 군주 모르그'});
+  }
+  /* 기존에 이미 생성된 보스도 강화된 최대 HP로 정규화 */
+  if(Array.isArray(S.mons)){
+    for(const mon of S.mons){
+      if(mon&&mon.isBoss&&mon.e==='👹'&&Number(mon.mx||0)<2400){
+        const ratio=Number(mon.mx||2400)>0?Number(mon.hp||0)/Number(mon.mx||2400):1;
+        mon.mx=2400;mon.hp=Math.max(1,Math.floor(2400*Math.max(0.05,Math.min(1,ratio))));mon.renderScale=1.55;
+      }
+    }
+  }
+
+  window.__rpgV95Ready=true;
+})();
+</script>\n
+
+<script src="./rpg-updater.js"></script>
 </html>
