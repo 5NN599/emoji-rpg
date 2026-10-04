@@ -11260,65 +11260,99 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   globalThis.effectiveDefRpg=effectiveDefRpg;
 
   /* ---------------------------------------------------------
-     3) 배경음악: 외부 파일 없이 Web Audio로 실제 멜로디 생성
+     3) BGM v80: 맵별 오리지널 4마디 게임 음악
+     - 멜로디 + 코드 패드 + 베이스 + 아르페지오 + 드럼
+     - 외부 오디오 파일 없이 Web Audio로 합성
      --------------------------------------------------------- */
-  let BGM=null;
-  let bgmTimer=null;
-  let bgmNext=0;
-  let bgmStep=0;
-  let bgmOn=false;
-  const BGM_TRACKS={
-    town:{bpm:92,notes:[261.63,329.63,392,523.25,392,329.63,293.66,349.23,440,587.33,440,349.23,261.63,329.63,392,523.25],bass:[130.81,130.81,146.83,146.83]},
-    field:{bpm:108,notes:[293.66,349.23,440,523.25,587.33,523.25,440,349.23,329.63,392,493.88,587.33,659.25,587.33,493.88,392],bass:[146.83,164.81,174.61,196]},
-    dungeon:{bpm:78,notes:[220,261.63,293.66,349.23,329.63,293.66,261.63,220,196,233.08,261.63,311.13,293.66,261.63,233.08,196],bass:[110,116.54,130.81,98]},
-    interior:{bpm:84,notes:[329.63,392,440,523.25,493.88,440,392,329.63,293.66,349.23,392,466.16,440,392,349.23,293.66],bass:[164.81,196,146.83,174.61]}
+  const BGM80_KEY='emoji-rpg-bgm-v52';
+  let BGM80=null, bgmTimer80=null, bgmOn80=false, bgmUserPref80=false, bgmNext80=0, bgmStep80=0, bgmTrack80='town';
+  const NOTE80={C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
+  const midiHz80=m=>440*Math.pow(2,(m-69)/12);
+  const scale80={major:[0,2,4,5,7,9,11,12],minor:[0,2,3,5,7,8,10,12],dorian:[0,2,3,5,7,9,10,12]};
+  const BGM_TRACKS80={
+    town:{bpm:96,root:60,scale:'major',chords:[0,4,5,3],motif:[[0,2,4,2,-1,4,5,4,2,-1,0,2,4,5,4,2],[0,2,4,5,7,5,4,2,0,2,4,2,0,-1,5,4]],color:'warm'},
+    field:{bpm:112,root:67,scale:'major',chords:[0,3,4,5],motif:[[4,5,7,9,7,5,4,2,4,5,7,9,11,9,7,5],[4,5,7,9,11,9,7,5,4,2,4,5,7,5,4,2]],color:'bright'},
+    forest:{bpm:100,root:62,scale:'dorian',chords:[0,3,4,2],motif:[[0,2,3,5,7,5,3,2,0,2,5,7,8,7,5,3],[0,2,3,5,7,9,7,5,3,2,0,2,5,7,5,3]],color:'airy'},
+    canyon:{bpm:106,root:64,scale:'minor',chords:[0,5,2,6],motif:[[0,2,3,5,7,5,3,2,0,2,5,7,10,8,7,5],[0,2,3,5,7,8,10,8,7,5,3,2,0,2,3,5]],color:'red'},
+    dungeon:{bpm:82,root:50,scale:'minor',chords:[0,5,2,6],motif:[[0,-1,2,3,2,-1,5,3,0,-1,2,5,7,5,3,-1],[0,2,3,5,7,5,3,2,0,2,5,7,8,7,5,3]],color:'dark'},
+    catacombs:{bpm:72,root:48,scale:'minor',chords:[0,5,3,6],motif:[[0,-1,-1,3,5,-1,3,2,0,-1,5,7,5,3,2,-1],[0,2,3,5,7,8,7,5,3,2,0,2,5,3,2,-1]],color:'ghost'},
+    abyss:{bpm:68,root:54,scale:'minor',chords:[0,5,3,6],motif:[[0,2,-1,3,7,5,3,-1,0,2,3,5,10,8,7,-1],[0,2,3,5,7,8,10,8,7,5,3,2,0,2,3,-1]],color:'void'},
+    musicHall:{bpm:88,root:69,scale:'major',chords:[0,3,4,0],motif:[[7,9,11,9,7,5,4,5,7,9,12,11,9,7,5,4],[7,9,11,12,11,9,7,5,4,5,7,9,11,9,7,5]],color:'stage'},
+    bakery:{bpm:92,root:67,scale:'major',chords:[0,4,3,5],motif:[[0,2,4,5,4,2,0,2,4,5,7,5,4,2,0,2],[0,2,4,5,7,5,4,2,0,2,4,5,4,2,0,-1]],color:'cozy'},
+    flowerShop:{bpm:84,root:65,scale:'major',chords:[0,5,3,4],motif:[[4,5,7,9,7,5,4,2,4,5,7,9,11,9,7,5],[4,5,7,9,11,9,7,5,4,2,0,2,4,5,7,4]],color:'soft'},
+    guestHouse:{bpm:76,root:60,scale:'major',chords:[0,5,3,4],motif:[[0,-1,4,5,7,5,4,-1,0,2,4,5,7,5,4,-1],[0,2,4,5,7,9,7,5,4,2,0,2,4,5,7,-1]],color:'calm'},
+    farmBarn:{bpm:90,root:62,scale:'major',chords:[0,3,4,0],motif:[[0,2,4,5,4,2,0,-1,4,5,7,5,4,2,0,-1],[0,2,4,5,7,5,4,2,0,2,4,5,4,2,0,-1]],color:'folk'},
+    interior:{bpm:80,root:60,scale:'major',chords:[0,5,3,4],motif:[[0,2,4,5,7,5,4,2,0,-1,2,4,5,7,5,4],[0,2,4,5,7,9,7,5,4,2,0,2,4,5,7,-1]],color:'indoor'}
   };
-  const currentTrack=()=>{try{const md=mapDef((S.players[S.uid]||{}).map||'town');return md&&md.kind==='interior'?'interior':((S.players[S.uid]||{}).map||'town') in BGM_TRACKS?((S.players[S.uid]||{}).map||'town'):'town';}catch(_){return 'town';}};
-  function ensureBgmAudio(){if(BGM)return BGM;try{BGM=new (window.AudioContext||window.webkitAudioContext)();}catch(_){return null;}return BGM;}
-  function scheduleBgm(){
-    if(!bgmOn)return;
-    const ac=ensureBgmAudio();if(!ac)return;
-    if(ac.state==='suspended')ac.resume().catch(()=>{});
-    const tr=BGM_TRACKS[currentTrack()];
-    const beat=60/tr.bpm;
-    while(bgmNext<ac.currentTime+.7){
-      const i=bgmStep%tr.notes.length,n=tr.notes[i],t=bgmNext;
-      const osc=ac.createOscillator(),g=ac.createGain();osc.type='triangle';osc.frequency.setValueAtTime(n,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.032,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+beat*.8);osc.connect(g);g.connect(ac.destination);osc.start(t);osc.stop(t+beat*.82);
-      if(i%4===0){const b=ac.createOscillator(),bg=ac.createGain(),bn=tr.bass[(i/4)%tr.bass.length];b.type='sine';b.frequency.setValueAtTime(bn,t);bg.gain.setValueAtTime(.0001,t);bg.gain.exponentialRampToValueAtTime(.045,t+.02);bg.gain.exponentialRampToValueAtTime(.0001,t+beat*1.5);b.connect(bg);bg.connect(ac.destination);b.start(t);b.stop(t+beat*1.55);}
-      bgmNext+=beat;bgmStep++;
+  function mapTrack80(){
+    try{
+      const id=String((S.players[S.uid]||{}).map||'town');
+      return BGM_TRACKS80[id]?id:(mapDef(id)?.kind==='interior'?'interior':'town');
+    }catch(_){return 'town';}
+  }
+  function ensureBgm80(){
+    if(BGM80)return BGM80;
+    try{
+      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      const master=ctx.createGain(),delay=ctx.createDelay(1.0),fb=ctx.createGain(),wet=ctx.createGain(),comp=ctx.createDynamicsCompressor();
+      master.gain.value=.42; wet.gain.value=.10; fb.gain.value=.20; delay.delayTime.value=.22;
+      master.connect(comp); comp.connect(ctx.destination); master.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(ctx.destination);
+      const noise=ctx.createBuffer(1,Math.floor(ctx.sampleRate*.4),ctx.sampleRate),data=noise.getChannelData(0);
+      for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,1.8);
+      BGM80={ctx,master,delay,noise};
+      return BGM80;
+    }catch(_){return null;}
+  }
+  function env80(ctx,t,d,peak=0.10){
+    const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d);return g;
+  }
+  function osc80(ac,when,dur,freq,type,vol,detune=0){
+    const o=ac.createOscillator(),g=env80(ac,when,dur,vol);o.type=type;o.frequency.setValueAtTime(freq,when);if(detune)o.detune.value=detune;o.connect(g);g.connect(BGM80.master);o.start(when);o.stop(when+dur+.04);
+  }
+  function pad80(ac,when,dur,notes){
+    notes.forEach((f,i)=>osc80(ac,when,dur,f,i%2?'sine':'triangle',i===0?.026:.020));
+  }
+  function kick80(ac,when){
+    osc80(ac,when,.16,120,'sine',.12,0);osc80(ac,when,.11,64,'sine',.08,0);
+  }
+  function hat80(ac,when,vol=.024){const src=ac.createBufferSource(),g=env80(ac,when,.05,vol),filter=ac.createBiquadFilter();src.buffer=BGM80.noise;filter.type='highpass';filter.frequency.value=4200;src.connect(filter);filter.connect(g);g.connect(BGM80.master);src.start(when);src.stop(when+.06);}
+  function snare80(ac,when){hat80(ac,when,.045);osc80(ac,when,.08,190,'triangle',.026);}
+  function scheduleBgm80(){
+    if(!bgmOn80||!BGM80)return;
+    const ac=BGM80.ctx;if(ac.state==='suspended')ac.resume().catch(()=>{});
+    const tr=BGM_TRACKS80[bgmTrack80]||BGM_TRACKS80.town,stepDur=60/tr.bpm/4;
+    const sc=scale80[tr.scale]||scale80.major;
+    while(bgmNext80<ac.currentTime+1.0){
+      const step=bgmStep80%16,bar=Math.floor((bgmStep80/16)%tr.chords.length),degree=tr.chords[bar],rootMidi=tr.root+sc[Math.min(degree,sc.length-2)],when=bgmNext80;
+      const third=rootMidi+sc[2]-sc[0],fifth=rootMidi+sc[4]-sc[0],seventh=rootMidi+sc[6]-sc[0];
+      if(step===0||step===8)kick80(ac,when);
+      if(step===4||step===12)snare80(ac,when);
+      if(step%2===0)hat80(ac,when,.020);
+      if(step===0)pad80(ac,when,stepDur*3.7,[midiHz80(rootMidi+12),midiHz80(third+12),midiHz80(fifth+12),midiHz80(seventh+12)]);
+      if(step===0||step===8)osc80(ac,when,stepDur*1.8,midiHz80(rootMidi-12),'sine',.050);
+      if(step%2===0){const arp=[rootMidi+12,third+12,fifth+12,third+12][(step/2)%4];osc80(ac,when,stepDur*.82,midiHz80(arp),'triangle',.040);}
+      const motif=tr.motif[bar%tr.motif.length]||[];const md=motif[step];
+      if(md!==-1&&md!=null){const idx=Math.max(0,Math.min(sc.length-1,md));const oct=md>=sc.length-1?12:0;osc80(ac,when,stepDur*.88,midiHz80(tr.root+sc[idx]+12+oct),'triangle',.055);if(step===0||step===8)osc80(ac,when,stepDur*.65,midiHz80(tr.root+sc[idx]+24+oct),'sine',.022);}
+      bgmNext80+=stepDur;bgmStep80++;
     }
   }
-  function setBgm(on){
-    bgmOn=!!on;
-    if(bgmOn){const ac=ensureBgmAudio();if(ac&&ac.state==='suspended')ac.resume().catch(()=>{});bgmNext=(ac?ac.currentTime:0)+.05;bgmStep=0;if(!bgmTimer)bgmTimer=setInterval(scheduleBgm,220);scheduleBgm();}
-    else{if(bgmTimer){clearInterval(bgmTimer);bgmTimer=null;} }
-    try{localStorage.setItem(BGM_KEY,bgmOn?'1':'0');}catch(_){}
-    const b=document.getElementById('rpgBgmToggleV52');if(b){b.textContent=bgmOn?'🎵 음악 켜짐':'🔇 음악 꺼짐';b.classList.toggle('on',bgmOn);}
+  function stopBgm80(){if(bgmTimer80){clearInterval(bgmTimer80);bgmTimer80=null;}if(BGM80&&BGM80.ctx&&BGM80.ctx.state!=='closed'){try{BGM80.master.gain.cancelScheduledValues(BGM80.ctx.currentTime);BGM80.master.gain.setTargetAtTime(.0001,BGM80.ctx.currentTime,.03);}catch(_){}}}
+  function startBgm80(){const b=ensureBgm80();if(!b)return;BGM80.master.gain.setTargetAtTime(.42,b.ctx.currentTime,.03);if(b.ctx.state==='suspended')b.ctx.resume().catch(()=>{});bgmTrack80=mapTrack80();bgmNext80=b.ctx.currentTime+.06;bgmStep80=0;if(!bgmTimer80)bgmTimer80=setInterval(scheduleBgm80,180);scheduleBgm80();}
+  function setBgm80(on,internalSwitch=false){bgmOn80=!!on;if(!internalSwitch)bgmUserPref80=true;if(bgmOn80)startBgm80();else stopBgm80();try{localStorage.setItem(BGM80_KEY,bgmOn80?'1':'0');}catch(_){};const b=document.getElementById('rpgBgmToggleV52');if(b){b.textContent=bgmOn80?'🎵 음악 켜짐':'🔇 음악 꺼짐';b.classList.toggle('on',bgmOn80);}}
+  function ensureBgmUi80(){
+    const st=document.getElementById('stage');if(!st)return;
+    let wrap=document.getElementById('rpgMusicV52');if(!wrap){wrap=document.createElement('div');wrap.id='rpgMusicV52';wrap.innerHTML='<button id="rpgBgmToggleV52" type="button">🔇 음악 꺼짐</button>';st.appendChild(wrap);}
+    const btn=document.getElementById('rpgBgmToggleV52');if(btn)btn.onclick=()=>setBgm80(!bgmOn80);
   }
-  function ensureBgmUi(){
-    const st=document.getElementById('stage');if(!st||document.getElementById('rpgMusicV52'))return;
-    const wrap=document.createElement('div');wrap.id='rpgMusicV52';wrap.innerHTML='<button id="rpgBgmToggleV52" type="button">🔇 음악 꺼짐</button>';st.appendChild(wrap);
-    document.getElementById('rpgBgmToggleV52').onclick=()=>setBgm(!bgmOn);
-  }
-  ensureBgmUi();
-  let savedBgm=false;try{savedBgm=localStorage.getItem(BGM_KEY)==='1';}catch(_){}
-  const wakeAudio=()=>{if(S.started&&!bgmOn)setBgm(true);};
-  window.addEventListener('pointerdown',wakeAudio,{passive:true});
-  window.addEventListener('keydown',wakeAudio,{passive:true});
-  if(savedBgm){setTimeout(()=>{ensureBgmUi();},50);}
-
-  /* 현재 맵이 바뀐 순간 음악도 자연스럽게 새 테마로 전환 */
-  let lastBgmTrack=currentTrack();
-  setInterval(()=>{try{if(!bgmOn||!S.started)return;const t=currentTrack();if(t!==lastBgmTrack){lastBgmTrack=t;bgmNext=(BGM?BGM.currentTime:0)+.04;bgmStep=0;}}catch(_){ }},700);
-
-  /* 기존 이벤트 시스템과 호환되는 장비/인벤토리 UI 사운드 */
-  const _onClientV52=onClientData;
-  onClientData=function(m){
-    if(m&&m.t==='npc_result'){try{log(String(m.s||''));playSound(/버려|가방이 가득|없어/.test(String(m.s||''))?'error':'equip');}catch(_){}}
-    _onClientV52(m);
-  };
-  globalThis.onClientData=onClientData;
-
+  ensureBgmUi80();
+  try{const saved80=localStorage.getItem(BGM80_KEY);bgmUserPref80=saved80!==null;bgmOn80=saved80==='1';}catch(_){bgmOn80=false;bgmUserPref80=false;}
+  const wake80=()=>{if(S.started&&!bgmOn80&&!bgmUserPref80)setBgm80(true);};
+  window.addEventListener('pointerdown',wake80,{passive:true,capture:true});
+  window.addEventListener('keydown',wake80,{passive:true,capture:true});
+  let lastBgm80='';
+  setInterval(()=>{try{if(!S.started||!bgmOn80)return;const t=mapTrack80();if(t!==lastBgm80){lastBgm80=t;bgmTrack80=t;bgmStep80=0;bgmNext80=(BGM80?BGM80.ctx.currentTime:0)+.10;}}catch(_){ }},250);
+  globalThis.setBgm80=setBgm80;
+  globalThis.__rpgBgm80={tracks:BGM_TRACKS80,getTrack:mapTrack80};
   /* 현재 접속자 데이터 정규화 */
   Object.values(S.players||{}).forEach(p=>{try{normalizePlayer(p);}catch(_){}});
   try{updateHud();}catch(_){}
@@ -13110,5 +13144,226 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
+
+
+<!-- RPG v80: 최종 모바일/음악/거래 UX -->
+<style id="rpg-v80-final-style">
+  /* 미니맵 확대 + 패널/전투 조작 겹침 방지 */
+  #minimapWrap{width:220px!important;top:64px!important;right:14px!important;z-index:6;}
+  #stage.rpg-panel-open-80 #pad,
+  #stage.rpg-panel-open-80 #rpgTouchAction,
+  #stage.rpg-panel-open-80 #skillBarV29{visibility:hidden!important;pointer-events:none!important;}
+  #stage.rpg-menu-open-80 #rpgTouchAction{visibility:hidden!important;pointer-events:none!important;}
+
+  /* PC: 모바일 전용 요소는 절대 보이지 않게 하고 기존 아이콘 메뉴를 그대로 사용 */
+  #rpgMobileMenuToggle{display:none!important;}
+  #stage:not(.rpg-phone-device) #rpgTouchAction{display:none!important;}
+  #stage:not(.rpg-phone-device) #rpgMobileMenuToggle{display:none!important;}
+  #stage:not(.rpg-phone-device) #menu{display:flex!important;position:absolute;}
+  #stage:not(.rpg-phone-device) #menu.rpg-mobile-open{display:flex!important;}
+  #stage:not(.rpg-phone-device) #rpgMusicV52{position:absolute!important;right:14px!important;bottom:14px!important;display:flex!important;width:auto!important;margin:0!important;}
+  #stage:not(.rpg-phone-device) #rpgMusicV52 button{width:auto!important;min-height:34px!important;text-align:center!important;}
+
+  /* 스마트폰/작은 터치 태블릿만 모바일 UI */
+  #stage.rpg-phone-device #menu{display:none!important;}
+  #stage.rpg-phone-device #menu.rpg-mobile-open{display:flex!important;}
+  #stage.rpg-phone-device #rpgMobileMenuToggle{display:block!important;}
+  #stage.rpg-phone-device #rpgMusicV52{position:static!important;width:100%!important;margin:0!important;display:block!important;}
+  #stage.rpg-phone-device #rpgMusicV52 button{width:100%!important;min-height:44px!important;text-align:left!important;}
+
+  /* 모바일 메뉴의 아이콘-only 버튼도 실제 기능 이름을 보여준다. */
+  #stage.rpg-phone-device #menu .iconBtn{display:block!important;min-width:0!important;}
+
+  /* 실제로 아무 역할도 하지 않는 예전 NPC 메뉴 버튼은 제거 */
+  #btnNpc{display:none!important;}
+
+  /* 세로 스마트폰: 가로 전환 안내 */
+  #rpgLandscapeGate80{position:absolute;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,14,24,.74);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+  #rpgLandscapeGate80.show{display:flex;}
+  #rpgLandscapeGate80 .gateCard{width:min(420px,calc(100vw - 30px));padding:22px;border-radius:22px;background:var(--card);color:var(--fg);border:1px solid var(--line);box-shadow:0 20px 70px rgba(0,0,0,.35);text-align:center;}
+  #rpgLandscapeGate80 .gateIcon{font-size:48px;margin-bottom:8px;}
+  #rpgLandscapeGate80 h2{margin:0 0 8px;font-size:21px;}
+  #rpgLandscapeGate80 p{margin:0;color:var(--sub);line-height:1.55;font-size:13px;}
+  #rpgLandscapeGate80 .gateActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;}
+  #rpgLandscapeGate80 button{min-height:46px;border-radius:12px;font-weight:900;}
+
+  /* 세로/가로 터치 레이아웃 */
+  @media (pointer:coarse) and (max-width:900px){
+    #minimapWrap{width:170px!important;right:8px!important;top:92px!important;}
+    #minimapLegend{display:none!important;}
+    #overlayPanel{z-index:30!important;}
+  }
+  @media (pointer:coarse) and (orientation:landscape) and (max-width:900px){
+    #minimapWrap{width:160px!important;top:58px!important;right:8px!important;}
+    #zoneHud{top:58px!important;max-width:260px!important;}
+    #rpgMobileMenuToggle{top:max(5px,env(safe-area-inset-top))!important;}
+    #rpgTouchAction{bottom:calc(max(12px,env(safe-area-inset-bottom) + 10px) + 88px)!important;}
+    #overlayPanel{top:56px!important;max-height:calc(100dvh - 64px)!important;}
+  }
+  @media (pointer:coarse) and (orientation:portrait) and (max-width:900px){
+    #minimapWrap{width:160px!important;top:96px!important;}
+    #zoneHud{top:58px!important;max-width:58vw!important;}
+    #stage.rpg-phone-device .tutorialV49Text{display:none!important;}
+  }
+</style>
+<script id="rpg-v80-final-runtime">
+(function(){
+  'use strict';
+  if(window.__rpgV80Final)return;
+  window.__rpgV80Final=true;
+  const $=id=>document.getElementById(id);
+  const stage=$('stage');
+  const isTouch=()=>!!(window.matchMedia?.('(pointer:coarse)').matches||window.matchMedia?.('(hover:none)').matches||navigator.maxTouchPoints>0);
+  const isPhoneLike=()=>{const coarse=isTouch(),fine=!!window.matchMedia?.('(pointer:fine)').matches;return coarse&&!fine&&Math.min(window.innerWidth||0,window.innerHeight||0)<=900;};
+
+  function syncPhoneClass(){
+    if(!stage)return false;
+    const phone=isPhoneLike();
+    stage.classList.toggle('rpg-phone-device',phone);
+    document.documentElement.style.setProperty('--rpg-vvh',Math.max(280,Math.round((window.visualViewport?.height)||window.innerHeight||800))+'px');
+    const menu=$('menu'),toggle=$('rpgMobileMenuToggle');
+    if(!phone && menu){menu.classList.remove('rpg-mobile-open');}
+    if(!phone && toggle){toggle.setAttribute('aria-hidden','true');}
+    return phone;
+  }
+
+  /* 실제 기능명 표시 */
+  function normalizeMenuText(){
+    const labels={btnMap:'🗺️ 월드맵',btnCharacter:'🧑 캐릭터',btnGuide:'❔ 도움말',btnRecovery:'🗝️ 계정 복구',btnJob:'🎓 전직 진행도'};
+    Object.entries(labels).forEach(([id,text])=>{const b=$(id);if(b)b.textContent=text;});
+    const oldNpc=$('btnNpc');if(oldNpc)oldNpc.remove();
+  }
+
+  /* 음악은 모바일에서만 메뉴 안, PC에서는 기존처럼 독립 버튼 */
+  function syncMusicPlacement(){
+    const m=$('menu'),music=$('rpgMusicV52');if(!m||!music||!stage)return;
+    if(isPhoneLike())m.appendChild(music);else stage.appendChild(music);
+  }
+
+  /* 패널/메뉴가 열릴 때 하단 전투 조작을 숨겨 겹침 방지 */
+  function syncLayerState(){
+    if(!stage)return;
+    const panel=$('overlayPanel'),menu=$('menu');
+    const panelOpen=!!panel?.classList.contains('open');
+    const menuOpen=!!menu?.classList.contains('rpg-mobile-open');
+    stage.classList.toggle('rpg-panel-open-80',panelOpen);
+    stage.classList.toggle('rpg-menu-open-80',menuOpen);
+  }
+
+  /* 세로 스마트폰은 가로를 권장하고, 버튼으로 전체화면 + landscape lock을 시도 */
+  function ensureLandscapeGate(){
+    if(!stage||!isPhoneLike())return;
+    let gate=$('rpgLandscapeGate80');
+    if(!gate){
+      gate=document.createElement('div');gate.id='rpgLandscapeGate80';
+      gate.innerHTML='<div class="gateCard"><div class="gateIcon">📱↔️</div><h2>가로 화면으로 플레이해 줘</h2><p>전투와 조작 버튼이 겹치지 않도록 스마트폰은 가로 화면을 권장해.<br>화면을 가로로 돌리거나 아래 버튼으로 전체화면 + 가로 전환을 시도할 수 있어.</p><div class="gateActions"><button type="button" id="rpgRotateNow80">↔️ 가로로 돌리기</button><button type="button" id="rpgFullscreen80">⛶ 전체화면 + 가로</button></div></div>';
+      stage.appendChild(gate);
+      $('rpgRotateNow80').onclick=async()=>{
+        try{if(screen.orientation?.lock)await screen.orientation.lock('landscape');}catch(_){ }
+        if(window.matchMedia?.('(orientation:portrait)').matches){
+          window.rpgGameNotice?.('📱 휴대폰을 가로로 돌려 주세요. 브라우저가 자동 회전을 지원하면 바로 가로 화면으로 전환돼.');
+        }
+        syncLandscapeGate();
+      };
+      $('rpgFullscreen80').onclick=async()=>{
+        try{if(!document.fullscreenElement&&stage.requestFullscreen)await stage.requestFullscreen();}catch(_){ }
+        try{if(screen.orientation?.lock)await screen.orientation.lock('landscape');}catch(_){ }
+        syncLandscapeGate();
+      };
+    }
+    syncLandscapeGate();
+  }
+  function syncLandscapeGate(){
+    const gate=$('rpgLandscapeGate80');if(!gate)return;
+    const show=!!S.started && isPhoneLike() && !!window.matchMedia?.('(orientation:portrait)').matches;
+    gate.classList.toggle('show',!!show);
+  }
+
+  /* 터치 메뉴 버튼 */
+  function ensureMenuToggle(){
+    if(!stage||!isPhoneLike())return;
+    let t=$('rpgMobileMenuToggle');
+    if(!t){t=document.createElement('button');t.id='rpgMobileMenuToggle';t.type='button';t.textContent='☰';t.setAttribute('aria-label','게임 메뉴');stage.appendChild(t);}
+    const menu=$('menu');if(!menu||t.dataset.v80bound)return;
+    t.dataset.v80bound='1';
+    const close=()=>{menu.classList.remove('rpg-mobile-open');t.textContent='☰';t.setAttribute('aria-expanded','false');syncLayerState();};
+    t.onclick=e=>{e.preventDefault();e.stopPropagation();const open=menu.classList.toggle('rpg-mobile-open');t.textContent=open?'✕':'☰';t.setAttribute('aria-expanded',open?'true':'false');syncLayerState();};
+    document.addEventListener('pointerdown',e=>{if(!isPhoneLike()||!menu.classList.contains('rpg-mobile-open'))return;if(menu.contains(e.target)||e.target===t)return;close();},true);
+    menu.addEventListener('click',e=>{if(e.target?.closest('button')&&e.target.closest('button')!==t)close();},true);
+  }
+
+  /* 거래는 안정성을 위해 최종 교환 경로를 호스트 권위로 통일 */
+  function installTradeStability(){
+    if(typeof window.requestTrade==='function'){
+      window.requestTrade=function(uid){
+        uid=String(uid||'');
+        const p=S.players?.[uid];
+        if(!p||uid===S.uid)return;
+        if(String(p.map||'')!==String((S.players?.[S.uid]||{}).map||'')){window.rpgGameNotice?.('📍 같은 맵에 있는 플레이어와 거래할 수 있어.');return;}
+        const ok=sendLocalHost({t:'trade_request',to:uid,from:S.uid,name:S.name,emoji:S.emoji});
+        if(ok)log('🤝 거래 요청을 상대에게 보냈어.');else window.rpgGameNotice?.('⚠️ 거래 요청을 전송하지 못했어. 연결 상태를 확인해 줘.');
+      };
+      globalThis.requestTrade=window.requestTrade; try{requestTrade=window.requestTrade;}catch(_){ }
+    }
+    if(typeof window.renderTradeFromEvent==='function'){
+      window.renderTradeFromEvent=function(){
+        try{const t=tradeForPlayerClient(S.uid);if(t){S.activeTrades=[t];openTradePanel();}}catch(_){ }
+      };
+      globalThis.renderTradeFromEvent=window.renderTradeFromEvent; try{renderTradeFromEvent=window.renderTradeFromEvent;}catch(_){ }
+    }
+    if(typeof window.sendLocalHost==='function'){
+      /* 거래 상태 변경 직후 상대에게도 즉시 패널을 열어 주는 보강은 pushTrade/상태 이벤트에서 처리 */
+    }
+  }
+
+  /* 거래는 최종 권위가 항상 호스트가 되도록 하고, 실패 원인을 상대에게 즉시 알려준다. */
+  try{
+    const oldHostRecv80=window.hostRecv;
+    if(typeof oldHostRecv80==='function'){
+      window.hostRecv=function(c,m){
+        if(m&&m.t==='trade_request'&&c&&c.uid){
+          const from=String(c.uid),to=String(m.to||'');
+          if(!to||to===from||!S.players?.[to]){sendTo(from,{t:'trade_error',s:'⚠️ 거래할 플레이어를 찾지 못했어.'});return;}
+          if(String(S.players[from]?.map||'')!==String(S.players[to]?.map||'')){sendTo(from,{t:'trade_error',s:'📍 같은 맵에 있는 플레이어와 거래할 수 있어.'});return;}
+          if(tradeForPlayer(from)||tradeForPlayer(to)){sendTo(from,{t:'trade_error',s:'🤝 한 명이 이미 다른 거래를 진행 중이야.'});return;}
+          sendTo(to,{t:'trade_request',from,name:String(S.players[from]?.name||'플레이어'),emoji:String(S.players[from]?.emoji||'🙂')});
+          return;
+        }
+        return oldHostRecv80.apply(this,arguments);
+      };
+      globalThis.hostRecv=window.hostRecv;try{hostRecv=window.hostRecv;}catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    const oldOnClientData80=window.onClientData;
+    if(typeof oldOnClientData80==='function'){
+      window.onClientData=function(m){
+        if(m&&m.t==='trade_error'){window.rpgGameNotice?.(String(m.s||'거래를 진행할 수 없어.'),'warn','error');return;}
+        return oldOnClientData80.apply(this,arguments);
+      };
+      globalThis.onClientData=window.onClientData;try{onClientData=window.onClientData;}catch(_){ }
+    }
+  }catch(_){ }
+
+  /* overlay 상태 감시 */
+  const panel=$('overlayPanel');if(panel)new MutationObserver(syncLayerState).observe(panel,{attributes:true,attributeFilter:['class']});
+  const menu=$('menu');if(menu)new MutationObserver(syncLayerState).observe(menu,{attributes:true,attributeFilter:['class']});
+
+  syncPhoneClass();normalizeMenuText();syncMusicPlacement();ensureMenuToggle();ensureLandscapeGate();installTradeStability();syncLayerState();
+  window.addEventListener('resize',()=>{syncPhoneClass();normalizeMenuText();syncMusicPlacement();ensureMenuToggle();ensureLandscapeGate();syncLayerState();},{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(()=>{syncPhoneClass();ensureLandscapeGate();syncLayerState();},120),{passive:true});
+  window.visualViewport?.addEventListener('resize',()=>{document.documentElement.style.setProperty('--rpg-vvh',Math.max(280,Math.round(window.visualViewport.height||800))+'px');},{passive:true});
+  setInterval(()=>{try{syncPhoneClass();syncMusicPlacement();ensureLandscapeGate();syncLayerState();}catch(_){ }},700);
+
+  /* 맵 전환 감지 후 BGM 즉시 트랙 전환 */
+  let lastMap80='';
+  setInterval(()=>{try{
+    const p=S.players?.[S.uid];if(!p||!window.__rpgBgm80)return;
+    const now=String(p.map||'town');
+    if(now!==lastMap80){lastMap80=now;if(window.__rpgBgm80 && window.setBgm80 && localStorage.getItem('emoji-rpg-bgm-v52')==='1'){window.setBgm80(false,true);setTimeout(()=>window.setBgm80(true,true),50);}}
+  }catch(_){ }},500);
+})();
+</script>
 </body>
 </html>
