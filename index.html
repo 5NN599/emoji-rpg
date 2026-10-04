@@ -8734,7 +8734,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   if(typeof window!=='undefined')window.nearestRpgMonsterFor=nearestRpgMonsterForV60;
 })();
 </script>
-\n<!-- V61 JOB EQUIPMENT RULES / NOVICE UNARMED -->
+<!-- V61 JOB EQUIPMENT RULES / NOVICE UNARMED -->
 <script>
 (function(){
   'use strict';
@@ -8783,7 +8783,8 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   try{Object.values(S.players||{}).forEach(enforceEquipment);}catch(_){}
   try{updateHud();}catch(_){}
 })();
-</script>\n
+</script>
+
 
 
 
@@ -11073,7 +11074,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   window.__rpgV51CompleteTalk=completeTalk;
 })();
 </script>
-\n<!-- ERPG v52 RPG-combat/inventory/audio overhaul -->
+<!-- ERPG v52 RPG-combat/inventory/audio overhaul -->
 <style id="rpgV52Style">
   #rpgMusicV52{position:absolute;right:10px;bottom:10px;z-index:58;display:flex;gap:6px;align-items:center}
   #rpgMusicV52 button{min-height:30px;padding:5px 9px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--card) 92%,transparent);color:var(--fg);font-weight:900;font-size:11px;box-shadow:0 6px 16px rgba(0,0,0,.14);backdrop-filter:blur(8px);cursor:pointer}
@@ -13551,6 +13552,122 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   try{if(typeof drawMinimapRpg==='function')drawMinimapRpg();}catch(_e){}
 
   window.__rpgV92Ready=true;
+})();
+</script>
+
+
+<!-- RPG v94: compact market + stray escaped-newline cleanup -->
+<style id="rpgV94MarketStyle">
+  .marketV94Hint{margin-top:8px;padding:8px 9px;border-radius:9px;background:color-mix(in srgb,var(--tile2) 82%,transparent);color:var(--sub);font-size:11px;line-height:1.45}
+</style>
+<script id="rpgV94MarketPatch">
+(function(){
+  'use strict';
+  if(window.__RPG_V94_MARKET_PATCH__)return;
+  window.__RPG_V94_MARKET_PATCH__=true;
+  if(typeof RPG_MAPS==='undefined'||typeof S==='undefined')return;
+
+  /* 공개 시장은 "작은 장터"로 명확히 분리한다.
+     기존 public market이 상점 내부 맵과 이름을 공유하던 구조는 유지하되,
+     실제 야외 장터처럼 짧은 동선과 중앙 광장을 사용한다. */
+  const MARKET = {w:36,h:26,spawn:{x:4,y:13}};
+  const STALLS = [
+    {x:8,y:5,w:6,h:3},{x:22,y:5,w:6,h:3},
+    {x:8,y:17,w:6,h:3},{x:22,y:17,w:6,h:3}
+  ];
+  const PLAZA = {x:14,y:9,w:8,h:8};
+
+  Object.assign(RPG_MAPS.market,{
+    name:'시장터',
+    meta:'작은 공개 장터 · 시장 관리인 유리에게 등록',
+    w:MARKET.w,h:MARKET.h,bg:'#d6c69c',kind:'town',minLv:1,spawn:{...MARKET.spawn}
+  });
+
+  const mp=(RPG_PORTALS.market||[]).find(x=>x.id==='market_gate');
+  if(mp)Object.assign(mp,{x:2,y:13,name:'시장터 입구 이동석',desc:'루미나 마을과 다른 지역으로 이동',dest:['town','arena']});
+
+  /* 시장에서 보이는 기능 NPC는 입구/게시판 주변에 모아 둔다. */
+  if(typeof RPG_NPCS!=='undefined'){
+    if(RPG_NPCS.marketBroker)Object.assign(RPG_NPCS.marketBroker,{map:'market',x:4,y:12});
+    if(RPG_NPCS.merchant)Object.assign(RPG_NPCS.merchant,{map:'market',x:18,y:7});
+  }
+
+  const _blocked=globalThis.isMapBlocked;
+  globalThis.isMapBlocked=function(map,x,y){
+    if(map!=='market')return typeof _blocked==='function'?_blocked(map,x,y):false;
+    const md=RPG_MAPS.market;
+    if(x<0||y<0||x>=md.w||y>=md.h)return true;
+    if(typeof portalAt==='function'&&portalAt(map,x,y))return false;
+    if(x===0||y===0||x===md.w-1||y===md.h-1)return true;
+    for(const s of STALLS){
+      if(x>=s.x&&x<s.x+s.w&&y>=s.y&&y<s.y+s.h)return true;
+    }
+    return false;
+  };
+  try{isMapBlocked=globalThis.isMapBlocked;}catch(_e){}
+  try{isBlocked=globalThis.isMapBlocked;}catch(_e){}
+
+  const _tile=globalThis.drawMapTileRpg;
+  globalThis.drawMapTileRpg=function(map,x,y,sx,sy,m,css){
+    if(typeof _tile==='function')_tile(map,x,y,sx,sy,m,css);
+    if(map!=='market')return;
+
+    /* 기존 장터 그림 위에 새 바닥을 덮고 다시 그려서
+       v90/v92의 오래된 가판대 위치가 남지 않게 한다. */
+    ctx.save();
+    const inPlaza = x>=PLAZA.x&&x<PLAZA.x+PLAZA.w&&y>=PLAZA.y&&y<PLAZA.y+PLAZA.h;
+    const walkway = (x>=15&&x<=20) || (y>=9&&y<=16);
+    ctx.fillStyle = inPlaza ? '#dccb9d' : walkway ? '#e3d5b0' : '#d2c092';
+    ctx.fillRect(sx,sy,m.tw,m.th);
+
+    /* 외곽 테두리 */
+    if(x===0||y===0||x===RPG_MAPS.market.w-1||y===RPG_MAPS.market.h-1){
+      ctx.fillStyle='rgba(105,82,58,.28)';
+      ctx.fillRect(sx,sy,m.tw,m.th);
+    }
+
+    for(const s of STALLS){
+      if(x>=s.x&&x<s.x+s.w&&y>=s.y&&y<s.y+s.h){
+        const top = y===s.y, bottom = y===s.y+s.h-1;
+        ctx.fillStyle='rgba(95,66,47,.9)';
+        ctx.fillRect(sx+2,sy+2,m.tw-4,m.th-4);
+        if(top){
+          ctx.fillStyle='rgba(188,76,70,.96)';
+          ctx.fillRect(sx+1,sy+1,m.tw-2,Math.max(5,m.th*.28));
+        }
+        if(bottom){
+          ctx.fillStyle='rgba(126,88,54,.82)';
+          ctx.fillRect(sx+2,sy+m.th*.55,m.tw-4,Math.max(5,m.th*.20));
+        }
+      }
+    }
+    if(x===4&&y===12){
+      ctx.font=(m.unit*.52)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('📋',sx+m.tw*.5,sy+m.th*.5);
+    }
+    if(x===18&&y===7){
+      ctx.font=(m.unit*.48)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('🛒',sx+m.tw*.5,sy+m.th*.5);
+    }
+    ctx.restore();
+  };
+  try{drawMapTileRpg=globalThis.drawMapTileRpg;}catch(_e){}
+
+  /* 시장 게시판은 시장 관리인 근처에서 바로 열 수 있게 한다. */
+  try{
+    if(typeof ensureUi==='function')ensureUi();
+    const body=$('panelBody');
+    if(body && S.players && S.players[S.uid] && S.players[S.uid].map==='market'){
+      const oldHint=body.querySelector('.marketV94Hint');
+      if(!oldHint){
+        const h=document.createElement('div');h.className='marketV94Hint';
+        h.textContent='🏪 가판대에서 물건을 구경하고, 시장 관리인 유리에게 말을 걸어 등록·회수할 수 있어.';
+        body.appendChild(h);
+      }
+    }
+  }catch(_e){}
+
+  window.__rpgV94MarketReady=true;
 })();
 </script>
 
