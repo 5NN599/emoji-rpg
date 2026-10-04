@@ -13330,7 +13330,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   Object.assign(RPG_MAPS.arena,{
     name:'루미나 결투장',
     meta:'관중석 + 중앙 결투 구역 · 접수 NPC에게 참가 신청',
-    w:42,h:30,bg:'#515c6d',kind:'town',minLv:1,spawn:{x:21,y:19}
+    w:42,h:30,bg:'#515c6d',kind:'town',minLv:1,spawn:{x:5,y:15}
   });
 
   const marketPortal=(RPG_PORTALS.market||[]).find(x=>x.id==='market_gate');
@@ -13355,8 +13355,9 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     {x:11,y:8,w:7,h:3,icon:'🧺'},{x:21,y:8,w:7,h:3,icon:'🧺'},{x:31,y:8,w:7,h:3,icon:'🧺'},
     {x:11,y:23,w:7,h:3,icon:'🧺'},{x:21,y:23,w:7,h:3,icon:'🧺'},{x:31,y:23,w:7,h:3,icon:'🧺'}
   ];
-  const ARENA_FIGHT={x:11,y:7,w:20,h:16};
-  const ARENA_GATES=[{x:21,y:7},{x:21,y:22}];
+  const ARENA_FIGHT={x:11,y:8,w:20,h:15};
+  /* 관중석에서 경기장으로 들어가는 실제 출입구는 난간의 경계 칸에 둔다. */
+  const ARENA_GATES=[{x:21,y:7},{x:21,y:23}];
   const inRect=(x,y,r)=>x>=r.x&&x<r.x+r.w&&y>=r.y&&y<r.y+r.h;
   const inArenaFight=(p)=>!!p&&p.map==='arena'&&inRect(Number(p.x)||0,Number(p.y)||0,ARENA_FIGHT);
   window.__rpgV92ArenaFightZone=ARENA_FIGHT;
@@ -13428,6 +13429,9 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
         if(edge===0){ctx.strokeStyle='rgba(236,193,92,.9)';ctx.lineWidth=2;ctx.strokeRect(sx+1,sy+1,m.tw-2,m.th-2);}
         ctx.restore();
       }
+      if((x===21&&y===7)||(x===21&&y===23)){
+        ctx.save();ctx.font=(m.unit*.42)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🚪',sx+m.tw*.5,sy+m.th*.5);ctx.restore();
+      }
       if(x===21&&y===15){
         ctx.save();ctx.font=(m.unit*.95)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⚔️',sx+m.tw*.5,sy+m.th*.5);ctx.restore();
       }
@@ -13442,6 +13446,21 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     }
   };
   try{drawMapTileRpg=globalThis.drawMapTileRpg;}catch(_e){}
+
+  /* 결투장 일반 입장은 관중석에서 시작한다. 구형 저장/텔레포트 상태로
+     경기장 안에 남아 있더라도 다음 갱신 때 관중 대기 구역으로 되돌린다. */
+  function ensureArenaArrivalArea(){
+    try{
+      const p=S.players&&S.players[S.uid];
+      if(!p||p.map!=='arena')return;
+      if(inArenaFight(p)){
+        const candidates=[{x:5,y:15},{x:6,y:15},{x:5,y:16},{x:6,y:16}];
+        const spot=candidates.find(q=>!globalThis.isMapBlocked('arena',q.x,q.y));
+        if(spot){p.x=spot.x;p.y=spot.y;S.moveAck[S.uid]=(S.moveAck[S.uid]||0)+1;}
+      }
+    }catch(_e){}
+  }
+  ensureArenaArrivalArea();
 
   /* ---------------------------------------------------------
      5) 결투 참가 시 결투 구역으로 이동, 관중은 밖에 남는다.
