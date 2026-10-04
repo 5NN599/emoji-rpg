@@ -10142,6 +10142,16 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       '가격만 보고 사면 가방이 금방 차니까 필요한 물건부터 고르는 편이 좋아.',
       '오늘은 새로 들어온 물건을 한번 더 보고 결정할 생각이야.'
     ],
+    marketBroker:[
+      '어서 와, 모험가. 이곳 시장터의 등록과 거래를 관리하고 있는 유리야.',
+      '물건을 시장에 올리려면 내게 먼저 등록해 줘. 등록된 물품은 다른 모험가가 자유롭게 살펴볼 수 있어.',
+      '시장을 이용할 땐 가격과 수량을 확인하고, 거래가 끝난 뒤에는 가방 공간도 한 번 확인해 보렴.'
+    ],
+    arenaReceptionist:[
+      '결투장 접수대에 온 걸 환영해. 나는 결투 진행을 맡고 있는 카이야.',
+      '관중석에서는 경기를 지켜볼 수 있고, 참가 신청을 하면 결투 구역으로 이동해서 싸울 수 있어.',
+      '준비가 됐다면 내게 참가 신청을 해. 승부가 끝나면 다시 관중 구역으로 돌아올 수 있어.'
+    ],
 
     /* 대장간 */
     smithApprentice:[
@@ -10326,6 +10336,8 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       classmaster:[['🎓 전직 확인',()=>{try{window.renderJobPanel?.(false);}catch(_){}}]],
       guildmaster:[['📜 길드 의뢰',()=>{try{window.__rpgNpcApiV32?.guild?.();}catch(_){}}]],
       storage:[['📦 창고 열기',()=>{try{window.__rpgNpcApiV32?.storage?.();}catch(_){}}]],
+      marketBroker:[['🏪 시장 게시판 열기',()=>{try{window.renderMarketPanel?.();}catch(_){}}]],
+      arenaReceptionist:[['⚔️ 결투 참가 신청',()=>{try{send({t:'arena_join'});setTimeout(()=>{try{window.renderArenaPanel?.();}catch(_){ }},80);}catch(_){}}]],
       mayor:[['🏛️ 마을 현황 보기',()=>showResponse('🏘️ 마을회관 기록을 확인했어. 루미나는 안전구역을 중심으로 상점가, 주거지, 길드, 치유소가 운영되고 있어.')]],
       bakerNell:[['🍞 빵 1개 · 💰10',()=>send({t:'town_service',npc:'bakerNell',action:'bread'})]],
       floristMori:[['🍵 허브차 1개 · 💰8',()=>send({t:'town_service',npc:'floristMori',action:'tea'})]],
@@ -13292,6 +13304,234 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   },{passive:true});
 
   window.__rpgV91Ready=true;
+})();
+</script>
+
+
+<!-- RPG v92: 시장/결투장 공간 재설계 + NPC 접수 전환 -->
+<style id="rpgV92MarketArenaStyle">
+  .rpgV92ZoneBadge{position:absolute;z-index:7;display:none;padding:6px 9px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--card) 92%,transparent);box-shadow:0 8px 20px rgba(0,0,0,.18);font-size:11px;font-weight:800;pointer-events:none;backdrop-filter:blur(8px)}
+</style>
+<script id="rpgV92MarketArenaPatch">
+(function installRpgV92(){
+  'use strict';
+  if(window.__RPG_V92_MARKET_ARENA__)return;
+  window.__RPG_V92_MARKET_ARENA__=true;
+  if(typeof RPG_MAPS==='undefined'||typeof RPG_NPCS==='undefined'||typeof S==='undefined')return;
+
+  /* ---------------------------------------------------------
+     1) 시장터: 좁고 실제 장터처럼
+     --------------------------------------------------------- */
+  Object.assign(RPG_MAPS.market,{
+    name:'시장터',
+    meta:'작은 공개 장터 · 시장 관리인 NPC에게 등록',
+    w:48,h:34,bg:'#cdb98b',kind:'town',minLv:1,spawn:{x:5,y:17}
+  });
+  Object.assign(RPG_MAPS.arena,{
+    name:'루미나 결투장',
+    meta:'관중석 + 중앙 결투 구역 · 접수 NPC에게 참가 신청',
+    w:42,h:30,bg:'#515c6d',kind:'town',minLv:1,spawn:{x:21,y:19}
+  });
+
+  const marketPortal=(RPG_PORTALS.market||[]).find(x=>x.id==='market_gate');
+  if(marketPortal)Object.assign(marketPortal,{x:2,y:17,name:'시장터 입구 이동석',desc:'루미나 마을과 다른 지역으로 이동',dest:['town','arena']});
+  const arenaPortal=(RPG_PORTALS.arena||[]).find(x=>x.id==='arena_gate');
+  if(arenaPortal)Object.assign(arenaPortal,{x:2,y:15,name:'결투장 입구 이동석',desc:'루미나 마을과 시장터로 이동',dest:['town','market']});
+
+  /* ---------------------------------------------------------
+     2) 접수 NPC: 이동석은 이동만, 등록/참가는 NPC가 담당
+     --------------------------------------------------------- */
+  RPG_NPCS.marketBroker=Object.assign(RPG_NPCS.marketBroker||{},{
+    id:'marketBroker',map:'market',x:6,y:17,name:'시장 관리인 유리',icon:'🧑‍💼',role:'시장 등록 · 거래 관리'
+  });
+  RPG_NPCS.arenaReceptionist=Object.assign(RPG_NPCS.arenaReceptionist||{},{
+    id:'arenaReceptionist',map:'arena',x:5,y:5,name:'결투 접수원 카이',icon:'🧑‍✈️',role:'결투 접수 · 경기 안내'
+  });
+
+  /* ---------------------------------------------------------
+     3) 지역별 구역
+     --------------------------------------------------------- */
+  const MARKET_STALLS=[
+    {x:11,y:8,w:7,h:3,icon:'🧺'},{x:21,y:8,w:7,h:3,icon:'🧺'},{x:31,y:8,w:7,h:3,icon:'🧺'},
+    {x:11,y:23,w:7,h:3,icon:'🧺'},{x:21,y:23,w:7,h:3,icon:'🧺'},{x:31,y:23,w:7,h:3,icon:'🧺'}
+  ];
+  const ARENA_FIGHT={x:11,y:7,w:20,h:16};
+  const ARENA_GATES=[{x:21,y:7},{x:21,y:22}];
+  const inRect=(x,y,r)=>x>=r.x&&x<r.x+r.w&&y>=r.y&&y<r.y+r.h;
+  const inArenaFight=(p)=>!!p&&p.map==='arena'&&inRect(Number(p.x)||0,Number(p.y)||0,ARENA_FIGHT);
+  window.__rpgV92ArenaFightZone=ARENA_FIGHT;
+
+  const oldBlocked=globalThis.isMapBlocked;
+  globalThis.isMapBlocked=function(map,x,y){
+    const md=RPG_MAPS[map];
+    if(!md)return true;
+    if(map==='market'){
+      if(x<0||y<0||x>=md.w||y>=md.h)return true;
+      if(portalAt(map,x,y))return false;
+      if(x===0||y===0||x===md.w-1||y===md.h-1)return true;
+      /* 양쪽 가판대 사이에 중앙 통로를 남긴다. */
+      for(const st of MARKET_STALLS){
+        if(x>=st.x&&x<st.x+st.w&&y>=st.y&&y<st.y+st.h)return true;
+      }
+      return false;
+    }
+    if(map==='arena'){
+      if(x<0||y<0||x>=md.w||y>=md.h)return true;
+      if(portalAt(map,x,y))return false;
+      if(x===0||y===0||x===md.w-1||y===md.h-1)return true;
+      /* 결투 구역을 둘러싼 난간. 북/남 중앙에 입구 두 곳만 연다. */
+      if((x===ARENA_FIGHT.x-1||x===ARENA_FIGHT.x+ARENA_FIGHT.w)&&y>=ARENA_FIGHT.y-1&&y<=ARENA_FIGHT.y+ARENA_FIGHT.h){
+        return true;
+      }
+      if((y===ARENA_FIGHT.y-1||y===ARENA_FIGHT.y+ARENA_FIGHT.h)&&x>=ARENA_FIGHT.x-1&&x<=ARENA_FIGHT.x+ARENA_FIGHT.w){
+        return !ARENA_GATES.some(g=>g.x===x&&g.y===y);
+      }
+      return false;
+    }
+    try{return oldBlocked(map,x,y);}catch(_e){return false;}
+  };
+  try{isMapBlocked=globalThis.isMapBlocked;}catch(_e){}
+  try{isBlocked=globalThis.isMapBlocked;}catch(_e){}
+
+  /* ---------------------------------------------------------
+     4) 장터/결투장 렌더링: 체스보드 대신 고정된 구조
+     --------------------------------------------------------- */
+  const oldTile=globalThis.drawMapTileRpg;
+  globalThis.drawMapTileRpg=function(map,x,y,sx,sy,m,css){
+    oldTile(map,x,y,sx,sy,m,css);
+    if(map==='market'){
+      /* 가판대 지붕/카운터 */
+      for(const st of MARKET_STALLS){
+        if(x>=st.x&&x<st.x+st.w&&y>=st.y&&y<st.y+st.h){
+          ctx.save();
+          ctx.fillStyle='rgba(118,82,48,.30)';ctx.fillRect(sx+1,sy+1,m.tw-2,m.th-2);
+          if(y===st.y){ctx.fillStyle='rgba(185,79,70,.92)';ctx.fillRect(sx+2,sy+2,m.tw-4,Math.max(5,m.th*.28));}
+          if(y===st.y+st.h-1){ctx.fillStyle='rgba(120,85,55,.55)';ctx.fillRect(sx+2,sy+m.th*.62,m.tw-4,Math.max(4,m.th*.18));}
+          ctx.restore();
+        }
+      }
+      if(x===6&&y===17){
+        ctx.save();ctx.font=(m.unit*.62)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('📋',sx+m.tw*.5,sy+m.th*.5);ctx.restore();
+      }
+    }else if(map==='arena'){
+      /* 관중석 */
+      if((y===3||y===26)&&(x>=7&&x<=34)){
+        ctx.save();ctx.fillStyle='rgba(111,89,68,.42)';ctx.fillRect(sx+2,sy+3,m.tw-4,m.th-5);
+        ctx.font=(m.unit*.34)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('👥',sx+m.tw*.5,sy+m.th*.55);ctx.restore();
+      }
+      /* 결투 구역 바닥 */
+      if(inRect(x,y,ARENA_FIGHT)){
+        ctx.save();
+        const edge=Math.min(x-ARENA_FIGHT.x,ARENA_FIGHT.x+ARENA_FIGHT.w-1-x,y-ARENA_FIGHT.y,ARENA_FIGHT.y+ARENA_FIGHT.h-1-y);
+        ctx.fillStyle=edge<=1?'rgba(226,191,102,.30)':'rgba(255,255,255,.045)';
+        ctx.fillRect(sx,sy,m.tw,m.th);
+        if(edge===0){ctx.strokeStyle='rgba(236,193,92,.9)';ctx.lineWidth=2;ctx.strokeRect(sx+1,sy+1,m.tw-2,m.th-2);}
+        ctx.restore();
+      }
+      if(x===21&&y===15){
+        ctx.save();ctx.font=(m.unit*.95)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⚔️',sx+m.tw*.5,sy+m.th*.5);ctx.restore();
+      }
+      if((x===ARENA_FIGHT.x-1||x===ARENA_FIGHT.x+ARENA_FIGHT.w)&&y>=ARENA_FIGHT.y-1&&y<=ARENA_FIGHT.y+ARENA_FIGHT.h){
+        if(!ARENA_GATES.some(g=>g.x===x&&g.y===y)){
+          ctx.save();ctx.strokeStyle='rgba(235,206,126,.88)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sx+3,sy+m.th*.2);ctx.lineTo(sx+m.tw-3,sy+m.th*.2);ctx.stroke();ctx.restore();
+        }
+      }
+      if((y===ARENA_FIGHT.y-1||y===ARENA_FIGHT.y+ARENA_FIGHT.h)&&x>=ARENA_FIGHT.x-1&&x<=ARENA_FIGHT.x+ARENA_FIGHT.w&&!ARENA_GATES.some(g=>g.x===x&&g.y===y)){
+        ctx.save();ctx.strokeStyle='rgba(235,206,126,.88)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sx+m.tw*.2,sy+3);ctx.lineTo(sx+m.tw*.2,sy+m.th-3);ctx.stroke();ctx.restore();
+      }
+    }
+  };
+  try{drawMapTileRpg=globalThis.drawMapTileRpg;}catch(_e){}
+
+  /* ---------------------------------------------------------
+     5) 결투 참가 시 결투 구역으로 이동, 관중은 밖에 남는다.
+     --------------------------------------------------------- */
+  const oldHost=globalThis.hostRecv;
+  globalThis.hostRecv=function(c,m){
+    if(m&&c&&c.uid&&S.players&&S.players[c.uid]){
+      const p=S.players[c.uid];
+      if(m.t==='arena_join'){
+        const near=RPG_NPCS.arenaReceptionist;
+        if(p.map!=='arena'||cheb(p,near)>2){sendTo(c.uid,{t:'arena_notice',s:'📍 결투 접수원 카이에게 가까이 가서 참가 신청해 줘.'});return;}
+        const a=S.arenaState||{players:{}};
+        const ids=Object.keys(a.players||{}).filter(id=>S.players[id]&&S.players[id].map==='arena');
+        const aCount=ids.filter(id=>a.players[id].team==='A').length;
+        const team=aCount<=ids.filter(id=>a.players[id].team==='B').length?'A':'B';
+        p.x=team==='A'?16:26;p.y=15;S.moveAck[c.uid]=(S.moveAck[c.uid]||0)+1;
+      }
+      if(m.t==='market_list'||m.t==='market_cancel'){
+        const near=RPG_NPCS.marketBroker;
+        if(p.map!=='market'||cheb(p,near)>2){sendTo(c.uid,{t:'market_notice',s:'📍 시장 관리인 유리에게 가까이 가서 등록/회수해 줘.'});return;}
+      }
+    }
+    const out=oldHost.apply(this,arguments);
+    if(m&&m.t==='arena_join'&&c&&c.uid){try{bcast(snapshot());}catch(_e){}}
+    return out;
+  };
+  try{hostRecv=globalThis.hostRecv;}catch(_e){}
+
+  /* 참가자만 결투 구역 안에서 공격할 수 있게 한다. */
+  const oldAttack=globalThis.doAttackRpg;
+  if(typeof oldAttack==='function'){
+    globalThis.doAttackRpg=function(uid){
+      const p=S.players&&S.players[uid];
+      if(p&&p.map==='arena'&&!inArenaFight(p)){
+        try{if(uid===S.uid)log('⚔️ 관중 구역에서는 공격할 수 없어. 결투 구역으로 들어가 참가해 줘.');}catch(_e){}
+        return false;
+      }
+      return oldAttack.apply(this,arguments);
+    };
+    try{doAttack=globalThis.doAttackRpg;}catch(_e){}
+  }
+
+  /* ---------------------------------------------------------
+     6) 이동석에서는 이동만. 기존 P/J 우회 진입도 차단.
+     --------------------------------------------------------- */
+  window.addEventListener('keydown',function(e){
+    if(!S.started)return;
+    const t=e.target,tag=String(t&&t.tagName||'').toUpperCase();
+    if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(t&&t.isContentEditable))return;
+    const k=String(e.key||'').toLowerCase();
+    const map=S.players?.[S.uid]?.map;
+    if((k==='p'&&map==='market')||(k==='j'&&map==='arena')){
+      e.preventDefault();e.stopImmediatePropagation();
+      log(k==='p'?'🏪 시장 관리인 유리에게 말을 걸어 시장 게시판을 이용해 줘.':'⚔️ 결투 접수원 카이에게 말을 걸어 참가 신청을 해 줘.');
+    }
+  },true);
+
+  /* 월드맵도 이동만 담당하게 한다. */
+  const oldWorld=globalThis.renderTeleportPanel;
+  if(typeof oldWorld==='function'){
+    globalThis.renderTeleportPanel=function(){
+      const before=$('panelBody');
+      oldWorld.apply(this,arguments);
+      try{
+        const body=$('panelBody');if(!body)return;
+        ['openMarketV90','openArenaV90','openMarketV91','openArenaV91'].forEach(id=>{const el=$(id);if(el)el.remove();});
+        const p=S.players?.[S.uid];
+        if(p&&((p.map==='market')||(p.map==='arena'))){
+          const note=document.createElement('div');note.className='worldMapHintV91';
+          note.textContent=p.map==='market'?'🏪 시장 등록과 거래는 시장 관리인 유리에게 말을 걸어 이용할 수 있어.':'⚔️ 결투 참가 신청은 결투 접수원 카이에게 말을 걸어 이용할 수 있어. 이동석은 지역 이동만 담당해.';
+          body.appendChild(note);
+        }
+      }catch(_e){}
+    };
+    try{renderTeleportPanel=globalThis.renderTeleportPanel;}catch(_e){}
+    try{renderTeleportPanelRpg=globalThis.renderTeleportPanel;}catch(_e){}
+  }
+
+  /* 오래된 가이드/NPC가 직접 호출하던 구형 월드맵 진입점도 최신 선택창으로 통일한다. */
+  try{globalThis.renderTeleportPanelRpg=globalThis.renderTeleportPanel;renderTeleportPanelRpg=globalThis.renderTeleportPanel;}catch(_e){}
+
+  /* 세계지도 지역 설명 갱신 */
+  const mapMarket=RPG_MAPS.market,mapArena=RPG_MAPS.arena;
+  if(mapMarket)mapMarket.meta='작은 공개 장터 · 시장 관리인 유리에게 등록';
+  if(mapArena)mapArena.meta='관중석 + 중앙 결투 구역 · 접수원 카이에게 참가 신청';
+
+  /* 미니맵은 현재 함수가 자동으로 새 크기를 사용한다. */
+  try{if(typeof drawMinimapRpg==='function')drawMinimapRpg();}catch(_e){}
+
+  window.__rpgV92Ready=true;
 })();
 </script>
 
