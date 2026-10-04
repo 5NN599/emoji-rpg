@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2a5fd1">
-<meta name="rpg-build-version" content="99">
+<meta name="rpg-build-version" content="100">
+<script src="./rpg-update-loader.js" defer></script>
 <title>이모지 RPG · P2P 멀티플레이</title>
 <style>
  :root { color-scheme:light dark; --bg:#f5f7fb; --card:#ffffff; --fg:#1b2033; --sub:#65708f; --line:#d8deeb; --acc:#2f68d8; --btnfg:#ffffff; --tile1:#edf1f7; --tile2:#e5eaf3; --ok:#1f9d5b; --bad:#d63a4c; --shadow:rgba(38,46,74,.12); }
@@ -14333,11 +14334,11 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 
 <!-- RPG v99: self-contained update checker -->
 
-<script id="rpgV99Updater">
+<script id="rpgV100Updater">
 (function(){
   'use strict';
-  if(window.__RPG_AUTO_UPDATER_V99__)return;
-  window.__RPG_AUTO_UPDATER_V99__=true;
+  if(window.__RPG_AUTO_UPDATER_V100__)return;
+  window.__RPG_AUTO_UPDATER_V100__=true;
 
   const CHECK_MS=30000, START_DELAY=1500, UPDATE_QUERY='_rpg_update';
   let localVersion='0', remoteVersion='0', busy=false, notice=null;
@@ -14378,34 +14379,35 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     return String(x.version);
   }
   function style(){
-    if(document.getElementById('rpgV99UpdateStyle'))return;
-    const st=document.createElement('style');st.id='rpgV99UpdateStyle';
+    if(document.getElementById('rpgV100UpdateStyle'))return;
+    const st=document.createElement('style');st.id='rpgV100UpdateStyle';
     st.textContent=`
-      #rpgUpdateNoticeV99{position:fixed;top:16px;right:16px;z-index:2147483647;display:none;width:min(410px,calc(100vw - 28px));font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-      #rpgUpdateNoticeV99.show{display:block}
-      #rpgUpdateNoticeV99 .card{background:#fff;border:2px solid #2d69d7;border-radius:15px;box-shadow:0 16px 42px rgba(0,0,0,.2);padding:13px;display:flex;gap:10px;align-items:flex-start;color:#17233b}
-      #rpgUpdateNoticeV99 .icon{font-size:26px;line-height:1}
-      #rpgUpdateNoticeV99 .body{flex:1;min-width:0}
-      #rpgUpdateNoticeV99 b{font-size:15px}
-      #rpgUpdateNoticeV99 .txt{margin-top:5px;color:#53627a;font-size:12px;line-height:1.45}
-      #rpgUpdateNoticeV99 .actions{display:flex;gap:7px;margin-top:10px}
-      #rpgUpdateNoticeV99 button{border:0;border-radius:9px;padding:8px 11px;font-weight:800;cursor:pointer}
-      #rpgUpdateNoticeV99 .now{background:#2d69d7;color:#fff}.rpgV99Later{background:#eef2f7;color:#31405a}
-      @media(max-width:560px){#rpgUpdateNoticeV99{left:10px;right:10px;top:10px;width:auto}}
+      #rpgUpdateNoticeV100{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(8,14,28,.34);backdrop-filter:blur(3px);font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+      #rpgUpdateNoticeV100.show{display:flex}
+      #rpgUpdateNoticeV100 .card{background:#fff;border:2px solid #2d69d7;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.28);padding:18px;width:min(430px,100%);display:flex;gap:12px;align-items:flex-start;color:#17233b}
+      #rpgUpdateNoticeV100 .icon{font-size:26px;line-height:1}
+      #rpgUpdateNoticeV100 .body{flex:1;min-width:0}
+      #rpgUpdateNoticeV100 b{font-size:15px}
+      #rpgUpdateNoticeV100 .txt{margin-top:5px;color:#53627a;font-size:12px;line-height:1.45}
+      #rpgUpdateNoticeV100 .actions{display:flex;gap:7px;margin-top:10px}
+      #rpgUpdateNoticeV100 button{border:0;border-radius:9px;padding:8px 11px;font-weight:800;cursor:pointer}
+      #rpgUpdateNoticeV100 .now{background:#2d69d7;color:#fff}.rpgV100Later{background:#eef2f7;color:#31405a}
+      @media(max-width:560px){#rpgUpdateNoticeV100{padding:12px}}
     `;
     document.head.appendChild(st);
   }
   function ensure(){
     if(notice&&notice.isConnected)return notice;
-    notice=document.createElement('div');notice.id='rpgUpdateNoticeV99';
-    notice.innerHTML='<div class="card"><div class="icon">🔄</div><div class="body"><b>새 게임 업데이트가 있어!</b><div class="txt" id="rpgUpdateTextV99"></div><div class="actions"><button class="now" id="rpgUpdateNowV99">지금 업데이트</button><button class="rpgV99Later" id="rpgUpdateLaterV99">나중에</button></div></div></div>';
+    notice=document.createElement('div');notice.id='rpgUpdateNoticeV100';
+    notice.innerHTML='<div class="card"><div class="icon">🔄</div><div class="body"><b>새 게임 업데이트가 있어!</b><div class="txt" id="rpgUpdateTextV100"></div><div class="actions"><button class="now" id="rpgUpdateNowV100">지금 업데이트</button><button class="rpgV100Later" id="rpgUpdateLaterV100">나중에</button></div></div></div>';
     document.body.appendChild(notice);
-    notice.querySelector('#rpgUpdateNowV99').onclick=()=>reload();
-    notice.querySelector('#rpgUpdateLaterV99').onclick=()=>notice.classList.remove('show');
+    notice.querySelector('#rpgUpdateNowV100').onclick=()=>reload();
+    notice.querySelector('#rpgUpdateLaterV100').onclick=()=>notice.classList.remove('show');
     return notice;
   }
   function show(){
-    const el=ensure(),t=el.querySelector('#rpgUpdateTextV99');
+    if(window.__RPG_PREFLIGHT_UPDATE__)return;
+    const el=ensure(),t=el.querySelector('#rpgUpdateTextV100');
     if(t)t.textContent=`현재 v${localVersion} → 최신 v${remoteVersion}. 최신 버전으로 업데이트할 수 있어.`;
     el.classList.add('show');
   }
