@@ -13107,4 +13107,192 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   window.__rpgV90MarketArenaWarp=true;
 })();
 </script>
+
+<!-- RPG v91: World Map UX + small stability polish -->
+<style id="rpgV91WorldMapStyle">
+  #overlayPanel.worldMapPanelV91{
+    width:min(540px,calc(100vw - 24px));
+  }
+  .worldMapHeroV91{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:10px;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 10%,var(--bg)),var(--bg));
+  }
+  .worldMapHeroV91 .icon{font-size:30px;line-height:1}
+  .worldMapHeroV91 b{display:block;font-size:15px}
+  .worldMapHeroV91 small{display:block;color:var(--sub);margin-top:2px;line-height:1.35}
+  .worldMapLevelV91{padding:5px 8px;border:1px solid var(--line);border-radius:999px;background:var(--card);font-size:11px;font-weight:800;white-space:nowrap}
+  .worldMapPortalV91{margin-top:8px;padding:8px 9px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:11px;line-height:1.45}
+  .worldMapPortalV91 b{color:var(--acc)}
+  .worldMapGridV91{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .worldMapCardV91{
+    display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:center;
+    min-width:0;padding:9px;border:1px solid var(--line);border-radius:11px;background:var(--bg);
+  }
+  .worldMapCardV91.current{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 14%,transparent) inset}
+  .worldMapCardV91 .mapIcon{font-size:27px;text-align:center;line-height:1}
+  .worldMapCardV91 .mapMain{min-width:0}
+  .worldMapCardV91 .mapName{display:flex;align-items:center;gap:5px;min-width:0}
+  .worldMapCardV91 .mapName b{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .worldMapCardV91 .mapType{color:var(--sub);font-size:10px}
+  .worldMapCardV91 .mapMeta{margin-top:3px;color:var(--sub);font-size:10px;line-height:1.35}
+  .worldMapCardV91 .mapAction{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:7px;margin-top:1px}
+  .worldMapCardV91 .mapPeople{color:var(--sub);font-size:10px}
+  .worldMapCardV91 .mapAction button{min-height:32px;padding:5px 8px;font-size:11px}
+  .worldMapCardV91.locked .mapAction button,.worldMapCardV91.unreachable .mapAction button{color:var(--sub)}
+  .worldMapSectionV91{margin-top:10px}
+  .worldMapHintV91{margin-top:8px;padding:8px;border-radius:9px;background:color-mix(in srgb,var(--tile2) 80%,transparent);color:var(--sub);font-size:11px;line-height:1.45}
+  .worldMapWarpV91{margin-top:8px}
+  @media(max-width:720px){
+    #overlayPanel.worldMapPanelV91{width:min(430px,calc(100vw - 16px));}
+    .worldMapGridV91{grid-template-columns:1fr}
+    .worldMapHeroV91{grid-template-columns:auto 1fr}
+    .worldMapLevelV91{grid-column:2;justify-self:start}
+  }
+</style>
+<script id="rpgV91WorldMapFix">
+(function installRpgV91(){
+  'use strict';
+  if(window.__RPG_V91_WORLD_MAP__) return;
+  window.__RPG_V91_WORLD_MAP__=true;
+  if(typeof RPG_MAPS==='undefined'||typeof S==='undefined') return;
+
+  const ICONS={town:'🏘️',field:'🌿',forest:'🌙',canyon:'🪨',dungeon:'🟥',catacombs:'💀',abyss:'🌑',market:'🏪',arena:'⚔️'};
+  const ORDER=['town','field','forest','canyon','dungeon','catacombs','abyss','market','arena'];
+  const TYPE={town:'마을 · 안전구역',field:'필드 · 사냥터',forest:'필드 · 중급',canyon:'필드 · 고급',dungeon:'던전 · 위험지역',catacombs:'던전 · 언데드',abyss:'던전 · 최종지역',market:'생활 · 공개 장터',arena:'PvP · 결투장'};
+
+  function worldMaps(){
+    const seen=new Set(),out=[];
+    for(const id of ORDER){const md=RPG_MAPS[id];if(md&&md.kind!=='interior'){seen.add(id);out.push(md);}}
+    Object.values(RPG_MAPS).forEach(md=>{if(md&&md.kind!=='interior'&&!seen.has(md.id)){seen.add(md.id);out.push(md);}});
+    return out;
+  }
+
+  function currentPortal(p){
+    try{return typeof nearestRpgPortal==='function'?nearestRpgPortal(p):null;}catch(_e){return null;}
+  }
+
+  function levelAllowed(p,md){return Number(p&&p.lv||1)>=Number(md&&md.minLv||1);}
+  function reachableFrom(near,id){return !!near && Array.isArray(near.dest) && near.dest.includes(id);}
+  function peopleCount(id){
+    let n=0;try{Object.values(S.players||{}).forEach(q=>{if(q&&q.map===id)n++;});}catch(_e){}
+    return n;
+  }
+
+  function sig(p,near){
+    const warp=typeof itemCount==='function'?Number(itemCount(p,'unstableWarpStone')||0):0;
+    const portalId=near&&near.id||'none';
+    const dest=near&&Array.isArray(near.dest)?near.dest.join(','):'';
+    return [p&&p.map||'town',p&&p.x||0,p&&p.y||0,p&&p.lv||1,portalId,dest,warp,worldMaps().map(x=>x.id).join(',')].join('|');
+  }
+
+  function startWatcher(){
+    if(S.__rpgV91WorldMapTimer)clearInterval(S.__rpgV91WorldMapTimer);
+    S.__rpgV91WorldMapTimer=setInterval(()=>{
+      try{
+        const panel=$('overlayPanel'),title=$('panelTitle');
+        if(!panel||!panel.classList.contains('open')||!title||!title.textContent.includes('월드 맵')){clearInterval(S.__rpgV91WorldMapTimer);S.__rpgV91WorldMapTimer=null;return;}
+        const p=S.players[S.uid];if(!p)return;
+        const near=currentPortal(p),next=sig(p,near);
+        if(next!==S.__rpgV91WorldMapSig)renderWorldMapV91();
+      }catch(_e){}
+    },250);
+  }
+
+  function renderWarpSectionV91(p,maps){
+    const n=typeof itemCount==='function'?Number(itemCount(p,'unstableWarpStone')||0):0;
+    if(n<=0)return '';
+    let html='<div class="section worldMapWarpV91"><div class="sectionTitle">🌀 불안정한 워프석 ×'+n+'</div><div class="socialSub">이동석이 없어도 바로 이동할 수 있는 1회용 워프야. 지역 레벨 제한은 그대로 적용돼.</div><div class="teleportGrid">';
+    maps.forEach(md=>{
+      const ok=levelAllowed(p,md),same=md.id===p.map;
+      const label=same?'현재 위치':(!ok?'🔒 Lv.'+md.minLv+' 필요':'워프');
+      html+='<button class="teleportBtn" data-warp-v91="'+escapeHtml(md.id)+'" '+((!ok||same)?'disabled':'')+'><b>'+(ICONS[md.id]||'🗺️')+' '+escapeHtml(md.name)+'</b><small>'+escapeHtml(md.meta)+(same?' · 현재 위치':(!ok?' · Lv.'+md.minLv+' 필요':''))+'</small></button>';
+    });
+    html+='</div></div>';
+    return html;
+  }
+
+  function renderWorldMapV91(){
+    const p=S.players[S.uid];if(!p)return;
+    const near=currentPortal(p),maps=worldMaps(),current=RPG_MAPS[p.map]||RPG_MAPS.town;
+    let html='<div class="worldMapHeroV91"><div class="icon">'+(ICONS[current.id]||'🗺️')+'</div><div><b>'+escapeHtml(current.name)+'</b><small>'+escapeHtml(current.meta||'')+'</small></div><div class="worldMapLevelV91">Lv.'+(Number(p.lv)||1)+'</div></div>';
+    if(near){
+      html+='<div class="worldMapPortalV91">'+near.icon+' 현재 이동석 <b>'+escapeHtml(near.name)+'</b><br>'+escapeHtml(near.desc||'')+'</div>';
+    }else{
+      html+='<div class="worldMapPortalV91">📍 <b>이동석에서 떨어져 있어.</b> 지역 선택은 미리 볼 수 있지만, 일반 이동은 해당 지역의 이동석 근처에서 가능해.</div>';
+    }
+    html+='<div class="section worldMapSectionV91"><div class="sectionTitle">🌍 전체 지역</div><div class="worldMapGridV91">';
+    maps.forEach(md=>{
+      const isCurrent=md.id===p.map;
+      const lvOk=levelAllowed(p,md);
+      const canReach=!isCurrent&&lvOk&&reachableFrom(near,md.id);
+      let cls='worldMapCardV91';
+      let label='이동석 필요';
+      if(isCurrent){cls+=' current';label='현재 위치';}
+      else if(!lvOk){cls+=' locked';label='🔒 Lv.'+md.minLv;}
+      else if(near&&!canReach){cls+=' unreachable';label='📍 다른 이동석';}
+      else if(canReach){label='🌀 이동';}
+      const people=peopleCount(md.id);
+      html+='<div class="'+cls+'">'+
+        '<div class="mapIcon">'+(ICONS[md.id]||'🗺️')+'</div>'+ 
+        '<div class="mapMain"><div class="mapName"><b>'+escapeHtml(md.name)+'</b><span class="mapType">'+escapeHtml(TYPE[md.id]||md.kind||'지역')+'</span></div><div class="mapMeta">'+escapeHtml(md.meta||'')+(md.minLv>1?' · 권장 Lv.'+md.minLv:'')+'</div></div>'+
+        '<div class="mapAction"><span class="mapPeople">👥 '+people+'명</span><button type="button" data-world-dest="'+escapeHtml(md.id)+'" '+((isCurrent||!canReach)?'disabled':'')+'>'+label+'</button></div>'+
+      '</div>';
+    });
+    html+='</div></div>';
+    html+=renderWarpSectionV91(p,maps);
+    if(p.map==='market')html+='<div class="tradeActions"><button id="openMarketV91">🏪 시장터 게시판</button></div>';
+    if(p.map==='arena')html+='<div class="tradeActions"><button id="openArenaV91">⚔️ 결투장 열기</button></div>';
+    html+='<div class="worldMapHintV91">💡 지역 카드를 누르면 가능한 경우 바로 이동해. 잠긴 지역은 레벨을 올리면 열리고, 연결되지 않은 지역은 다른 이동석에서 접근해야 해.</div>';
+
+    openPanel('🗺️ 월드 맵 · 지역 선택',html);
+    const panel=$('overlayPanel');if(panel)panel.classList.add('worldMapPanelV91');
+    S.__rpgV91WorldMapSig=sig(p,near);
+    $('panelBody').querySelectorAll('[data-world-dest]').forEach(b=>b.onclick=()=>requestTeleportRpg(b.dataset.worldDest));
+    $('panelBody').querySelectorAll('[data-warp-v91]').forEach(b=>b.onclick=()=>sendLocalHost({t:'use_unstable_warp',dest:b.dataset.warpV91}));
+    if($('openMarketV91'))$('openMarketV91').onclick=renderMarketPanel;
+    if($('openArenaV91'))$('openArenaV91').onclick=renderArenaPanel;
+    startWatcher();
+  }
+
+  const oldClose=closePanel;
+  closePanel=function(){
+    if(S.__rpgV91WorldMapTimer){clearInterval(S.__rpgV91WorldMapTimer);S.__rpgV91WorldMapTimer=null;}
+    S.__rpgV91WorldMapSig='';
+    const panel=$('overlayPanel');if(panel)panel.classList.remove('worldMapPanelV91');
+    return oldClose.apply(this,arguments);
+  };
+  globalThis.closePanel=closePanel;
+
+  renderTeleportPanel=renderWorldMapV91;
+  globalThis.renderTeleportPanel=renderWorldMapV91;
+
+  /* 시장터/결투장에 다시 생긴 바둑판 느낌을 완화하고, 같은 계열의 자연스러운 톤 차이만 남긴다. */
+  const oldMapColor=mapTileColor;
+  mapTileColor=function(map,x,y,css){
+    if(map==='market'){
+      const n=hash2(Number(x)||0,Number(y)||0)%100;
+      return n<38?'#d1bd91':n<72?'#d7c69d':'#c9b487';
+    }
+    if(map==='arena'){
+      const n=hash2((Number(x)||0)+91,(Number(y)||0)+37)%100;
+      return n<40?'#515b6c':n<75?'#586375':'#4b5567';
+    }
+    return oldMapColor(map,x,y,css);
+  };
+  globalThis.mapTileColor=mapTileColor;
+
+  window.addEventListener('resize',()=>{
+    try{if($('overlayPanel')?.classList.contains('open')&&$('panelTitle')?.textContent.includes('월드 맵'))renderWorldMapV91();}catch(_e){}
+  },{passive:true});
+
+  window.__rpgV91Ready=true;
+})();
+</script>
+
 </html>
