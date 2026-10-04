@@ -4,9 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>이모지 RPG · P2P 멀티플레이</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%232f68d8%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2246%22%20text-anchor%3D%22middle%22%20font-size%3D%2238%22%3E%F0%9F%97%A1%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E">
+<meta name="theme-color" content="#2f68d8">
 <style>
- :root { color-scheme:light dark; --bg:#f5f7fb; --card:#ffffff; --fg:#1b2033; --sub:#65708f; --line:#d8deeb; --acc:#2f68d8; --btnfg:#ffffff; --tile1:#edf1f7; --tile2:#e5eaf3; --ok:#1f9d5b; --bad:#d63a4c; --shadow:rgba(38,46,74,.12); }
-@media (prefers-color-scheme:dark) { :root { --bg:#12162b; --card:#1c2240; --fg:#eef0ff; --sub:#9aa3d0; --line:#313a6b; --acc:#6ea1ff; --btnfg:#07111f; --tile1:#232a4d; --tile2:#1f2645; --ok:#5fe39b; --bad:#ff6b7a; --shadow:rgba(0,0,0,.24); } }
+ :root { color-scheme:light dark; --bg:#f5f7fb; --card:#ffffff; --fg:#1b2033; --sub:#65708f; --line:#d8deeb; --acc:#2f68d8; --btnfg:#ffffff; --tile1:#edf1f7; --tile2:#e5eaf3; --ok:#1f9d5b; --bad:#d63a4c; --muted:#6e778f; --warn:#e3a63a; --shadow:rgba(38,46,74,.12); }
+@media (prefers-color-scheme:dark) { :root { --bg:#12162b; --card:#1c2240; --fg:#eef0ff; --sub:#9aa3d0; --line:#313a6b; --acc:#6ea1ff; --btnfg:#07111f; --tile1:#232a4d; --tile2:#1f2645; --ok:#5fe39b; --bad:#ff6b7a; --muted:#aeb7d4; --warn:#f1bc5b; --shadow:rgba(0,0,0,.24); } }
 * { box-sizing: border-box; }
 html, body { width:100%; height:100%; margin:0; }
 body { background:var(--bg); color:var(--fg); font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif; overflow:hidden; transition:background .2s ease,color .2s ease; }
@@ -156,7 +158,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 </style>
 
 </head>
-<body>
+<body class="rpg-page">
 
 <div id="lobby" class="card">
   <h1>🗡️ 이모지 RPG<small>P2P 멀티플레이</small></h1>
@@ -536,6 +538,12 @@ function lobbyMsg(s) { $('msg').textContent = s || ''; }
 function initDirectory() {
   try {
     S.directoryReady = false;
+    if (typeof mqtt === 'undefined') {
+      S.directoryLastError = 'MQTT 라이브러리가 로드되지 않았어.';
+      S.directorySubscribed = false;
+      lobbyMsg('🌐 공개 방 목록을 불러오지 못했어. MQTT CDN이 차단됐거나 네트워크 연결이 없어. 페이지를 다시 열거나 CDN 접근을 확인해줘.');
+      return;
+    }
     S.directorySubscribed = false;
     S.directoryLastError = '';
     const clientId = ('erpg_' + String(S.uid || rnd(999999)).slice(0, 20) + '_' + rnd(1000000)).replace(/[^A-Za-z0-9_-]/g,'_');
@@ -590,8 +598,9 @@ function initDirectory() {
         try {
           const r = JSON.parse(raw);
           const ts = Number(r && r.ts) || 0;
+          const seenAt = Date.now();
           const peerId = String(r && r.peerId || '').trim();
-          const valid = r && typeof r === 'object' && r.public !== false && String(r.code || '').toUpperCase() === code && ts > 0 && Date.now() - ts < 45000;
+          const valid = r && typeof r === 'object' && r.public !== false && String(r.code || '').toUpperCase() === code && ts > 0;
           if (valid) {
             S.rooms[code] = {
               code,
@@ -600,7 +609,8 @@ function initDirectory() {
               gen: Math.max(0, +r.gen || 0),
               peerId: peerId || hostId(code, Math.max(0, +r.gen || 0)),
               count: clamp(+r.count || 0, 0, 12),
-              ts
+              ts,
+              seenAt
             };
           } else {
             delete S.rooms[code];
@@ -644,8 +654,8 @@ function unpublishRoom() {
 function renderRooms() {
   const box = $('rooms'), now = Date.now();
   const list = Object.values(S.rooms)
-    .filter(r => now - r.ts < 30000)
-    .sort((a, b) => (b.ts - a.ts) || a.name.localeCompare(b.name, 'ko'));
+    .filter(r => now - Number(r.seenAt || 0) < 12000)
+    .sort((a, b) => (Number(b.seenAt || 0) - Number(a.seenAt || 0)) || a.name.localeCompare(b.name, 'ko'));
   box.textContent = '';
   if (!list.length) {
     const d = document.createElement('div');
@@ -986,6 +996,10 @@ function quickJoin() {
 }
 
 function createRoom(isPublic=false) {
+  if (typeof Peer === 'undefined') {
+    lobbyMsg('⚠️ 방을 만들 수 없어. PeerJS CDN이 로드되지 않았어. 인터넷 연결 또는 CDN 차단 여부를 확인해줘.');
+    return;
+  }
   readProfile();
   S.isHost = false;
   S.targetHid = '';
@@ -1002,6 +1016,10 @@ function createRoom(isPublic=false) {
 }
 
 function joinRoom(code, gen, peerId) {
+  if (typeof Peer === 'undefined') {
+    lobbyMsg('⚠️ 방에 들어갈 수 없어. PeerJS CDN이 로드되지 않았어. 인터넷 연결 또는 CDN 차단 여부를 확인해줘.');
+    return;
+  }
   readProfile();
   code = String(code || '').trim().toUpperCase();
   if (code.length !== 5) { lobbyMsg('세션 코드가 올바르지 않아.'); return; }
@@ -2372,6 +2390,7 @@ function initLobby() {
   S.score = capabilityScore(S.caps);
   readProfile();
   $('btnCreate').onclick=()=>createRoom(false);
+  $('roomName')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();createRoom(false);}});
   $('btnQuick').onclick=quickJoin;
   $('btnInv').onclick=renderInventory;$('btnTrade').onclick=openTradePanel;$('btnChat').onclick=renderChat;$('btnQuest').onclick=renderQuest;$('btnSocial').onclick=renderSocial;$('btnMap').onclick=renderTeleportPanel;$('btnCharacter').onclick=renderCharacterPanel;$('btnGuide').onclick=renderGuide;$('btnRecovery').onclick=renderRecoveryPanel;$('btnClosePanel').onclick=closePanel;
   $('btnCopyRecovery').onclick=copyRecoveryCode;
@@ -8685,7 +8704,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   if(typeof window!=='undefined')window.nearestRpgMonsterFor=nearestRpgMonsterForV60;
 })();
 </script>
-\n<!-- V61 JOB EQUIPMENT RULES / NOVICE UNARMED -->
+<!-- V61 JOB EQUIPMENT RULES / NOVICE UNARMED -->
 <script>
 (function(){
   'use strict';
@@ -8734,7 +8753,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   try{Object.values(S.players||{}).forEach(enforceEquipment);}catch(_){}
   try{updateHud();}catch(_){}
 })();
-</script>\n
+</script>
 
 
 
@@ -9005,7 +9024,6 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
-</body>
 
 
 <!-- RPG v49: 단계형 실전 튜토리얼 + NPC 대화 안내 복구 -->
@@ -9151,7 +9169,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       el.classList.remove('show');return;
     }
     try{
-      const m=boardMetrics(),q=worldToScreen(t.x,t.y,m),cv=document.getElementById('board'),st=stageEl();
+      const m=boardMetrics(),q=worldToScreen(t.x,t.y,m),cv=document.getElementById('cv'),st=stageEl();
       if(!cv||!st)return;
       const cr=cv.getBoundingClientRect(),sr=st.getBoundingClientRect();
       el.style.left=Math.round(cr.left-sr.left+q.x+m.tw/2)+'px';
@@ -9373,7 +9391,6 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   };
 })();
 </script>
-</html>
 
 <!-- RPG v44: 건물별 NPC 위치 정합성 + avatar/colors 초기화 오류 수정 -->
 <script>
@@ -10894,7 +10911,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   window.__rpgV51CompleteTalk=completeTalk;
 })();
 </script>
-\n<!-- ERPG v52 RPG-combat/inventory/audio overhaul -->
+<!-- ERPG v52 RPG-combat/inventory/audio overhaul -->
 <style id="rpgV52Style">
   #rpgMusicV52{position:absolute;right:10px;bottom:10px;z-index:58;display:flex;gap:6px;align-items:center}
   #rpgMusicV52 button{min-height:30px;padding:5px 9px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--card) 92%,transparent);color:var(--fg);font-weight:900;font-size:11px;box-shadow:0 6px 16px rgba(0,0,0,.14);backdrop-filter:blur(8px);cursor:pointer}
@@ -12343,7 +12360,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 
   function refreshEntryStateV71(force){
     if(refreshBusy) return;
-    if(S.started && !$('lobby')?.hidden) return;
+    if(S.started && $('lobby')?.hidden) return;
     const now=Date.now();
     if(!force && now-lastRefreshAt<5000) return;
     refreshBusy=true;
@@ -12377,3 +12394,721 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   setTimeout(()=>refreshEntryStateV71(true),350);
 })();
 </script>
+
+<!-- RPG v73: 터치/패드 UX + 입력 중복 제거 + 모바일 메뉴/상호작용 최종 보정 -->
+<style id="rpgV73TouchStyle">
+  html,body,#game,#stage{overscroll-behavior:none;}
+  input,textarea,select{font-size:16px;}
+  button,[role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+  #stage.rpg-touch-device #rpgInteractionHintV48,
+  #stage.rpg-touch-device #rpgInteractionHintV50{display:none !important;}
+
+  /* 터치 기기용 메뉴 토글 */
+  #rpgMobileMenuToggle{
+    position:absolute;z-index:12;top:max(54px,calc(env(safe-area-inset-top) + 46px));right:max(8px,env(safe-area-inset-right));
+    display:none;min-width:44px;min-height:44px;padding:8px 11px;border-radius:12px;
+    background:color-mix(in srgb,var(--card) 92%,transparent);color:var(--fg);border:1px solid var(--line);
+    box-shadow:0 8px 22px rgba(0,0,0,.18);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:19px;
+  }
+  #rpgTouchAction{
+    position:absolute;z-index:13;left:50%;bottom:calc(max(92px,env(safe-area-inset-bottom) + 84px));transform:translateX(-50%);
+    display:none;min-height:46px;max-width:min(320px,calc(100vw - 28px));padding:9px 16px;border-radius:14px;
+    background:color-mix(in srgb,var(--card) 94%,transparent);color:var(--fg);border:1px solid var(--line);
+    box-shadow:0 10px 28px rgba(0,0,0,.22);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* 실제 모바일/터치에서는 폭이 아니라 입력 방식으로 레이아웃을 선택 */
+  #stage.rpg-touch-device #rpgMobileMenuToggle{display:block;}
+  #stage.rpg-touch-device #menu{
+    display:none;position:absolute;z-index:11;top:calc(max(102px,env(safe-area-inset-top) + 92px));right:max(8px,env(safe-area-inset-right));
+    left:auto;width:min(250px,calc(100vw - 16px));max-height:calc(var(--rpg-vvh,100dvh) - 118px);overflow:auto;
+    flex-direction:column;align-items:stretch;gap:6px;padding:8px;border-radius:14px;
+    background:color-mix(in srgb,var(--card) 96%,transparent);border:1px solid var(--line);box-shadow:0 16px 46px rgba(0,0,0,.28);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  }
+  #stage.rpg-touch-device #menu.rpg-mobile-open{display:flex!important;}
+  #stage.rpg-touch-device #menu button{min-height:44px;width:100%;text-align:left;padding:9px 12px;}
+  #stage.rpg-touch-device #menu .iconBtn{min-width:0;}
+  #stage.rpg-touch-device #rpgMusicV52{position:static;display:block;margin:0;}
+  #stage.rpg-touch-device #rpgMusicV52 button{width:100%;min-height:44px;text-align:left;margin:0;}
+
+  /* 터치 조작부: 왼쪽 D-pad / 오른쪽 공격 / 그 위 3스킬 */
+  #stage.rpg-touch-device #pad{
+    position:absolute;z-index:10;inset:0;width:100%;height:100%;left:0;bottom:0;transform:none;padding:0;
+    display:block;background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;pointer-events:none;border-radius:0;
+  }
+  #stage.rpg-touch-device #pad > button[data-dx],
+  #stage.rpg-touch-device #pad > #btnAtk,
+  #stage.rpg-touch-device #pad > #skillBarV29{position:absolute;pointer-events:auto;}
+  #stage.rpg-touch-device #pad > button[data-dx]{
+    display:block!important;
+    width:clamp(48px,14vw,66px);height:clamp(48px,14vw,66px);min-height:48px;padding:0;border-radius:16px;
+    background:color-mix(in srgb,var(--card) 82%,transparent);color:var(--fg);border:1px solid var(--line);box-shadow:0 8px 20px rgba(0,0,0,.2);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:clamp(20px,6vw,28px);
+  }
+  #stage.rpg-touch-device #pad > button[data-dx="-1"]{left:max(10px,env(safe-area-inset-left) + 10px);bottom:calc(max(12px,env(safe-area-inset-bottom) + 12px) + 60px);}
+  #stage.rpg-touch-device #pad > button[data-dx="0"][data-dy="-1"]{left:calc(max(10px,env(safe-area-inset-left) + 10px) + clamp(48px,14vw,66px) + 6px);bottom:calc(max(12px,env(safe-area-inset-bottom) + 12px) + 66px);}
+  #stage.rpg-touch-device #pad > button[data-dx="0"][data-dy="1"]{left:calc(max(10px,env(safe-area-inset-left) + 10px) + clamp(48px,14vw,66px) + 6px);bottom:calc(max(12px,env(safe-area-inset-bottom) + 12px) + 2px);}
+  #stage.rpg-touch-device #pad > button[data-dx="1"]{left:calc(max(10px,env(safe-area-inset-left) + 10px) + (clamp(48px,14vw,66px) + 6px) * 2);bottom:calc(max(12px,env(safe-area-inset-bottom) + 12px) + 60px);}
+  #stage.rpg-touch-device #pad > #btnAtk{
+    display:flex!important;
+    right:max(12px,env(safe-area-inset-right) + 12px);bottom:max(12px,env(safe-area-inset-bottom) + 12px);
+    width:clamp(68px,19vw,92px);height:clamp(68px,19vw,92px);min-height:68px;border-radius:999px;padding:7px;
+    display:flex;align-items:center;justify-content:center;text-align:center;font-size:clamp(12px,3.4vw,16px);line-height:1.15;
+    background:color-mix(in srgb,var(--acc) 88%,var(--card));box-shadow:0 10px 28px rgba(0,0,0,.26);border:2px solid color-mix(in srgb,var(--acc) 45%,white);
+  }
+  #stage.rpg-touch-device #skillBarV29{
+    right:max(12px,env(safe-area-inset-right) + 12px);bottom:calc(max(12px,env(safe-area-inset-bottom) + 12px) + clamp(74px,20vw,98px) + 8px);
+    width:min(286px,calc(100vw - 116px));display:grid;grid-template-columns:repeat(3,1fr);gap:6px;z-index:11;
+  }
+  #stage.rpg-touch-device .skillBtnV29{min-height:clamp(50px,15vw,64px);border-radius:14px;padding:4px;}
+  #stage.rpg-touch-device .skillBtnV29 span{font-size:clamp(16px,4.8vw,23px);}
+  #stage.rpg-touch-device .skillBtnV29 small{font-size:clamp(8px,2.2vw,10px);}
+
+  /* 상단 HUD + 미니맵 충돌 방지 */
+  #stage.rpg-touch-device #top{top:max(6px,env(safe-area-inset-top));left:max(6px,env(safe-area-inset-left));right:max(58px,env(safe-area-inset-right) + 52px);padding:7px 9px;min-height:42px;}
+  #stage.rpg-touch-device #zoneHud{top:58px;left:max(8px,env(safe-area-inset-left) + 8px);max-width:min(230px,58vw);padding:6px 8px;}
+  #stage.rpg-touch-device #zoneName{font-size:12px;}
+  #stage.rpg-touch-device #zoneMeta{font-size:9px;line-height:1.25;}
+  #stage.rpg-touch-device #minimapWrap{top:58px;right:max(8px,env(safe-area-inset-right) + 8px);width:116px;padding:4px;border-radius:10px;}
+  #stage.rpg-touch-device #minimapLegend{display:none;}
+  #stage.rpg-touch-device #minimap{border-radius:7px;}
+
+  /* 패널: 폰 세로 전체폭, 가로/태블릿 오른쪽 열 */
+  #stage.rpg-touch-device #overlayPanel{top:calc(58px + 42px);right:8px;width:min(440px,calc(100vw - 16px));max-height:calc(var(--rpg-vvh,100dvh) - 116px);}
+  @media (orientation:landscape) and (max-width:1000px){
+    #stage.rpg-touch-device #rpgTouchAction{left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom) + 14px) + 92px);}
+    #stage.rpg-touch-device #zoneHud{max-width:260px;}
+    #stage.rpg-touch-device #minimapWrap{width:110px;}
+    #stage.rpg-touch-device #rpgMobileMenuToggle{top:max(6px,env(safe-area-inset-top));}
+    #stage.rpg-touch-device #menu{top:54px;max-height:calc(var(--rpg-vvh,100dvh) - 64px);}
+    #stage.rpg-touch-device #overlayPanel{top:58px;max-height:calc(var(--rpg-vvh,100dvh) - 66px);}
+  }
+  @media (orientation:portrait) and (max-width:600px){
+    #stage.rpg-touch-device #rpgTouchAction{bottom:calc(max(92px,env(safe-area-inset-bottom) + 84px) + 4px);}
+    #stage.rpg-touch-device #skillBarV29{width:min(286px,calc(100vw - 116px));}
+  }
+
+  /* 터치 튜토리얼 카드: 세로는 아래 중앙, 가로는 왼쪽 컴팩트 */
+  @media (pointer:coarse), (hover:none){
+    #stage.rpg-touch-device .tutorialV49Card{max-width:min(430px,calc(100vw - 18px));}
+    #stage.rpg-touch-device .tutorialV49Text{font-size:10px;line-height:1.35;max-height:70px;overflow:hidden;}
+    #stage.rpg-touch-device #tutorialV49Text{max-height:70px;overflow:hidden;}
+  }
+  @media (pointer:coarse) and (orientation:landscape) and (max-height:520px){
+    #stage.rpg-touch-device .tutorialV49Card{position:absolute;left:8px;bottom:8px;width:min(300px,42vw);}
+    #stage.rpg-touch-device .tutorialV49Text{display:none;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;scroll-behavior:auto !important;}
+  }
+</style>
+<script id="rpg-v73-touch-input">
+(function installRpgV73Touch(){
+  'use strict';
+  if(typeof window==='undefined'||typeof document==='undefined')return;
+  if(window.__rpgV73TouchInstalled)return;
+  window.__rpgV73TouchInstalled=true;
+
+  const $v73=id=>document.getElementById(id);
+  const stage=$v73('stage');
+  if(!stage)return;
+
+  function isTouch(){
+    try{return !!(window.matchMedia?.('(pointer:coarse)').matches || window.matchMedia?.('(hover:none)').matches || navigator.maxTouchPoints>0);}catch(_e){return false;}
+  }
+
+  function setViewportHeight(){
+    try{
+      const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight||document.documentElement.clientHeight||800;
+      document.documentElement.style.setProperty('--rpg-vvh',Math.max(280,Math.round(h))+'px');
+    }catch(_e){}
+  }
+  setViewportHeight();
+  window.addEventListener('resize',setViewportHeight,{passive:true});
+  window.visualViewport?.addEventListener('resize',setViewportHeight,{passive:true});
+
+  const touch=isTouch();
+  stage.classList.toggle('rpg-touch-device',touch);
+  if(!touch)return;
+
+  /* 기존 패치에서 누적된 D-pad/공격 이벤트를 완전히 제거한다.
+     같은 버튼에 여러 pointerdown/click 핸들러가 남아 있으면 한 번 눌렀을 때
+     이동/공격이 중복 실행될 수 있으므로 최종 버튼을 새 DOM으로 교체한다. */
+  try{
+    document.querySelectorAll('#pad > button[data-dx]').forEach(oldBtn=>{
+      const fresh=oldBtn.cloneNode(true);
+      oldBtn.replaceWith(fresh);
+    });
+    const oldAtk=$v73('btnAtk');
+    if(oldAtk){ const freshAtk=oldAtk.cloneNode(true); oldAtk.replaceWith(freshAtk); }
+  }catch(_e){}
+
+  /* 모바일 메뉴 토글 */
+  let menuToggle=$v73('rpgMobileMenuToggle');
+  if(!menuToggle){
+    menuToggle=document.createElement('button');
+    menuToggle.id='rpgMobileMenuToggle';
+    menuToggle.type='button';
+    menuToggle.setAttribute('aria-label','게임 메뉴');
+    menuToggle.textContent='☰';
+    stage.appendChild(menuToggle);
+  }
+  const menu=$v73('menu');
+  if(menu){
+    const closeMenu=()=>{menu.classList.remove('rpg-mobile-open');menuToggle.textContent='☰';menuToggle.setAttribute('aria-expanded','false');};
+    menuToggle.onclick=e=>{e.preventDefault();e.stopPropagation();const open=menu.classList.toggle('rpg-mobile-open');menuToggle.textContent=open?'✕':'☰';menuToggle.setAttribute('aria-expanded',open?'true':'false');};
+    document.addEventListener('pointerdown',e=>{
+      if(!menu.classList.contains('rpg-mobile-open'))return;
+      if(e.target===menu||menu.contains(e.target)||e.target===menuToggle)return;
+      closeMenu();
+    },true);
+    menu.addEventListener('click',e=>{if(e.target?.closest('button')&&e.target.closest('button')!==menuToggle)closeMenu();},true);
+  }
+
+  /* 음악 버튼은 모바일 메뉴 안으로 이동 */
+  function moveMusicIntoMenu(){
+    const music=$v73('rpgMusicV52');
+    const m=$v73('menu');
+    if(music&&m&&music.parentElement!==m)m.appendChild(music);
+  }
+  moveMusicIntoMenu();
+  setTimeout(moveMusicIntoMenu,300);
+  setTimeout(moveMusicIntoMenu,1000);
+
+  /* 근처 상호작용을 E/M과 같은 동작으로 연결 */
+  let actionBtn=$v73('rpgTouchAction');
+  if(!actionBtn){
+    actionBtn=document.createElement('button');
+    actionBtn.id='rpgTouchAction';
+    actionBtn.type='button';
+    stage.appendChild(actionBtn);
+  }
+
+  function player(){try{return S.players&&S.players[S.uid]||null;}catch(_e){return null;}}
+  function nearestNpc(){try{return typeof nearestActiveNpc==='function'?nearestActiveNpc():null;}catch(_e){return null;}}
+  function nearestDoor(p){try{return typeof nearestBuildingDoor==='function'?nearestBuildingDoor(p):null;}catch(_e){return null;}}
+  function nearestPortal(p){try{return typeof nearestRpgPortal==='function'?nearestRpgPortal(p):null;}catch(_e){return null;}}
+  function updateAction(){
+    if(!S.started){actionBtn.style.display='none';return;}
+    const p=player();if(!p){actionBtn.style.display='none';return;}
+    const n=nearestNpc();
+    const d=nearestDoor(p);
+    const t=nearestPortal(p);
+    let kind='',label='';
+    if(n){kind='npc';label='💬 '+String(n.name||'NPC')+'와 대화';}
+    else if(d){kind='door';label=p.map==='town'?'🚪 '+String(d.name||'건물')+' 입장':'🚪 건물에서 나가기';}
+    else if(t){kind='portal';label='🌀 '+String(t.name||'이동석')+' 사용';}
+    if(!kind){actionBtn.style.display='none';actionBtn.dataset.kind='';return;}
+    actionBtn.dataset.kind=kind;actionBtn.textContent=label;actionBtn.style.display='block';
+  }
+  actionBtn.onclick=e=>{
+    e.preventDefault();e.stopPropagation();
+    const p=player();if(!p)return;
+    const kind=actionBtn.dataset.kind;
+    if(kind==='npc'){
+      const n=nearestNpc();if(n){if(typeof showNpcDialogueV46==='function')showNpcDialogueV46(n.id);else if(typeof showNpcDialogueV39==='function')showNpcDialogueV39(n.id);else if(typeof showNpcDialogueV35==='function')showNpcDialogueV35(n.id);}
+    }else if(kind==='door'){
+      if(typeof requestBuildingTransition==='function')requestBuildingTransition();
+    }else if(kind==='portal'){
+      if(typeof renderTeleportPanelRpg==='function')renderTeleportPanelRpg();else if(typeof renderTeleportPanel==='function')renderTeleportPanel();
+    }
+  };
+  if(!window.__rpgV73ActionTimer){window.__rpgV73ActionTimer=setInterval(()=>{try{updateAction();}catch(_e){}},180);}
+
+  /* 기존 조작 버튼의 중복 핸들러 3중 등록을 제거하고 최종 핸들러 하나만 설치 */
+  function resetPadHandlers(){
+    const pad=$v73('pad');if(!pad)return;
+    const dirs=[...pad.querySelectorAll('button[data-dx]')];
+    for(const old of dirs){const fresh=old.cloneNode(true);old.replaceWith(fresh);}
+    const oldAtk=$v73('btnAtk');
+    if(oldAtk&&oldAtk.parentNode){const fresh=oldAtk.cloneNode(true);oldAtk.replaceWith(fresh);}
+    else if(!oldAtk){
+      const freshAtk=document.createElement('button');
+      freshAtk.id='btnAtk';
+      freshAtk.type='button';
+      freshAtk.textContent='⚔️ 공격';
+      pad.appendChild(freshAtk);
+    }
+
+    const dirBtns=[...pad.querySelectorAll('button[data-dx]')];
+    const held=new Map();
+    let timer=null;
+    const vec=()=>{let dx=0,dy=0;for(const d of held.values()){dx+=d[0];dy+=d[1];}return [Math.max(-1,Math.min(1,dx)),Math.max(-1,Math.min(1,dy))];};
+    const step=()=>{if(!S.started)return;const [dx,dy]=vec();if(!dx&&!dy)return;S.walkTo=null;try{if(typeof tryMoveRpgV15==='function')tryMoveRpgV15(dx,dy);else if(typeof tryMoveRpg==='function')tryMoveRpg(dx,dy);else if(typeof tryMove==='function')tryMove(dx,dy);}catch(_e){}};
+    const ensure=()=>{if(timer==null)timer=setInterval(step,88);};
+    const stop=()=>{if(!held.size&&timer!=null){clearInterval(timer);timer=null;}};
+    for(const btn of dirBtns){
+      btn.addEventListener('pointerdown',e=>{const id=String(e.pointerId);try{btn.setPointerCapture(e.pointerId);}catch(_e){}held.set(id,[Number(btn.dataset.dx)||0,Number(btn.dataset.dy)||0]);step();ensure();e.preventDefault();e.stopPropagation();},{passive:false});
+      const end=e=>{held.delete(String(e.pointerId));stop();e.preventDefault();};
+      btn.addEventListener('pointerup',end,{passive:false});
+      btn.addEventListener('pointercancel',end,{passive:false});
+      btn.addEventListener('lostpointercapture',end,{passive:false});
+      btn.addEventListener('click',e=>e.preventDefault(),true);
+    }
+    const atk=$v73('btnAtk');
+    if(atk)atk.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();try{attack();}catch(_e){}},{passive:false});
+    window.addEventListener('blur',()=>{held.clear();if(timer!=null){clearInterval(timer);timer=null;}},{passive:true});
+  }
+  /* 다른 초기화 코드가 나중에 pad에 새 버튼을 붙이는 경우를 보정 */
+  resetPadHandlers();
+
+  /* 이미 존재하는 skill bar는 3칸 버튼 그대로 사용. 중복 skill click은 재생성시 자연스럽게 제거된다. */
+  const oldRefreshSkill=window.refreshSkillBarV29;
+  if(typeof oldRefreshSkill==='function'){
+    window.refreshSkillBarV29=function(){oldRefreshSkill.apply(this,arguments);};
+  }
+
+  /* 가로/세로 전환 시 실제 입력 방식이 바뀌는 하이브리드 기기도 즉시 반영 */
+  window.addEventListener('orientationchange',()=>setTimeout(setViewportHeight,80),{passive:true});
+})();
+</script>
+
+
+<!-- RPG v74: 최종 안정화/모바일 정리 -->
+<style id="rpg-v74-final-style">
+  :root{--muted:#6e778f;--warn:#e3a63a;}
+  @media (prefers-color-scheme:dark){:root{--muted:#aeb7d4;--warn:#f1bc5b;}}
+  html,body,#game,#stage{overscroll-behavior-x:none;overscroll-behavior-y:none;}
+  #cv,#stage{touch-action:none;}
+  #overlayPanel input,#overlayPanel textarea,#overlayPanel select,#lobby input{touch-action:auto;}
+  #menu button.iconBtn{color:var(--fg);background:color-mix(in srgb,var(--card) 94%,transparent);border-color:var(--line);}
+  #btnGuide{color:var(--fg)!important;font-weight:900;}
+  #rooms .room button,#btnCreate,#btnQuick,#btnRecover,#btnCopyRecovery,#btnNewRecovery{min-height:44px;}
+  #roomName,#recoveryInput,#friendCodeInput,#chatInput,#tradeGold{font-size:16px;}
+  @media (pointer:coarse),(hover:none){
+    #lobby button{min-height:44px;}
+    #lobby .row{flex-wrap:wrap;}
+    #lobby .row>*{min-width:0;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;animation-duration:.001ms!important;transition:none!important;transition-duration:.001ms!important;scroll-behavior:auto!important;}
+  }
+  @media (pointer:coarse) and (orientation:landscape) and (max-height:560px){
+    #stage.rpg-touch-device #zoneHud{top:54px;max-width:220px;}
+    #stage.rpg-touch-device #minimapWrap{top:54px;width:104px;}
+    #stage.rpg-touch-device #minimapLegend{display:none!important;}
+    #stage.rpg-touch-device .tutorialV49Text{display:none!important;}
+    #stage.rpg-touch-device .tutorialV49Card{left:8px!important;right:auto!important;bottom:8px!important;width:min(300px,42vw)!important;max-width:300px!important;}
+    #stage.rpg-touch-device #overlayPanel{top:52px;max-height:calc(var(--rpg-vvh,100dvh) - 60px);}
+  }
+  @media (pointer:coarse) and (orientation:portrait) and (max-width:600px){
+    #stage.rpg-touch-device #rpgTouchAction{max-width:calc(100vw - 24px);}
+    #stage.rpg-touch-device #overlayPanel{left:8px;right:8px;width:auto;max-width:none;}
+  }
+</style>
+
+<script id="rpg-v74-final-stabilization">
+(function(){
+  'use strict';
+  if(window.__rpgV74FinalStabilization)return;
+  window.__rpgV74FinalStabilization=true;
+
+  const $=id=>document.getElementById(id);
+  const safeText=v=>String(v==null?'':v);
+  const itemDef=id=>(typeof ITEMS!=='undefined'&&ITEMS&&ITEMS[id])?ITEMS[id]:null;
+  const localPlayer=()=>{try{return S.players&&S.players[S.uid]||null;}catch(_){return null;}};
+
+  /* 1. 게임 중에는 로비 MQTT 갱신을 절대 다시 만들지 않는다. */
+  try{
+    const oldInitDirectory=window.initDirectory;
+    if(typeof oldInitDirectory==='function'){
+      window.initDirectory=function(){
+        try{
+          if(S.started && $('lobby')?.hidden){ return S.mq||null; }
+        }catch(_){ }
+        return oldInitDirectory.apply(this,arguments);
+      };
+      globalThis.initDirectory=window.initDirectory;
+    }
+  }catch(_){ }
+
+  /* 2. 거래창: 상대 퇴장/알 수 없는 아이템 ID가 있어도 절대 죽지 않는다. */
+  try{
+    window.openTradePanel=function(){
+      const p=localPlayer();
+      if(!p||!S.players)return;
+      const t=typeof tradeForPlayerClient==='function'?tradeForPlayerClient(S.uid):null;
+      if(!t){
+        let html='<div class="section"><div class="sectionTitle">거래할 플레이어</div>';
+        Object.values(S.players).filter(x=>x&&x.id!==S.uid).forEach(x=>{
+          html+='<div class="tradeTarget"><span>'+safeText(x.emoji||'🙂')+' '+escapeHtml(safeText(x.name||'플레이어'))+' · Lv.'+Math.max(1,Number(x.lv)||1)+'</span><button type="button" data-trade="'+escapeHtml(String(x.id))+'">요청</button></div>';
+        });
+        if(Object.keys(S.players).length<=1)html+='<div class="empty">현재 같은 방에 거래할 플레이어가 없어.</div>';
+        html+='</div>';
+        openPanel('🤝 거래',html);
+        $('panelBody')?.querySelectorAll('[data-trade]').forEach(b=>b.onclick=()=>requestTrade(b.dataset.trade));
+        return;
+      }
+
+      const otherId=t.a===S.uid?t.b:t.a;
+      const otherP=S.players[otherId];
+      if(!otherP){
+        try{sendLocalHost({t:'trade_cancel'});}catch(_){ }
+        openPanel('🤝 거래','<div class="empty">상대 플레이어가 방을 나가서 거래를 종료했어.</div><div class="tradeActions"><button type="button" id="tradeClosed">닫기</button></div>');
+        $('tradeClosed')?.addEventListener('click',closePanel);
+        return;
+      }
+
+      const mine=t.a===S.uid?(t.ai||{}):(t.bi||{});
+      const other=t.a===S.uid?(t.bi||{}):(t.ai||{});
+      const mg=Number(t.a===S.uid?t.ag:t.bg)||0;
+      const og=Number(t.a===S.uid?t.bg:t.ag)||0;
+      const entries=Object.entries(p.inv||{}).filter(([id,n])=>itemDef(id)&&Number(n)>0);
+      let html='<div class="section"><div class="sectionTitle">상대방</div><div class="tradeOffer">'+safeText(otherP.emoji||'🙂')+' '+escapeHtml(safeText(otherP.name||'플레이어'))+'</div></div>';
+      html+='<div class="section"><div class="sectionTitle">내 제안 · 아이템 클릭으로 수량 선택</div><div class="panelGrid">';
+      if(!entries.length) html+='<div class="empty">거래 가능한 아이템이 없어.</div>';
+      entries.forEach(([id,n])=>{
+        const d=itemDef(id); if(!d)return;
+        html+='<button class="itemBtn" type="button" data-item="'+escapeHtml(id)+'"><strong>'+safeText(d.icon||'📦')+'</strong><span>'+escapeHtml(d.name||id)+'</span><small>x'+(Number(mine[id])||0)+'</small></button>';
+      });
+      html+='</div><div class="tradeLine">💰 골드 <input id="tradeGold" type="number" min="0" inputmode="numeric" value="'+Math.max(0,mg)+'"></div></div>';
+      html+='<div class="section"><div class="sectionTitle">상대방 제안</div><div class="tradeOffer">';
+      Object.entries(other).forEach(([id,n])=>{const d=itemDef(id);if(!d)return;html+='<div class="tradeLine"><span>'+safeText(d.icon||'📦')+' '+escapeHtml(d.name||id)+'</span><b>x'+Math.max(0,Number(n)||0)+'</b></div>';});
+      html+='<div class="tradeLine"><span>💰 골드</span><b>'+Math.max(0,og)+'</b></div></div></div>';
+      html+='<div class="tradeActions"><button type="button" id="tradeSend">제안 갱신</button><button type="button" id="tradeReady">'+((t.a===S.uid?t.ar:t.br)?'확정 취소':'✅ 확정')+'</button><button type="button" id="tradeCancel">취소</button></div>';
+      openPanel('🤝 거래',html);
+      let selected={...mine};
+      $('panelBody')?.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{
+        const id=b.dataset.item, max=typeof itemCount==='function'?itemCount(p,id):Number(p.inv?.[id])||0,cur=Number(selected[id])||0;
+        selected[id]=cur>=max?0:cur+1;
+        const small=b.querySelector('small'); if(small)small.textContent='x'+selected[id];
+        if(!selected[id])delete selected[id];
+      });
+      $('tradeSend')?.addEventListener('click',()=>{const gold=Math.max(0,Number($('tradeGold')?.value)||0);sendLocalHost({t:'trade_offer',items:selected,gold});});
+      $('tradeReady')?.addEventListener('click',()=>sendLocalHost({t:'trade_ready',ready:!(t.a===S.uid?t.ar:t.br)}));
+      $('tradeCancel')?.addEventListener('click',()=>sendLocalHost({t:'trade_cancel'}));
+    };
+    globalThis.openTradePanel=window.openTradePanel;
+  }catch(_){ }
+
+  /* 3. 로컬 계정/인벤토리의 잘못된 ID를 UI 전에 정리한다. */
+  function sanitizePlayerItems(p){
+    if(!p)return;
+    try{
+      if(!p.inv||typeof p.inv!=='object')p.inv={};
+      for(const id of Object.keys(p.inv)){
+        const d=itemDef(id); const n=Math.floor(Number(p.inv[id])||0);
+        if(!d||n<=0)delete p.inv[id];
+        else p.inv[id]=Math.min(n,Math.max(1,Number(d.max)||99));
+      }
+      if(p.equip&&p.equip.weapon&&!itemDef(p.equip.weapon))p.equip.weapon=null;
+      if(p.equip&&p.equip.armor&&!itemDef(p.equip.armor))p.equip.armor=null;
+      if(p.storage&&typeof p.storage==='object'){
+        for(const id of Object.keys(p.storage))if(!itemDef(id)||!(Number(p.storage[id])>0))delete p.storage[id];
+      }
+    }catch(_){ }
+  }
+  try{Object.values(S.players||{}).forEach(sanitizePlayerItems);}catch(_){ }
+
+  /* 4. 패드/공격 버튼 최종 단일 핸들러. enterGame 이후에도 중복 등록을 제거한다. */
+  let lastPadInstall=0;
+  function installFinalPadHandlers(){
+    const pad=$('pad');
+    if(!pad)return;
+    const now=Date.now();
+    if(now-lastPadInstall<50)return;
+    lastPadInstall=now;
+    const dirs=[...pad.querySelectorAll('button[data-dx]')];
+    for(const old of dirs){const fresh=old.cloneNode(true);old.replaceWith(fresh);}
+    const oldAtk=$('btnAtk'); if(oldAtk&&oldAtk.parentNode){const fresh=oldAtk.cloneNode(true);oldAtk.replaceWith(fresh);}
+    const dirBtns=[...pad.querySelectorAll('button[data-dx]')];
+    const held=new Map(); let timer=null;
+    const step=()=>{if(!S.started)return;let dx=0,dy=0;for(const v of held.values()){dx+=v[0];dy+=v[1];}dx=Math.max(-1,Math.min(1,dx));dy=Math.max(-1,Math.min(1,dy));if(!dx&&!dy)return;S.walkTo=null;try{if(typeof tryMoveRpgV15==='function')tryMoveRpgV15(dx,dy);else if(typeof tryMoveRpg==='function')tryMoveRpg(dx,dy);else if(typeof tryMove==='function')tryMove(dx,dy);}catch(_){}};
+    const ensure=()=>{if(timer==null)timer=setInterval(step,88);};
+    const stop=()=>{if(!held.size&&timer!=null){clearInterval(timer);timer=null;}};
+    for(const b of dirBtns){
+      b.addEventListener('pointerdown',e=>{held.set(String(e.pointerId),[Number(b.dataset.dx)||0,Number(b.dataset.dy)||0]);try{b.setPointerCapture(e.pointerId);}catch(_){ }step();ensure();e.preventDefault();e.stopImmediatePropagation();},{passive:false});
+      const end=e=>{held.delete(String(e.pointerId));stop();e.preventDefault();e.stopImmediatePropagation();};
+      b.addEventListener('pointerup',end,{passive:false});b.addEventListener('pointercancel',end,{passive:false});b.addEventListener('lostpointercapture',end,{passive:false});b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();},true);
+    }
+    const atk=$('btnAtk');
+    if(atk)atk.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();try{attack();}catch(_){ }},{passive:false});
+    window.addEventListener('blur',()=>{held.clear();if(timer!=null){clearInterval(timer);timer=null;}},{passive:true});
+  }
+
+  try{
+    const oldEnter=window.enterGame;
+    if(typeof oldEnter==='function'){
+      window.enterGame=function(){const out=oldEnter.apply(this,arguments);setTimeout(installFinalPadHandlers,0);setTimeout(installFinalPadHandlers,120);return out;};
+      globalThis.enterGame=window.enterGame;
+    }
+  }catch(_){ }
+  installFinalPadHandlers();
+
+  /* 5. 터치 상호작용 버튼은 현재 대상이 사라져도 즉시 숨겨지고, 메뉴/패널과 충돌하지 않는다. */
+  try{
+    const action=$('rpgTouchAction');
+    if(action){
+      const obs=new MutationObserver(()=>{
+        if($('overlayPanel')?.classList.contains('open'))action.style.display='none';
+      });
+      if($('overlayPanel'))obs.observe($('overlayPanel'),{attributes:true,attributeFilter:['class']});
+    }
+  }catch(_){ }
+
+  /* 6. 도움말/알림은 브라우저 UI 대신 게임 내부 메시지를 우선한다. */
+  try{
+    window.addEventListener('error',e=>{
+      const m=safeText(e?.message||'').trim();
+      if(!m)return;
+      if(/Peer is not defined|mqtt is not defined/i.test(m)){
+        try{lobbyMsg('⚠️ 외부 네트워크 라이브러리를 불러오지 못했어. 인터넷 연결 또는 CDN 차단을 확인해줘.');}catch(_){ }
+      }
+    });
+  }catch(_){ }
+
+  /* 7. 모바일 메뉴/상호작용은 페이지 진입 직후에도 안전하게 재평가한다. */
+  try{
+    window.addEventListener('resize',()=>setTimeout(()=>{
+      const st=$('stage');
+      if(!st)return;
+      const touch=!!(window.matchMedia?.('(pointer:coarse)').matches||window.matchMedia?.('(hover:none)').matches||navigator.maxTouchPoints>0);
+      st.classList.toggle('rpg-touch-device',touch);
+      document.documentElement.style.setProperty('--rpg-vvh',Math.max(280,Math.round((window.visualViewport&&window.visualViewport.height)||window.innerHeight||800))+'px');
+    },50),{passive:true});
+  }catch(_){ }
+
+  /* 8. 아이템/거래 UI를 열기 전에도 안전 정리 */
+  try{
+    const oldRenderInv=window.renderInventory;
+    if(typeof oldRenderInv==='function'){
+      window.renderInventory=function(){sanitizePlayerItems(localPlayer());return oldRenderInv.apply(this,arguments);};
+      globalThis.renderInventory=window.renderInventory;
+    }
+  }catch(_){ }
+
+})();
+</script>
+
+
+<!-- RPG v79: P2P/세션 안정화 최종 점검 패치 -->
+<script id="rpg-v79-p2p-stability">
+(function installRpgP2PStabilityV79(){
+  'use strict';
+  if(window.__rpgV79P2PStability) return;
+  window.__rpgV79P2PStability = true;
+
+  const safeClose = c => { try{ if(c && !c.destroyed) c.close(); }catch(_e){} };
+
+  /* 1) 공개 방 목록은 호스트 PC 시계가 아니라 '내가 마지막으로 본 시각'을 기준으로 만료시킨다. */
+  try{
+    const oldGetLive = window.getLivePublicRooms;
+    if(typeof oldGetLive==='function'){
+      window.getLivePublicRooms = function(excludeCode=''){
+        const now=Date.now();
+        const excluded=String(excludeCode||'').trim().toUpperCase();
+        return Object.values(S.rooms||{})
+          .filter(r=>{
+            if(!r || r.public===false || !r.code || String(r.code).toUpperCase()===excluded) return false;
+            const seen=Math.max(0,Number(r.seenAt)||0);
+            const count=Number(r.count)||0;
+            const peer=String(r.peerId||'');
+            const expected=typeof hostId==='function'?String(hostId(String(r.code).toUpperCase(),Math.max(0,Number(r.gen)||0))):'';
+            if(!seen || now-seen>12000) return false;
+            if(count>=12) return false;
+            if(expected && peer && peer!==expected) return false;
+            return !!(peer||expected);
+          })
+          .sort((a,b)=>(Number(b.seenAt)||0)-(Number(a.seenAt)||0)||(Number(a.count)||0)-(Number(b.count)||0));
+      };
+      globalThis.getLivePublicRooms=window.getLivePublicRooms;
+    }
+  }catch(_e){}
+
+  /* 2) MQTT로 받은 방도 deterministic Peer ID와 맞는지 최종 검증한다. */
+  try{
+    const oldRenderRooms=window.renderRooms;
+    if(typeof oldRenderRooms==='function'){
+      window.renderRooms=function(){
+        try{
+          const now=Date.now();
+          Object.keys(S.rooms||{}).forEach(code=>{
+            const r=S.rooms[code];
+            const expected=typeof hostId==='function'?String(hostId(String(code).toUpperCase(),Math.max(0,Number(r&&r.gen)||0))):'';
+            if(r && expected && r.peerId && String(r.peerId)!==expected) delete S.rooms[code];
+            else if(r && (!r.seenAt || now-Number(r.seenAt)>12000)) delete S.rooms[code];
+          });
+        }catch(_e){}
+        return oldRenderRooms.apply(this,arguments);
+      };
+      globalThis.renderRooms=window.renderRooms;
+    }
+  }catch(_e){}
+
+  /* 3) Peer가 disconnected 상태일 때 기존 ensurePeer가 콜백을 영원히 대기시키는 문제를 수정한다. */
+  try{
+    const oldEnsurePeer=window.ensurePeer;
+    if(typeof oldEnsurePeer==='function'){
+      window.ensurePeer=function(cb){
+        if(typeof cb!=='function') cb=()=>{};
+        try{
+          if(S.peer && !S.peer.destroyed){
+            if(S.peer.open){ cb(); return; }
+            if(!S.peerWaiters.includes(cb)) S.peerWaiters.push(cb);
+            if(S.peer.disconnected){
+              const now=Date.now();
+              if(now-Number(S._peerReconnectAt||0)>1200){
+                S._peerReconnectAt=now;
+                try{ S.peer.reconnect(); }catch(_e){
+                  try{ S.peer.destroy(); }catch(__e){}
+                  S.peer=null;
+                }
+              }
+            }
+            return;
+          }
+        }catch(_e){}
+        return oldEnsurePeer(cb);
+      };
+      globalThis.ensurePeer=window.ensurePeer;
+    }
+  }catch(_e){}
+
+  /* 4) 현재 방 연결 시도는 게임 중에도 watchdog을 둔다. 기존 함수는 로비에서만 timeout을 처리했다. */
+  try{
+    const oldConnectToHost=window.connectToHost;
+    if(typeof oldConnectToHost==='function'){
+      window.connectToHost=function(hid){
+        const target=String(hid||'').trim();
+        const startedAt=Date.now();
+        const out=oldConnectToHost.apply(this,arguments);
+        const timerId=setTimeout(()=>{
+          try{
+            S._p2pWatchdogs?.delete(timerId);
+            if(!target || S.targetHid!==target) return;
+            if(S.hostConn && S.hostConn.open) return;
+            if(Date.now()-startedAt<10500) return;
+            if(S.migrating || (S.started && !S.hostConn)){
+              S.retry=Math.max(0,(Number(S.retry)||0)-1);
+              try{ if(S.hostConn && !S.hostConn.open) S.hostConn.close(); }catch(_e){}
+              if(S.retry>0){
+                setNetState('degraded');
+                ensurePeer(()=>connectToHost(target));
+              }else{
+                failJoin();
+              }
+            }
+          }catch(_e){}
+        },11000);
+        if(!S._p2pWatchdogs)S._p2pWatchdogs=new Set();
+        S._p2pWatchdogs.add(timerId);
+        return out;
+      };
+      globalThis.connectToHost=window.connectToHost;
+    }
+  }catch(_e){}
+
+  /* 5) Host handshake: Peer ID를 실제 DataConnection.peer와 대조한다.
+        기존 코드는 client가 보낸 uid/peerId만 믿어서 같은 UID를 사칭한 재연결이 가능했다. */
+  try{
+    const oldHostRecv=window.hostRecv;
+    if(typeof oldHostRecv==='function'){
+      const bucket=new WeakMap();
+      window.hostRecv=function(c,m){
+        if(!c || !m || typeof m!=='object') return;
+        try{
+          const type=String(m.t||'');
+          if(type==='hello'){
+            if(c.uid) return;
+            const packet=m.p&&typeof m.p==='object'?m.p:null;
+            const claimedId=String(packet&&packet.id||'');
+            const claimedPeer=String(packet&&packet.peerId||'');
+            const target=String(m.peerTarget||'');
+            if(!/^[a-z0-9_-]{4,12}$/i.test(claimedId)) { safeClose(c); return; }
+            if(!claimedPeer || claimedPeer!==String(c.peer||'')) { safeClose(c); return; }
+            if(target && S.hostPeer && String(target)!==String(S.hostPeer.id||'')) { safeClose(c); return; }
+            c._helloPeer=claimedPeer;
+          }else{
+            if(!c.uid) return;
+            if(S.conns[c.uid]!==c) return;
+          }
+
+          const now=Date.now();
+          let q=bucket.get(c);
+          if(!q || now-q.reset>5000) q={reset:now,n:0};
+          q.n++;
+          bucket.set(c,q);
+          if(q.n>220){ safeClose(c); return; }
+          if(type!=='caps' && type!=='pong' && type!=='ping'){
+            try{ if(JSON.stringify(m).length>50000){ safeClose(c); return; } }catch(_e){ safeClose(c); return; }
+          }
+        }catch(_e){ return; }
+        try{ return oldHostRecv.apply(this,arguments); }catch(e){
+          try{ if(S.started) log('⚠️ 네트워크 메시지 처리 오류: '+String(e&&e.message||e)); }catch(_e){}
+          return;
+        }
+      };
+      globalThis.hostRecv=window.hostRecv;
+      try{hostRecv=window.hostRecv;}catch(_e){}
+    }
+  }catch(_e){}
+
+  /* 6) 미래에 생성되는 host connection에도 handshake timeout/error 핸들러를 붙인다. */
+  try{
+    const oldAcceptClient=window.acceptClient;
+    if(typeof oldAcceptClient==='function'){
+      window.acceptClient=function(c){
+        if(!c)return;
+        oldAcceptClient.apply(this,arguments);
+        let done=false;
+        const mark=()=>{done=true;};
+        c.on?.('data',m=>{if(m&&m.t==='hello')mark();});
+        const timer=setTimeout(()=>{if(!done&&!c.uid)safeClose(c);},10000);
+        c.on?.('close',()=>{clearTimeout(timer);});
+        c.on?.('error',()=>{clearTimeout(timer);});
+      };
+      globalThis.acceptClient=window.acceptClient;
+    }
+  }catch(_e){}
+
+  /* 7) 방장 heartbeat: 실제 Peer RTT를 측정하고 죽은 연결을 빠르게 식별한다. */
+  try{
+    const oldStartHostMonitoring=window.startHostMonitoring;
+    if(typeof oldStartHostMonitoring==='function'){
+      window.startHostMonitoring=function(){
+        oldStartHostMonitoring.apply(this,arguments);
+        if(S._p2pHeartbeatTimer)clearInterval(S._p2pHeartbeatTimer);
+        S._p2pHeartbeatTimer=setInterval(()=>{
+          try{
+            if(!S.isHost)return;
+            const now=Date.now();
+            Object.keys(S.conns||{}).forEach(uid=>{
+              const c=S.conns[uid];
+              if(!c||!c.open)return;
+              try{ c.send({t:'ping',ts:now}); }catch(_e){}
+              const stat=S.hostStats[uid]||{};
+              stat.lastPingAt=now;
+              if(stat.lastPongAt && now-stat.lastPongAt>60000){
+                // 60초 이상 무응답만 퇴장 처리. 모바일 백그라운드/절전으로 인한 오판을 최소화한다.
+                try{c.close();}catch(_e){}
+              }
+              S.hostStats[uid]=stat;
+            });
+          }catch(_e){}
+        },5000);
+      };
+      globalThis.startHostMonitoring=window.startHostMonitoring;
+    }
+  }catch(_e){}
+
+  /* 8) cleanupNetwork가 heartbeat와 watchdog도 정리하도록 보강한다. */
+  try{
+    const oldCleanupNetwork=window.cleanupNetwork;
+    if(typeof oldCleanupNetwork==='function'){
+      window.cleanupNetwork=function(){
+        try{if(S._p2pHeartbeatTimer){clearInterval(S._p2pHeartbeatTimer);S._p2pHeartbeatTimer=null;}}catch(_e){}
+        try{if(S._p2pWatchdogs){for(const id of S._p2pWatchdogs)clearTimeout(id);S._p2pWatchdogs.clear();}}catch(_e){}
+        return oldCleanupNetwork.apply(this,arguments);
+      };
+      globalThis.cleanupNetwork=window.cleanupNetwork;
+    }
+  }catch(_e){}
+
+  try{ console.info('[ERPG v79] P2P stability patch installed'); }catch(_e){}
+})();
+</script>
+
+</body>
+</html>
