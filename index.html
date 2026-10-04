@@ -13365,5 +13365,215 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   }catch(_){ }},500);
 })();
 </script>
+
+<style id="rpg-v81-layout-style">
+/* v81: PC/모바일 UI를 확실히 분리 */
+#stage:not(.rpg-phone-device) #pad,
+#stage:not(.rpg-phone-device) #rpgTouchAction,
+#stage:not(.rpg-phone-device) #rpgMobileMenuToggle{display:none!important;}
+
+/* PC 메뉴: 접었다 펼치는 모바일 메뉴가 아니라 기존 아이콘 버튼을 한 줄로 표시 */
+#stage:not(.rpg-phone-device) #menu{
+  display:flex!important;
+  position:absolute!important;
+  top:58px!important;
+  right:250px!important;
+  left:auto!important;
+  width:auto!important;
+  max-width:none!important;
+  flex-wrap:nowrap!important;
+  gap:6px!important;
+  padding:0!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  z-index:12!important;
+}
+#stage:not(.rpg-phone-device) #menu button{
+  width:40px!important;
+  min-width:40px!important;
+  height:40px!important;
+  min-height:40px!important;
+  padding:0!important;
+  border-radius:11px!important;
+  font-size:20px!important;
+  line-height:1!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  white-space:nowrap!important;
+}
+#stage:not(.rpg-phone-device) #menu button:hover{transform:translateY(-1px);}
+#stage:not(.rpg-phone-device) #rpgMusicV52{
+  position:static!important;
+  width:40px!important;
+  min-width:40px!important;
+  height:40px!important;
+  min-height:40px!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+#stage:not(.rpg-phone-device) #rpgMusicV52 button{
+  width:40px!important;
+  min-width:40px!important;
+  height:40px!important;
+  min-height:40px!important;
+  padding:0!important;
+  border-radius:11px!important;
+  font-size:19px!important;
+}
+
+/* 데스크톱에서는 모바일식 전체폭 음악 버튼 자체를 제거 */
+#stage:not(.rpg-phone-device) #rpgMusicV52 .musicText,
+#stage:not(.rpg-phone-device) #rpgMusicV52 small,
+#stage:not(.rpg-phone-device) #rpgMusicV52 span.label{display:none!important;}
+
+/* PC에서 스킬은 유지하되 모바일식 큰 원형 공격 버튼은 숨김 */
+#stage:not(.rpg-phone-device) #skillBarV29{
+  right:16px!important;
+  left:auto!important;
+  bottom:16px!important;
+  width:min(285px,30vw)!important;
+  position:absolute!important;
+  z-index:9!important;
+}
+
+/* 미니맵: PC는 더 크게, 메뉴와 수평 충돌하지 않게 고정 */
+#stage:not(.rpg-phone-device) #minimapWrap{
+  width:240px!important;
+  right:12px!important;
+  top:58px!important;
+  z-index:8!important;
+}
+
+/* 패널이 열리면 하단 조작부/스킬을 완전히 제거해서 겹침 방지 */
+#stage.rpg-panel-open-80 #pad,
+#stage.rpg-panel-open-80 #rpgTouchAction,
+#stage.rpg-panel-open-80 #skillBarV29{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+#stage.rpg-panel-open-80 #overlayPanel{z-index:90!important;}
+
+/* PC에서 메뉴와 미니맵이 겹치지 않는 범위가 좁을 때만 2줄 */
+@media (min-width:901px) and (max-width:1200px){
+  #stage:not(.rpg-phone-device) #menu{
+    right:206px!important;
+    max-width:390px!important;
+    flex-wrap:wrap!important;
+  }
+}
+
+/* 작은 터치 기기: 모바일 미니맵을 충분히 크게 */
+@media (pointer:coarse) and (max-width:900px){
+  #stage.rpg-phone-device #minimapWrap{width:190px!important;right:8px!important;top:58px!important;}
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-width:900px){
+  #stage.rpg-phone-device #minimapWrap{width:220px!important;right:8px!important;top:54px!important;}
+}
+@media (pointer:coarse) and (orientation:portrait) and (max-width:900px){
+  #stage.rpg-phone-device #minimapWrap{width:190px!important;right:8px!important;top:58px!important;}
+}
+
+/* 모바일 메뉴는 항상 닫혀 있을 때 화면을 차지하지 않음 */
+#stage.rpg-phone-device #menu{z-index:120!important;}
+#stage.rpg-phone-device #menu.rpg-mobile-open{display:flex!important;}
+</style>
+
+<script id="rpg-v81-layout-runtime">
+(function(){
+  'use strict';
+  if(window.__rpgV81Layout)return;
+  window.__rpgV81Layout=true;
+  const $=id=>document.getElementById(id), stage=$('stage');
+  if(!stage)return;
+
+  /* 스마트폰만 phone-device로 분류한다. 터치 가능한 데스크톱/노트북은 PC UI 유지. */
+  function isPhoneDevice(){
+    const w=Math.max(0,window.innerWidth||0),h=Math.max(0,window.innerHeight||0);
+    const ua=String(navigator.userAgent||'');
+    const mobileUA=/(Android|iPhone|iPod|Windows Phone|Mobile)/i.test(ua);
+    const coarse=!!(window.matchMedia?.('(pointer:coarse)').matches||window.matchMedia?.('(hover:none)').matches||navigator.maxTouchPoints>0);
+    return mobileUA && coarse && Math.min(w,h)<=900;
+  }
+
+  const iconMap={
+    btnInv:['🎒','가방'],
+    btnTrade:['🤝','거래'],
+    btnChat:['💬','채팅'],
+    btnQuest:['📜','퀘스트'],
+    btnSocial:['👥','친구/파티'],
+    btnMap:['🗺️','월드맵'],
+    btnCharacter:['🧑','캐릭터'],
+    btnGuide:['❔','도움말'],
+    btnRecovery:['🗝️','계정 복구'],
+    btnJob:['🎓','전직 진행도']
+  };
+
+  function sync(){
+    const phone=isPhoneDevice();
+    stage.classList.toggle('rpg-phone-device',phone);
+    document.documentElement.style.setProperty('--rpg-vvh',Math.max(280,Math.round(window.visualViewport?.height||window.innerHeight||800))+'px');
+
+    const menu=$('menu');
+    if(menu&&!phone){
+      menu.classList.remove('rpg-mobile-open');
+      menu.style.display='flex';
+      menu.querySelectorAll('button').forEach(b=>{
+        const id=b.id,meta=iconMap[id];
+        if(!meta)return;
+        b.textContent=meta[0];
+        b.title=meta[1];
+        b.setAttribute('aria-label',meta[1]);
+      });
+    }
+    if(menu&&phone){
+      menu.querySelectorAll('button').forEach(b=>{
+        const id=b.id,meta=iconMap[id];
+        if(!meta)return;
+        b.textContent=meta[0]+' '+meta[1];
+        b.title=meta[1];
+        b.setAttribute('aria-label',meta[1]);
+      });
+    }
+
+    const toggle=$('rpgMobileMenuToggle');
+    if(toggle){
+      toggle.style.display=phone?'block':'none';
+      toggle.setAttribute('aria-hidden',phone?'false':'true');
+      if(!phone){toggle.classList.remove('show');toggle.textContent='☰';}
+    }
+
+    /* 음악 버튼도 PC에서는 아이콘 하나로 메뉴에 합친다. */
+    const music=$('rpgMusicV52');
+    if(menu&&music){
+      if(music.parentElement!==menu)menu.appendChild(music);
+      const mb=music.querySelector('button');
+      if(mb&&!phone){
+        const txt=(mb.textContent||'').includes('꺼')?'🎵':'🎵';
+        mb.textContent=txt;
+        mb.title='음악 켜기/끄기';
+        mb.setAttribute('aria-label','음악 켜기/끄기');
+      }
+    }
+
+    /* 패널이 열린 동안은 어떤 기기에서도 하단 터치/스킬 조작이 위로 튀어나오지 않게 한다. */
+    const panel=$('overlayPanel');
+    const panelOpen=!!panel?.classList.contains('open');
+    stage.classList.toggle('rpg-panel-open-80',panelOpen);
+  }
+
+  sync();
+  window.addEventListener('resize',sync,{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(sync,120),{passive:true});
+  window.visualViewport?.addEventListener('resize',sync,{passive:true});
+  const panel=$('overlayPanel');
+  if(panel)new MutationObserver(sync).observe(panel,{attributes:true,attributeFilter:['class']});
+  setInterval(sync,500);
+})();
+</script>
 </body>
 </html>
