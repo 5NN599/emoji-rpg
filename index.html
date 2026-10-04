@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2f68d8">
+<meta name="theme-color" content="#2a5fd1">
 <title>이모지 RPG · P2P 멀티플레이</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%232f68d8%22%2F%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2234%22%20r%3D%2218%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M22%2029h8M34%2029h8M23%2040c5%205%2013%205%2018%200%22%20stroke%3D%22%231b2033%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3Cpath%20d%3D%22M32%209l3.5%207%207.5.9-5.5%205.2%201.5%207.4L32%2025.8l-7%203.7%201.5-7.4-5.5-5.2%207.5-.9z%22%20fill%3D%22%23ffd166%22%2F%3E%3C%2Fsvg%3E" type="image/svg+xml">
 <style>
  :root { color-scheme:light dark; --bg:#f5f7fb; --card:#ffffff; --fg:#1b2033; --sub:#65708f; --line:#d8deeb; --acc:#2f68d8; --btnfg:#ffffff; --tile1:#edf1f7; --tile2:#e5eaf3; --ok:#1f9d5b; --bad:#d63a4c; --shadow:rgba(38,46,74,.12); }
 @media (prefers-color-scheme:dark) { :root { --bg:#12162b; --card:#1c2240; --fg:#eef0ff; --sub:#9aa3d0; --line:#313a6b; --acc:#6ea1ff; --btnfg:#07111f; --tile1:#232a4d; --tile2:#1f2645; --ok:#5fe39b; --bad:#ff6b7a; --shadow:rgba(0,0,0,.24); } }
@@ -157,6 +156,8 @@ button:disabled { opacity:.55; cursor:not-allowed; }
 @media(max-width:560px){#rpgV67NoticeStack{right:10px;top:10px;width:calc(100vw - 20px)}}
 </style>
 
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232a5fd1'/%3E%3Cg stroke='%23fff' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M18 14l16 16'/%3E%3Cpath d='M46 14L30 30'/%3E%3Cpath d='M30 30L14 46'/%3E%3Cpath d='M34 30l16 16'/%3E%3Cpath d='M12 12l9 3-6 6z' fill='%23fff' stroke='none'/%3E%3Cpath d='M52 12l-9 3 6 6z' fill='%23fff' stroke='none'/%3E%3C/g%3E%3C/svg%3E" type="image/svg+xml">
 </head>
 <body>
 
@@ -9541,8 +9542,6 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   if(typeof executeTrade==='function')globalThis.executeTrade=executeTrade;
 })();
 </script>
-</html>
-
 <!-- RPG v44: 건물별 NPC 위치 정합성 + avatar/colors 초기화 오류 수정 -->
 <script>
 (function(){
@@ -12756,3 +12755,356 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   try{renderSocialIfOpen();}catch(_e){}
 })();
 </script>
+
+<!-- RPG v90: 시장터 + 결투장 + 불안정한 워프석 / stray-text cleanup -->
+<script id="rpgV90MarketArenaWarp">
+(function installRpgV90(){
+  'use strict';
+  if(typeof RPG_MAPS==='undefined'||typeof RPG_PORTALS==='undefined'||typeof ITEMS==='undefined'||typeof S==='undefined')return;
+
+  /* ==========================================================
+     1) 새 지역
+     ========================================================== */
+  Object.assign(RPG_MAPS,{
+    market:{id:'market',name:'시장터',meta:'상시 공개 장터 · 플레이어 간 거래',w:84,h:56,bg:'#cbb98e',kind:'town',minLv:1,spawn:{x:8,y:28}},
+    arena:{id:'arena',name:'결투장',meta:'2~4명 · 2팀 결투',w:64,h:44,bg:'#4f596a',kind:'town',minLv:1,spawn:{x:32,y:22}}
+  });
+
+  const addPortal=(map,p)=>{
+    RPG_PORTALS[map]=Array.isArray(RPG_PORTALS[map])?RPG_PORTALS[map]:[];
+    if(!RPG_PORTALS[map].some(x=>x.id===p.id))RPG_PORTALS[map].push(p);
+  };
+  const townPortal=RPG_PORTALS.town&&RPG_PORTALS.town.find(x=>x.id==='town_core');
+  if(townPortal){
+    townPortal.dest=Array.from(new Set([...(townPortal.dest||[]),'market','arena']));
+  }else addPortal('town',{id:'town_market_gate',map:'town',x:28,y:20,name:'시장터·결투장 이동석',icon:'🌀',desc:'시장터와 결투장으로 이동',dest:['market','arena']});
+  addPortal('market',{id:'market_gate',map:'market',x:8,y:28,name:'시장터 출구 이동석',icon:'🌀',desc:'루미나 마을로 귀환',dest:['town','arena']});
+  addPortal('arena',{id:'arena_gate',map:'arena',x:5,y:22,name:'결투장 출구 이동석',icon:'🌀',desc:'시장터와 루미나 마을로 귀환',dest:['town','market']});
+
+  /* 불안정한 워프석: 어디서든 M으로 사용할 수 있는 1회용 워프 */
+  Object.assign(ITEMS,{
+    unstableWarpStone:{id:'unstableWarpStone',name:'불안정한 워프석',icon:'🌀',type:'consumable',max:5,price:180,warpStone:true}
+  });
+  globalThis.ITEMS=ITEMS;
+  S.marketListings=S.marketListings&&typeof S.marketListings==='object'?S.marketListings:{};
+  S.marketPayouts=S.marketPayouts&&typeof S.marketPayouts==='object'?S.marketPayouts:{};
+  S.arenaState=S.arenaState&&typeof S.arenaState==='object'?S.arenaState:{players:{},started:false,winner:null,round:0,updatedAt:0};
+
+  /* ==========================================================
+     2) 지역 렌더링 / 충돌 / 미니맵
+     ========================================================== */
+  const _mapColorV90=mapTileColor;
+  mapTileColor=function(map,x,y,css){
+    if(map==='market')return ((x+y)%2)?'#d7c69d':'#cdb98b';
+    if(map==='arena')return ((x+y)%2)?'#5b6678':'#515c6d';
+    return _mapColorV90(map,x,y,css);
+  };
+  const _blockedV90=isMapBlocked;
+  isMapBlocked=function(map,x,y){
+    const md=RPG_MAPS[map];
+    if(map==='market'||map==='arena'){
+      if(!md||x<0||y<0||x>=md.w||y>=md.h)return true;
+      if(portalAt(map,x,y))return false;
+      if(x===0||y===0||x===md.w-1||y===md.h-1)return true;
+      if(map==='market'){
+        /* 시장 가판대/중앙 통로 */
+        if(y>=10&&y<=15&&(x%9)<3)return true;
+      }else{
+        /* 결투장 외곽 안전벽 + 중앙 장애물 */
+        if((x===20||x===21||x===42||x===43)&&y>=8&&y<=35)return true;
+        if(y===10||y===33){if(x<8||x>55)return true;}
+      }
+      return false;
+    }
+    return _blockedV90(map,x,y);
+  };
+  globalThis.isMapBlocked=isMapBlocked;
+  isBlocked=isMapBlocked;
+
+  const _drawTileV90=drawMapTileRpg;
+  drawMapTileRpg=function(map,x,y,sx,sy,m,css){
+    _drawTileV90(map,x,y,sx,sy,m,css);
+    if(map==='market'){
+      if((x%9===2)&&(y===11||y===14||y===17)){
+        ctx.save();ctx.font=(m.unit*.46)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🧺',sx+m.tw*.5,sy+m.th*.55);ctx.restore();
+      }
+      if(x===40&&y===27){ctx.save();ctx.font=(m.unit*.62)+'px '+FONT;ctx.textAlign='center';ctx.fillText('📋',sx+m.tw*.5,sy+m.th*.5);ctx.restore();}
+    }else if(map==='arena'){
+      if(x===32&&y===22){ctx.save();ctx.font=(m.unit*.7)+'px '+FONT;ctx.textAlign='center';ctx.fillText('⚔️',sx+m.tw*.5,sy+m.th*.52);ctx.restore();}
+      if((x+y)%6===0&&!isMapBlocked(map,x,y)){ctx.save();ctx.strokeStyle='rgba(255,255,255,.08)';ctx.strokeRect(sx+.5,sy+.5,m.tw-1,m.th-1);ctx.restore();}
+    }
+  };
+
+  const _drawMiniV90=drawMinimapRpg;
+  drawMinimapRpg=function(){
+    const p=S.players[S.uid]; if(!p)return;
+    const md=mapDef(p.map),mc=$('minimap'); if(!mc)return;
+    const mx=mc.getContext('2d'),mw=mc.width,mh=mc.height,sx=mw/md.w,sy=mh/md.h;
+    mx.clearRect(0,0,mw,mh);
+    for(let y=0;y<md.h;y++)for(let x=0;x<md.w;x++){
+      mx.fillStyle=mapTileColor(p.map,x,y,{});mx.fillRect(x*sx,y*sy,Math.ceil(sx),Math.ceil(sy));
+      if(isMapBlocked(p.map,x,y)){mx.fillStyle='rgba(30,25,35,.35)';mx.fillRect(x*sx,y*sy,Math.ceil(sx),Math.ceil(sy));}
+    }
+    Object.values(RPG_PORTALS[p.map]||[]).forEach(t=>{mx.fillStyle='#7ed0ff';mx.fillRect(t.x*sx,t.y*sy,Math.max(2,sx+1),Math.max(2,sy+1));});
+    Object.values(S.players||{}).forEach(q=>{if(q.map!==p.map)return;mx.fillStyle=q.id===S.uid?'#ffd54a':'#eaf1ff';mx.fillRect(q.x*sx,q.y*sy,Math.max(2,sx),Math.max(2,sy));});
+    (S.mons||[]).forEach(mon=>{if(mon.map!==p.map)return;mx.fillStyle='#e86a6a';mx.fillRect(mon.x*sx,mon.y*sy,Math.max(1,sx),Math.max(1,sy));});
+    mx.strokeStyle='rgba(255,255,255,.72)';mx.lineWidth=1;mx.strokeRect(0,0,mw-1,mh-1);
+  };
+
+  /* ==========================================================
+     3) 시장터 — 호스트 권한 장터 / 에스크로 / 오프라인 정산
+     ========================================================== */
+  function marketVisible(){return S.players[S.uid]&&S.players[S.uid].map==='market';}
+  function marketClone(){return Object.values(S.marketListings||{}).map(x=>({...x}));}
+  function marketSnapshot(){return {listings:marketClone(),pending:{...S.marketPayouts}};}
+  function marketPush(){try{bcast(snapshot());}catch(_e){}}
+  function marketCanAdd(p,id,n){
+    const def=ITEMS[id],cur=itemCount(p,id); if(!def||n<=0)return false;
+    return cur+n<=Math.max(1,Number(def.max)||99) || (cur===0 && Object.keys(p.inv||{}).length<BAG_SLOTS);
+  }
+  function marketListHost(uid,msg){
+    const p=S.players[uid],id=String(msg.id||''),def=ITEMS[id],n=Math.floor(Number(msg.count)||0),price=Math.floor(Number(msg.price)||0);
+    if(!p||p.map!=='market'||!def||n<1||n>99||price<1||price>999999)return;
+    if(itemCount(p,id)<n||p.equip.weapon===id||p.equip.armor===id)return;
+    if(!removeItem(p,id,n))return;
+    const listingId='mkt-'+(S.marketSeq=(Number(S.marketSeq)||0)+1);
+    S.marketListings[listingId]={id:listingId,seller:uid,sellerFc:String(p.friendCode||''),sellerName:String(p.name||'모험가').slice(0,10),item:id,count:n,price,ts:Date.now()};
+    sendTo(uid,{t:'market_notice',s:'📦 '+def.icon+' '+def.name+' x'+n+'을 '+price+'골드에 시장터에 등록했어.'});
+    broadcastEvent({k:'log',s:'🏪 '+p.name+' 님이 시장터에 물품을 등록했습니다.'});
+    marketPush();
+  }
+  function marketBuyHost(uid,msg){
+    const buyer=S.players[uid],listing=S.marketListings[String(msg.listing)||''];
+    if(!buyer||buyer.map!=='market'||!listing||listing.seller===uid)return;
+    const def=ITEMS[listing.item];
+    if(!def){delete S.marketListings[listing.id];marketPush();return;}
+    if(buyer.gold<listing.price){sendTo(uid,{t:'market_notice',s:'💰 골드가 부족해.'});return;}
+    if(!marketCanAdd(buyer,listing.item,listing.count)){sendTo(uid,{t:'market_notice',s:'🎒 가방 공간 또는 스택 한도가 부족해.'});return;}
+    if(!addItem(buyer,listing.item,listing.count)){sendTo(uid,{t:'market_notice',s:'🎒 가방에 물품을 넣을 수 없어.'});return;}
+    buyer.gold-=listing.price;
+    delete S.marketListings[listing.id];
+    const seller=S.players[listing.seller];
+    if(seller){seller.gold+=listing.price;sendTo(seller.id,{t:'market_notice',s:'💰 시장터 판매 완료! '+def.icon+' '+def.name+' x'+listing.count+' · +'+listing.price+' 골드'});}
+    else if(listing.sellerFc){S.marketPayouts[listing.sellerFc]=(Number(S.marketPayouts[listing.sellerFc])||0)+listing.price;}
+    sendTo(uid,{t:'market_notice',s:'🛒 구매 완료! '+def.icon+' '+def.name+' x'+listing.count+'을 '+listing.price+'골드에 구매했어.'});
+    broadcastEvent({k:'log',s:'🛒 '+buyer.name+' 님이 시장터 물품을 구매했습니다.'});
+    marketPush();
+  }
+  function marketCancelHost(uid,msg){
+    const listing=S.marketListings[String(msg.listing)||'']; if(!listing||listing.seller!==uid)return;
+    const p=S.players[uid]; if(!p||p.map!=='market')return;
+    if(!marketCanAdd(p,listing.item,listing.count)||!addItem(p,listing.item,listing.count))return sendTo(uid,{t:'market_notice',s:'🎒 가방 공간이 부족해 물품을 회수할 수 없어.'});
+    delete S.marketListings[listing.id];sendTo(uid,{t:'market_notice',s:'📦 시장터 등록을 취소하고 물품을 회수했어.'});marketPush();
+  }
+  function renderMarketPanel(){
+    if(!S.players[S.uid])return;
+    const p=S.players[S.uid];
+    let html='<div class="section"><div class="sectionTitle">🏪 공개 시장터</div><div class="socialSub">누구나 등록된 물품을 볼 수 있고, 구매되면 판매자에게 가격이 정산돼.</div></div>';
+    html+='<div class="section"><div class="sectionTitle">🛒 등록 물품</div><div class="shopGrid">';
+    const list=Object.values(S.marketListings||{});
+    if(!list.length)html+='<div class="empty">현재 등록된 물품이 없어.</div>';
+    list.forEach(l=>{const d=ITEMS[l.item];if(!d)return;html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+' x'+l.count+'</b><small>💰 '+l.price+' · '+escapeHtml(l.sellerName)+'</small></div><button data-market-buy="'+escapeHtml(l.id)+'" '+(l.seller===S.uid||p.gold<l.price||p.map!=='market'?'disabled':'')+'>구매</button></div>';});
+    html+='</div></div>';
+    html+='<div class="section"><div class="sectionTitle">📦 내 물품 등록</div><div class="shopGrid">';
+    Object.entries(p.inv||{}).forEach(([id,n])=>{const d=ITEMS[id];if(!d||!n||p.equip.weapon===id||p.equip.armor===id)return;html+='<div class="shopRow"><div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+' x'+n+'</b><small><input data-market-count="'+id+'" type="number" min="1" max="'+n+'" value="1" style="width:68px"> · <input data-market-price="'+id+'" type="number" min="1" max="999999" value="'+Math.max(1,d.price||1)+'" style="width:92px"> 골드</small></div><button data-market-list="'+id+'">등록</button></div>';});
+    html+='</div></div>';
+    const mine=list.filter(l=>l.seller===S.uid);
+    if(mine.length){html+='<div class="section"><div class="sectionTitle">🧾 내가 등록한 물품</div>';mine.forEach(l=>{const d=ITEMS[l.item];if(!d)return;html+='<div class="tradeLine"><span>'+d.icon+' '+escapeHtml(d.name)+' x'+l.count+' · '+l.price+'G</span><button data-market-cancel="'+escapeHtml(l.id)+'">회수</button></div>';});html+='</div>';}
+    openPanel('🏪 시장터',html);
+    $('panelBody').querySelectorAll('[data-market-buy]').forEach(b=>b.onclick=()=>sendLocalHost({t:'market_buy',listing:b.dataset.marketBuy}));
+    $('panelBody').querySelectorAll('[data-market-list]').forEach(b=>b.onclick=()=>{const id=b.dataset.marketList,c=$('[data-market-count="'+id+'"]'),pr=$('[data-market-price="'+id+'"]');sendLocalHost({t:'market_list',id,count:Math.max(1,Math.floor(Number(c&&c.value)||1)),price:Math.max(1,Math.floor(Number(pr&&pr.value)||1))});});
+    $('panelBody').querySelectorAll('[data-market-cancel]').forEach(b=>b.onclick=()=>sendLocalHost({t:'market_cancel',listing:b.dataset.marketCancel}));
+  }
+  globalThis.renderMarketPanel=renderMarketPanel;
+
+  /* ==========================================================
+     4) 결투장 — 2~4명 / 2팀 / 기본 공격 PVP
+     ========================================================== */
+  function arenaPublicState(){
+    const a=S.arenaState||{players:{},started:false,winner:null,round:0};
+    return {players:{...(a.players||{})},started:!!a.started,winner:a.winner||null,round:Number(a.round)||0};
+  }
+  function arenaSendState(){
+    const packet={t:'arena_state',state:arenaPublicState()};bcast(packet);if(S.players[S.uid])onClientData(packet);
+  }
+  function arenaLiveIds(){return Object.keys(S.arenaState.players||{}).filter(id=>S.players[id]&&S.players[id].map==='arena');}
+  function arenaReset(){S.arenaState={players:{},started:false,winner:null,round:(Number(S.arenaState.round)||0)+1,updatedAt:Date.now()};arenaSendState();}
+  function arenaJoinHost(uid){
+    const p=S.players[uid];if(!p||p.map!=='arena')return;
+    if(S.arenaState.players[uid])return arenaSendState();
+    const ids=arenaLiveIds();if(ids.length>=4){sendTo(uid,{t:'arena_notice',s:'⚔️ 결투장은 최대 4명까지야.'});return;}
+    const a=ids.filter(id=>S.arenaState.players[id].team==='A').length,b=ids.filter(id=>S.arenaState.players[id].team==='B').length;
+    const team=a<=b?'A':'B';
+    S.arenaState.players[uid]={team,hp:100,max:100,alive:true,name:p.name,emoji:p.emoji};
+    if(ids.length+1>=2&&['A','B'].every(t=>Object.values(S.arenaState.players).some(x=>x.team===t)))S.arenaState.started=true;
+    S.arenaState.winner=null;S.arenaState.updatedAt=Date.now();arenaSendState();
+  }
+  function arenaLeaveHost(uid){if(S.arenaState.players[uid]){delete S.arenaState.players[uid];if(arenaLiveIds().length<2)S.arenaState.started=false;arenaSendState();}}
+  function arenaAttackHost(uid){
+    const p=S.players[uid],me=S.arenaState.players[uid];if(!p||!me||!S.arenaState.started||!me.alive)return;
+    const now=Date.now();me.lastAtk=Number(me.lastAtk)||0;if(now-me.lastAtk<500)return;me.lastAtk=now;
+    const enemies=arenaLiveIds().filter(id=>S.arenaState.players[id].team!==me.team&&S.arenaState.players[id].alive).map(id=>S.players[id]).filter(Boolean);
+    const range=typeof classProfile==='function'?Math.max(1,Number(classProfile(p).range)||1):1;
+    const target=enemies.sort((a,b)=>cheb(a,p)-cheb(b,p))[0];if(!target||cheb(target,p)>range)return;
+    const tm=S.arenaState.players[target.id];
+    const atk=Math.max(1,Number(effectiveAtkRpg(p)||1));
+    const def=Math.max(0,Number(effectiveDefRpg(target)||0));
+    const power=typeof classProfile==='function'?Math.max(.9,Number(classProfile(p).power)||1):1;
+    const dmg=Math.max(1,Math.floor(atk*power-def*.25+Math.random()*4));
+    tm.hp=Math.max(0,tm.hp-dmg);
+    broadcastEvent({k:'hit',id:target.id,x:target.x,y:target.y,dmg});
+    if(tm.hp<=0){tm.alive=false;broadcastEvent({k:'log',s:'⚔️ '+target.name+' 님이 결투에서 쓰러졌어!'});}
+    const teamAlive=t=>arenaLiveIds().some(id=>S.arenaState.players[id].team===t&&S.arenaState.players[id].alive);
+    if(!teamAlive('A')||!teamAlive('B')){S.arenaState.winner=teamAlive('A')?'A':'B';S.arenaState.started=false;broadcastEvent({k:'log',s:'🏆 결투 종료! '+S.arenaState.winner+'팀 승리!'});}
+    S.arenaState.updatedAt=Date.now();arenaSendState();
+  }
+  function renderArenaPanel(){
+    const p=S.players[S.uid],a=S.arenaState||{players:{},started:false};if(!p)return;
+    const ids=Object.keys(a.players||{});
+    let html='<div class="section"><div class="sectionTitle">⚔️ 결투장</div><div class="socialSub">최소 2명 · 최대 4명 · A/B 2팀. 기본 공격으로 상대를 쓰러뜨리면 승리.</div></div>';
+    html+='<div class="section"><div class="sectionTitle">참가자 '+ids.length+'/4</div>';
+    if(!ids.length)html+='<div class="empty">아직 참가자가 없어.</div>';
+    ids.forEach(id=>{const q=a.players[id],pl=S.players[id];html+='<div class="tradeLine"><span>팀 '+q.team+' · '+escapeHtml((pl&&pl.name)||q.name||'플레이어')+' · ❤️ '+q.hp+'/100</span>'+(id===S.uid?' <b>나</b>':'')+'</div>';});
+    html+='</div><div class="tradeActions">'+(a.players[S.uid]?'':'<button id="arenaJoinBtn">⚔️ 참가</button>')+(a.players[S.uid]?'<button id="arenaLeaveBtn">나가기</button>':'')+(a.players[S.uid]&&a.started?'<button id="arenaAtkBtn">⚔️ 공격</button>':'')+'</div>';
+    if(a.winner)html+='<div class="section"><b>🏆 '+a.winner+'팀 승리</b><br>다시 참가하려면 결투장에 재입장해줘.</div>';
+    openPanel('⚔️ 결투장',html);
+    if($('arenaJoinBtn'))$('arenaJoinBtn').onclick=()=>sendLocalHost({t:'arena_join'});
+    if($('arenaLeaveBtn'))$('arenaLeaveBtn').onclick=()=>sendLocalHost({t:'arena_leave'});
+    if($('arenaAtkBtn'))$('arenaAtkBtn').onclick=()=>sendLocalHost({t:'arena_attack'});
+  }
+  globalThis.renderArenaPanel=renderArenaPanel;
+
+  /* ==========================================================
+     5) 불안정한 워프석 UI / 사용
+     ========================================================== */
+  function renderWarpSection(){
+    const p=S.players[S.uid],n=itemCount(p,'unstableWarpStone');if(!n)return '';
+    let html='<div class="section"><div class="sectionTitle">🌀 불안정한 워프석 x'+n+'</div><div class="socialSub">1회용. 원하는 지역을 누르면 즉시 워프하고 1개 소모돼.</div><div class="teleportGrid">';
+    Object.values(RPG_MAPS).forEach(md=>{if(md.id==='town'&&md.minLv===undefined)md.minLv=1;const lock=(Number(p.lv)||1)<(Number(md.minLv)||1);html+='<button class="teleportBtn" data-warp-v90="'+md.id+'" '+(lock?'disabled':'')+'><b>🌀 '+escapeHtml(md.name)+'</b><small>'+escapeHtml(md.meta)+(lock?' · Lv.'+md.minLv+' 필요':'')+'</small></button>';});
+    html+='</div></div>';return html;
+  }
+  function renderTeleportPanelV90(){
+    const p=S.players[S.uid];if(!p)return;const near=nearestRpgPortal(p);let html='';
+    if(near){html+='<div class="npcHint"><b>'+near.icon+' '+escapeHtml(near.name)+'</b><br>'+escapeHtml(near.desc)+'</div><div class="teleportGrid">';near.dest.forEach(id=>{const md=mapDef(id);const lock=(Number(p.lv)||1)<(Number(md.minLv)||1);html+='<button class="teleportBtn" data-map-v90="'+id+'" '+(lock?'disabled':'')+'><b>🗺️ '+escapeHtml(md.name)+'</b><small>'+escapeHtml(md.meta)+(lock?' · Lv.'+md.minLv+' 필요':'')+'</small></button>';});html+='</div>';}else html+='<div class="teleportHint">🌀 현재 위치에는 일반 이동석이 없어. 불안정한 워프석은 아래에서 사용할 수 있어.</div>';
+    html+=renderWarpSection();
+    if(p.map==='market')html+='<div class="tradeActions"><button id="openMarketV90">🏪 시장터 게시판</button></div>';
+    if(p.map==='arena')html+='<div class="tradeActions"><button id="openArenaV90">⚔️ 결투장 열기</button></div>';
+    openPanel('🗺️ 월드맵 / 맵 이동',html);
+    $('panelBody').querySelectorAll('[data-map-v90]').forEach(b=>b.onclick=()=>requestTeleportRpg(b.dataset.mapV90));
+    $('panelBody').querySelectorAll('[data-warp-v90]').forEach(b=>b.onclick=()=>sendLocalHost({t:'use_unstable_warp',dest:b.dataset.warpV90}));
+    if($('openMarketV90'))$('openMarketV90').onclick=renderMarketPanel;
+    if($('openArenaV90'))$('openArenaV90').onclick=renderArenaPanel;
+  }
+  renderTeleportPanel=renderTeleportPanelV90;
+  globalThis.renderTeleportPanel=renderTeleportPanelV90;
+
+  /* ==========================================================
+     6) M 외 단축키 / 메뉴 진입
+     ========================================================== */
+  window.addEventListener('keydown',function(e){
+    if(!S.started)return;
+    const tag=String(e.target&&e.target.tagName||'').toUpperCase();if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+    const k=String(e.key||'').toLowerCase();
+    if(k==='p'){e.preventDefault();if(S.players[S.uid].map==='market')renderMarketPanel();else log('🏪 시장터에서 P를 눌러 시장터 게시판을 열 수 있어.');}
+    if(k==='j'){e.preventDefault();if(S.players[S.uid].map==='arena')renderArenaPanel();else log('⚔️ 결투장에서 J를 눌러 결투장 창을 열 수 있어.');}
+  });
+
+  /* ==========================================================
+     7) snapshot / client sync
+     ========================================================== */
+  const _snapshotV90=snapshot;
+  snapshot=function(){const out=_snapshotV90();out.market=marketSnapshot();out.arena=arenaPublicState();return out;};
+  globalThis.snapshot=snapshot;
+
+  const _onClientDataV90=onClientData;
+  onClientData=function(m){
+    if(m&&m.t==='snap'){
+      if(m.market&&typeof m.market==='object'){
+        S.marketListings={};(m.market.listings||[]).forEach(x=>{if(x&&x.id)S.marketListings[x.id]={...x};});
+      }
+      if(m.arena&&typeof m.arena==='object')S.arenaState={players:m.arena.players||{},started:!!m.arena.started,winner:m.arena.winner||null,round:+m.arena.round||0,updatedAt:Date.now()};
+    }
+    if(m&&m.t==='market_notice'){notice(String(m.s||''),'info','sys');if(marketVisible())setTimeout(renderMarketPanel,0);return;}
+    if(m&&m.t==='arena_state'){S.arenaState={players:m.state&&m.state.players||{},started:!!(m.state&&m.state.started),winner:m.state&&m.state.winner||null,round:+(m.state&&m.state.round)||0,updatedAt:Date.now()};if($('overlayPanel').classList.contains('open')&&$('panelTitle').textContent.includes('결투장'))setTimeout(renderArenaPanel,0);return;}
+    return _onClientDataV90.apply(this,arguments);
+  };
+  globalThis.onClientData=onClientData;
+
+  /* ==========================================================
+     8) host messages: market / arena / unstable warp
+     ========================================================== */
+  const _hostRecvV90=hostRecv;
+  hostRecv=function(c,m){
+    if(!m||!c)return;
+    if(m.t==='market_list'&&c.uid&&S.players[c.uid]){marketListHost(c.uid,m);return;}
+    if(m.t==='market_buy'&&c.uid&&S.players[c.uid]){marketBuyHost(c.uid,m);return;}
+    if(m.t==='market_cancel'&&c.uid&&S.players[c.uid]){marketCancelHost(c.uid,m);return;}
+    if(m.t==='arena_join'&&c.uid&&S.players[c.uid]){arenaJoinHost(c.uid);return;}
+    if(m.t==='arena_leave'&&c.uid){arenaLeaveHost(c.uid);return;}
+    if(m.t==='arena_attack'&&c.uid){arenaAttackHost(c.uid);return;}
+    if(m.t==='use_unstable_warp'&&c.uid&&S.players[c.uid]){
+      const p=S.players[c.uid],dest=String(m.dest||''),md=mapDef(dest),n=itemCount(p,'unstableWarpStone');
+      if(!md||!n||!RPG_MAPS[dest])return;
+      if((Number(p.lv)||1)<(Number(md.minLv)||1)){sendTo(c.uid,{t:'market_notice',s:'🔒 '+md.name+'은(는) Lv.'+md.minLv+'부터 워프할 수 있어.'});return;}
+      if(p.map==='arena')arenaLeaveHost(c.uid);
+      if(!removeItem(p,'unstableWarpStone',1))return;
+      p.map=dest;p.x=md.spawn.x;p.y=md.spawn.y;p._lastTeleport=Date.now();S.moveAck[c.uid]=(S.moveAck[c.uid]||0)+1;
+      sendTo(c.uid,{t:'map_teleport_ok',map:dest,x:p.x,y:p.y});broadcastEvent({k:'log',s:'🌀 '+p.name+' 님이 불안정한 워프석으로 '+md.name+'에 도착했습니다.'});bcast(snapshot());return;
+    }
+    if(m.t==='map_teleport'&&c.uid&&S.players[c.uid]&&S.players[c.uid].map==='arena')arenaLeaveHost(c.uid);
+    const beforeMap=c.uid&&S.players[c.uid]?S.players[c.uid].map:'';
+    const out=_hostRecvV90(c,m);
+    if(m.t==='hello'&&c.uid&&S.players[c.uid]){
+      const p=S.players[c.uid],fc=String(p.friendCode||'');const payout=Math.floor(Number(S.marketPayouts[fc])||0);
+      if(payout>0){p.gold+=payout;delete S.marketPayouts[fc];sendTo(c.uid,{t:'market_notice',s:'💰 오프라인 시장 판매 정산으로 '+payout+'골드를 받았어.'});bcast(snapshot());}
+    }
+    if(m.t==='map_teleport'&&beforeMap==='arena'&&c.uid)arenaLeaveHost(c.uid);
+    return out;
+  };
+  globalThis.hostRecv=hostRecv;
+
+  /* 기존 공격 루프를 결투장에서는 PVP 공격으로 전환 */
+  const _doAttackV90=doAttackRpg;
+  doAttackRpg=function(uid){
+    const p=S.players[uid];
+    if(p&&p.map==='arena'){arenaAttackHost(uid);return true;}
+    return _doAttackV90(uid);
+  };
+  globalThis.doAttackRpg=doAttackRpg;doAttack=doAttackRpg;
+
+  /* 방 생성/세션 초기화 시 장터·결투장 상태 초기화 */
+  const _createRoomV90=createRoom;
+  createRoom=function(isPublic){
+    S.marketListings={};S.marketPayouts={};S.marketSeq=0;S.arenaState={players:{},started:false,winner:null,round:0,updatedAt:Date.now()};
+    return _createRoomV90(isPublic);
+  };
+  globalThis.createRoom=createRoom;
+
+  /* 호스트가 5초마다 결투장 유령 참가자를 정리 */
+  if(S.__v90ArenaCleanup)clearInterval(S.__v90ArenaCleanup);
+  S.__v90ArenaCleanup=setInterval(()=>{
+    if(!S.isHost)return;
+    let changed=false;for(const id of Object.keys(S.arenaState.players||{})){if(!S.players[id]||S.players[id].map!=='arena'){delete S.arenaState.players[id];changed=true;}}
+    if(changed){if(arenaLiveIds().length<2)S.arenaState.started=false;arenaSendState();}
+  },5000);
+
+  /* 상점 구매 목록에 불안정한 워프석 추가 */
+  const _renderShopV90=renderShop;
+  renderShop=function(){
+    _renderShopV90();
+    const box=$('panelBody');if(!box)return;
+    const grid=box.querySelector('.shopGrid');if(!grid)return;
+    if(!grid.querySelector('[data-buy="unstableWarpStone"]')){
+      const p=S.players[S.uid],d=ITEMS.unstableWarpStone;
+      const row=document.createElement('div');row.className='shopRow';row.innerHTML='<div class="shopIcon">'+d.icon+'</div><div class="shopInfo"><b>'+escapeHtml(d.name)+'</b><small>💰 '+d.price+' · 보유 x'+itemCount(p,'unstableWarpStone')+'</small></div><button data-buy="unstableWarpStone">구매</button>';
+      row.querySelector('button').disabled=!(p&&p.gold>=d.price&&itemCount(p,'unstableWarpStone')<d.max);
+      row.querySelector('button').onclick=()=>sendLocalHost({t:'shop_buy',id:'unstableWarpStone'});grid.appendChild(row);
+    }
+  };
+  globalThis.renderShop=renderShop;
+
+  /* 기존 favicon/stray text와 독립된 안전한 최종 상태 */
+  window.__rpgV90MarketArenaWarp=true;
+})();
+</script>
+</html>
