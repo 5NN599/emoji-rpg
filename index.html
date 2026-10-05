@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2a5fd1">
-<meta name="rpg-build-version" content="100">
+<meta name="rpg-build-version" content="102">
 <script src="./rpg-update-loader.js" defer></script>
 <title>이모지 RPG · P2P 멀티플레이</title>
 <style>
@@ -14250,56 +14250,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     clinic:'치유소',warehouse:'창고',arena:'결투장'
   };
   let lastMiniOverlayAt=0;
-  function drawTownFacilityNamesV97(){
-    try{
-      const now=performance.now();
-      if(now-lastMiniOverlayAt<5)return;
-      lastMiniOverlayAt=now;
-      const p=S.players&&S.players[S.uid];
-      if(!p||p.map!=='town')return;
-      const mc=$('minimap');
-      if(!mc)return;
-      const c=mc.getContext('2d');
-      const md=mapDef('town');
-      const sx=mc.width/md.w,sy=mc.height/md.h;
-      const buildings=RPG_BUILDINGS.filter(b=>b&&b.map==='town');
-      const placed=[];
-      const fontSize=Math.max(7,Math.min(10,Math.floor(mc.width/105)));
-      c.save();
-      c.font='900 '+fontSize+'px sans-serif';
-      c.textAlign='center';c.textBaseline='middle';
-      for(const b of buildings){
-        const name=SHORT_NAMES[b.id]||String(b.name||b.id).split('·')[0].trim();
-        const text=(b.icon||'🏠')+' '+name;
-        const w=c.measureText(text).width+6,h=fontSize+6;
-        const cx=(b.x+b.w/2)*sx;
-        const candidates=[
-          {x:cx,y:Math.max(h/2,b.y*sy-h/2-1)},
-          {x:cx,y:(b.y+b.h/2)*sy},
-          {x:cx,y:Math.min(mc.height-h/2,(b.y+b.h)*sy+h/2+1)}
-        ];
-        let box=null;
-        for(const pos of candidates){
-          const bx=Math.max(1,Math.min(mc.width-w-1,pos.x-w/2));
-          const by=Math.max(1,Math.min(mc.height-h-1,pos.y-h/2));
-          const rect={x:bx,y:by,w,h};
-          const hit=placed.some(r=>!(rect.x+rect.w+2<r.x||r.x+r.w+2<rect.x||rect.y+rect.h+2<r.y||r.y+r.h+2<rect.y));
-          if(!hit){box=rect;break;}
-        }
-        if(!box)box={x:Math.max(1,Math.min(mc.width-w-1,cx-w/2)),y:Math.max(1,(b.y+b.h/2)*sy-h/2),w,h};
-        placed.push(box);
-        c.fillStyle='rgba(0,0,0,.76)';
-        c.beginPath();
-        if(typeof c.roundRect==='function')c.roundRect(box.x,box.y,box.w,box.h,Math.min(4,h/2));
-        else c.rect(box.x,box.y,box.w,box.h);
-        c.fill();
-        c.fillStyle='#fff';
-        c.fillText(text,box.x+box.w/2,box.y+box.h/2);
-      }
-      c.restore();
-    }catch(_e){}
-  }
-
+  function drawTownFacilityNamesV97(){ return; }
   /* 현재 연결된 최종 미니맵 렌더러 위에 이름만 얹는다. */
   try{
     const baseMini=globalThis.drawMinimapRpgBetter;
@@ -14438,4 +14389,441 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   else boot();
 })();
 </script>
+
+
+<!-- RPG v101: entity opacity fix + market/arena building entry consistency + minimap labels -->
+<style id="rpgV101Style">
+  /* 미니맵 건물명은 지도 위에 직접, 배경 없이 검정 글씨로 표시한다. */
+  #minimap{image-rendering:auto}
+</style>
+<script id="rpgV101Patch">
+(function(){
+  'use strict';
+  if(window.__RPG_V101_PATCH__)return;
+  window.__RPG_V101_PATCH__=true;
+  window.__RPG_BUILD_VERSION__='102';
+
+  /* =========================================================
+     1) 플레이어/NPC 투명해짐 방지
+        일부 지형 렌더러가 ctx.globalAlpha를 .72/.92로 남겨서
+        화면의 마지막 타일 상태에 따라 다음 엔티티가 반투명해질 수 있다.
+        타일 한 칸마다 canvas 상태를 완전히 복원해서 누수를 차단한다.
+     ========================================================= */
+  try{
+    const baseTile=globalThis.drawMapTileRpg;
+    if(typeof baseTile==='function'&&!baseTile.__rpgV101Wrapped){
+      const wrappedTile=function(){
+        ctx.save();
+        try{
+          return baseTile.apply(this,arguments);
+        }finally{
+          ctx.restore();
+          ctx.globalAlpha=1;
+          ctx.filter='none';
+          ctx.globalCompositeOperation='source-over';
+          ctx.shadowBlur=0;
+        }
+      };
+      wrappedTile.__rpgV101Wrapped=true;
+      globalThis.drawMapTileRpg=wrappedTile;
+      try{drawMapTileRpg=wrappedTile;}catch(_e){}
+    }
+  }catch(_e){}
+
+  /* =========================================================
+     2) 시장/결투장 = 마을의 일반 건물
+        - 월드맵/텔레포트 지역으로 노출하지 않는다.
+        - 마을 문으로 들어가고, 나올 때도 같은 바깥 위치로 돌아온다.
+     ========================================================= */
+  try{
+    if(typeof RPG_MAPS!=='undefined'){
+      for(const id of ['market','arena']){
+        const md=RPG_MAPS[id];
+        if(md){
+          md.kind='interior';
+          md.buildingId=id;
+          md.safe=id==='market';
+        }
+      }
+    }
+    if(typeof RPG_PORTALS!=='undefined'){
+      /* 건물 안/앞의 잔여 이동석은 모두 제거 */
+      RPG_PORTALS.market=[];
+      RPG_PORTALS.arena=[];
+      for(const arr of Object.values(RPG_PORTALS)){
+        if(!Array.isArray(arr))continue;
+        for(const p of arr){
+          if(Array.isArray(p.dest))p.dest=p.dest.filter(d=>d!=='market'&&d!=='arena');
+        }
+      }
+    }
+
+    const isOpenTownTile=(x,y)=>{
+      try{return !isMapBlocked('town',x,y);}catch(_e){return x>=0&&y>=0;}
+    };
+
+    for(const id of ['market','arena']){
+      if(typeof RPG_BUILDINGS==='undefined')continue;
+      const b=RPG_BUILDINGS.find(x=>x&&x.map==='town'&&String(x.interior||'')===id);
+      if(!b)continue;
+
+      b.door={x:b.x+Math.floor(b.w/2),y:b.y+b.h-1};
+
+      /* 실제로 E를 누를 수 있는 바깥 칸을 하나 고르고,
+         그 칸을 입장/퇴장 모두의 기준 좌표로 사용한다. */
+      const candidates=[
+        {x:b.door.x,y:b.door.y+1},
+        {x:b.door.x-1,y:b.door.y},
+        {x:b.door.x+1,y:b.door.y},
+        {x:b.door.x,y:b.door.y-1}
+      ];
+      const ret=candidates.find(q=>isOpenTownTile(q.x,q.y))||{x:b.door.x,y:Math.max(0,b.door.y-1)};
+      b.returnPos={x:ret.x,y:ret.y};
+
+      if(typeof buildingInteriorDefs!=='undefined'){
+        const d=buildingInteriorDefs[id]||{};
+        d.interior=id;
+        d.returnX=ret.x;
+        d.returnY=ret.y;
+        d.exit=d.exit||{x:Math.floor((RPG_MAPS[id]?.w||18)/2),y:(RPG_MAPS[id]?.h||12)-2};
+        buildingInteriorDefs[id]=d;
+      }
+    }
+
+    /* 기존의 '입장 후 기억한 위치'를 최우선으로 하되,
+       혹시 값이 없으면 현재 건물의 returnPos를 사용한다. */
+    if(typeof hostRecv==='function'&&typeof RPG_BUILDINGS!=='undefined'){
+      const baseHost=globalThis.hostRecv;
+      if(!baseHost.__rpgV101BuildingWrapped){
+        const wrappedHost=function(c,m){
+          if(m&&m.t==='building_enter'&&c&&c.uid&&S.players&&S.players[c.uid]){
+            try{
+              const p=S.players[c.uid];
+              const b=(typeof getBuildingByMessage==='function')
+                ? getBuildingByMessage(m)
+                : RPG_BUILDINGS.find(x=>x&&x.map==='town'&&String(x.id)===String(m.building||'')&&x.interior);
+              if(b&&b.returnPos){
+                p._buildingReturn={buildingKey:buildingKeyV101(b),buildingId:b.id,x:b.returnPos.x,y:b.returnPos.y,map:'town'};
+              }
+            }catch(_e){}
+          }
+          return baseHost.apply(this,arguments);
+        };
+        wrappedHost.__rpgV101BuildingWrapped=true;
+        globalThis.hostRecv=wrappedHost;
+        try{hostRecv=wrappedHost;}catch(_e){}
+      }
+    }
+  }catch(_e){}
+
+  function buildingKeyV101(b){
+    return b?[String(b.id||''),String(b.map||''),Math.floor(Number(b.x)||0),Math.floor(Number(b.y)||0),Math.floor(Number(b.w)||0),Math.floor(Number(b.h)||0)].join(':'):'';
+  }
+
+  /* =========================================================
+     3) 미니맵 건물명
+        - 배경/캡슐 제거
+        - 검정색 글씨
+        - 각 건물의 실제 중심 좌표에 배치
+        - 긴 이름은 건물 폭에 맞춰 폰트 크기를 자동 축소
+     ========================================================= */
+  try{
+    const baseMini=globalThis.drawMinimapRpgBetter||globalThis.drawMinimapRpg;
+    if(typeof baseMini==='function'&&!baseMini.__rpgV101Wrapped){
+      const shortName={
+        inn:'여관',
+        market:'시장',
+        smith:'대장간',
+        guild:'모험가 길드',
+        clinic:'치유소',
+        warehouse:'창고',
+        arena:'결투장',
+        townhall:'마을회관',
+        bakery:'빵집',
+        flowerShop:'꽃집',
+        musicHall:'음악당',
+        guestHouse:'숙소',
+        farmBarn:'농장창고',
+        house_w1:'서쪽 민가',
+        house_w2:'서쪽 공방',
+        house_e1:'동쪽 민가',
+        house_e2:'동쪽 농가'
+      };
+
+      function drawLabels(){
+        try{
+          const p=S.players&&S.players[S.uid];
+          if(!p||String(p.map)!=='town')return;
+          const mc=$('minimap');
+          if(!mc)return;
+          const c=mc.getContext('2d');
+          const md=RPG_MAPS.town;
+          if(!md)return;
+          const sx=mc.width/md.w,sy=mc.height/md.h;
+          const list=(RPG_BUILDINGS||[]).filter(b=>b&&b.map==='town');
+
+          c.save();
+          c.globalAlpha=1;
+          c.globalCompositeOperation='source-over';
+          c.filter='none';
+          c.shadowBlur=0;
+          c.textAlign='center';
+          c.textBaseline='middle';
+          c.fillStyle='#111';
+
+          for(const b of list){
+            let text=shortName[b.id]||String(b.name||b.id||'').split(' · ')[0].trim();
+            if(!text)continue;
+
+            const cx=(Number(b.x)+Number(b.w)/2)*sx;
+            const cy=(Number(b.y)+Number(b.h)/2)*sy;
+            const maxW=Math.max(10,Number(b.w)*sx-3);
+            let fs=Math.min(10.5,Math.max(6.2,Number(b.h)*sy*.42));
+            c.font='900 '+fs+'px sans-serif';
+            while(fs>6.1&&c.measureText(text).width>maxW){
+              fs-=.35;
+              c.font='900 '+fs+'px sans-serif';
+            }
+
+            /* 건물 내부 중심. 별도의 배경 박스는 그리지 않는다. */
+            c.fillText(text,cx,cy);
+          }
+          c.restore();
+        }catch(_e){}
+      }
+
+      const wrappedMini=function(){
+        const out=baseMini.apply(this,arguments);
+        drawLabels();
+        return out;
+      };
+      wrappedMini.__rpgV101Wrapped=true;
+      globalThis.drawMinimapRpgBetter=wrappedMini;
+      globalThis.drawMinimapRpg=wrappedMini;
+      try{drawMinimapRpgBetter=wrappedMini;drawMinimapRpg=wrappedMini;drawMinimap=wrappedMini;}catch(_e){}
+    }
+  }catch(_e){}
+
+  /* 첫 렌더부터 새 상태를 적용 */
+  try{if(typeof drawMinimapRpg==='function')drawMinimapRpg();}catch(_e){}
+})();
+</script>
+
+
+<!-- RPG v102: grand arena visual redesign -->
+<style id="rpgV102ArenaStyle">
+  #game canvas{image-rendering:auto}
+</style>
+<script id="rpgV102ArenaPatch">
+(function installRpgV102(){
+  'use strict';
+  if(window.__RPG_V102_ARENA__)return;
+  window.__RPG_V102_ARENA__=true;
+  if(typeof RPG_MAPS==='undefined'||typeof S==='undefined')return;
+
+  const prevTile=globalThis.drawMapTileRpg;
+  if(typeof prevTile!=='function')return;
+
+  const R={x:11,y:8,w:20,h:15};
+  const teamA=[16,15], teamB=[26,15];
+  const seatsTop=Array.from({length:14},(_,i)=>7+i*2);
+  const seatsBottom=seatsTop.slice();
+
+  function cell(x,y){
+    return x>=0&&y>=0&&x<(RPG_MAPS.arena?.w||42)&&y<(RPG_MAPS.arena?.h||30);
+  }
+
+  function drawMiniRect(x,y,w,h,sx,sy,m,fill,stroke,lw=1,r=0){
+    ctx.fillStyle=fill;
+    ctx.fillRect(sx+x*m.tw,sy+y*m.th,w*m.tw,h*m.th);
+    if(stroke){
+      ctx.strokeStyle=stroke;ctx.lineWidth=lw;
+      ctx.strokeRect(sx+x*m.tw+.7,sy+y*m.th+.7,w*m.tw-1.4,h*m.th-1.4);
+    }
+  }
+
+  function drawSeat(x,y,sx,sy,m,flip){
+    const px=sx+0.13*m.tw,py=sy+(flip?.08:.30)*m.th;
+    const w=m.tw*.74,h=m.th*.60;
+    ctx.fillStyle='rgba(49,38,48,.92)';
+    ctx.fillRect(px,py,w,h);
+    ctx.fillStyle='rgba(196,62,76,.92)';
+    ctx.fillRect(px+w*.10,py+h*.18,w*.80,h*.28);
+    ctx.fillStyle='rgba(228,190,118,.75)';
+    ctx.fillRect(px+w*.05,py+h*.70,w*.90,Math.max(2,h*.12));
+  }
+
+  function drawBannerPole(x,y,sx,sy,m,side){
+    ctx.strokeStyle='rgba(68,51,47,.95)';
+    ctx.lineWidth=Math.max(1.4,m.unit*.055);
+    ctx.beginPath();
+    ctx.moveTo(sx+m.tw*.50,sy+m.th*.10);
+    ctx.lineTo(sx+m.tw*.50,sy+m.th*.90);
+    ctx.stroke();
+
+    ctx.fillStyle=side==='A'?'rgba(190,69,73,.98)':'rgba(57,100,190,.98)';
+    ctx.beginPath();
+    ctx.moveTo(sx+m.tw*.53,sy+m.th*.15);
+    ctx.lineTo(sx+m.tw*.95,sy+m.th*.25);
+    ctx.lineTo(sx+m.tw*.55,sy+m.th*.48);
+    ctx.closePath();ctx.fill();
+
+    ctx.font=(m.unit*.27)+'px '+FONT;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('★',sx+m.tw*.70,sy+m.th*.29);
+  }
+
+  function drawTorch(x,y,sx,sy,m){
+    const cx=sx+m.tw*.5,cy=sy+m.th*.42;
+    ctx.strokeStyle='rgba(77,57,48,.95)';
+    ctx.lineWidth=Math.max(1,m.unit*.045);
+    ctx.beginPath();ctx.moveTo(cx,sy+m.th*.55);ctx.lineTo(cx,sy+m.th*.86);ctx.stroke();
+    ctx.fillStyle='rgba(244,175,66,.30)';
+    ctx.beginPath();ctx.arc(cx,cy,m.unit*.17,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ffcf55';
+    ctx.beginPath();ctx.arc(cx,cy,m.unit*.10,0,Math.PI*2);ctx.fill();
+  }
+
+  globalThis.drawMapTileRpg=function(map,x,y,sx,sy,m,css){
+    prevTile(map,x,y,sx,sy,m,css);
+    if(map!=='arena')return;
+
+    ctx.save();
+    ctx.globalAlpha=1;
+    ctx.globalCompositeOperation='source-over';
+
+    /* 전체 경기장 바닥: 차가운 석재 + 가장자리 장식 */
+    if(x>0&&y>0&&x<(RPG_MAPS.arena.w-1)&&y<(RPG_MAPS.arena.h-1)){
+      const edge=Math.min(x,y,RPG_MAPS.arena.w-1-x,RPG_MAPS.arena.h-1-y);
+      if(edge===1){
+        ctx.fillStyle='rgba(37,42,53,.34)';
+        ctx.fillRect(sx+1,sy+1,m.tw-2,m.th-2);
+      }
+      if((x+y)%4===0 && !inArena(x,y)){
+        ctx.fillStyle='rgba(255,255,255,.025)';
+        ctx.fillRect(sx+m.tw*.12,sy+m.th*.12,m.tw*.76,m.th*.10);
+      }
+    }
+
+    /* 상·하 관중석 */
+    if(y===3||y===4||y===25||y===26){
+      if(x>=6&&x<=35){
+        ctx.fillStyle='rgba(28,30,38,.38)';
+        ctx.fillRect(sx+1,sy+1,m.tw-2,m.th-2);
+        if((x%2)==0 && (x<=34)) drawSeat(x,y,sx,sy,m,y===3||y===4?true:false);
+      }
+    }
+
+    /* 중앙 경기장: 금빛 테두리 + 석제 띠 */
+    if(inArena(x,y)){
+      const dx=Math.abs(x-(R.x+R.w/2-.5));
+      const dy=Math.abs(y-(R.y+R.h/2-.5));
+      const radial=Math.sqrt(dx*dx+dy*dy);
+      const border=radial>8.8;
+      if(border){
+        ctx.fillStyle='rgba(220,177,79,.18)';
+        ctx.fillRect(sx+1,sy+1,m.tw-2,m.th-2);
+      }
+      if((x===R.x||x===R.x+R.w-1||y===R.y||y===R.y+R.h-1)){
+        ctx.strokeStyle='rgba(232,191,91,.95)';
+        ctx.lineWidth=Math.max(1.2,m.unit*.055);
+        ctx.strokeRect(sx+1.2,sy+1.2,m.tw-2.4,m.th-2.4);
+      }
+    }
+
+    /* 중앙 원형 결투진 */
+    if(x===20&&y===14){
+      const cx=sx+m.tw*2.0,cy=sy+m.th*2.05;
+      ctx.strokeStyle='rgba(236,193,92,.96)';
+      ctx.lineWidth=Math.max(2,m.unit*.07);
+      ctx.beginPath();ctx.arc(cx,cy,m.tw*2.8,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='rgba(240,219,161,.48)';
+      ctx.lineWidth=Math.max(1,m.unit*.035);
+      ctx.beginPath();ctx.arc(cx,cy,m.tw*1.55,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='rgba(225,187,91,.14)';
+      ctx.beginPath();ctx.arc(cx,cy,m.tw*1.15,0,Math.PI*2);ctx.fill();
+    }
+
+    /* 중앙 검 문양 */
+    if(x===21&&y===15){
+      ctx.font=(m.unit*1.32)+'px '+FONT;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.shadowColor='rgba(255,213,107,.45)';ctx.shadowBlur=m.unit*.24;
+      ctx.fillText('⚔️',sx+m.tw*.5,sy+m.th*.53);
+      ctx.shadowBlur=0;
+    }
+
+    /* 팀 대기 문양 */
+    if(x===teamA[0]&&y===teamA[1]){
+      ctx.fillStyle='rgba(205,66,73,.25)';
+      ctx.beginPath();ctx.arc(sx+m.tw*.5,sy+m.th*.5,m.tw*.34,0,Math.PI*2);ctx.fill();
+      ctx.font=(m.unit*.32)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('A',sx+m.tw*.5,sy+m.th*.5);
+    }
+    if(x===teamB[0]&&y===teamB[1]){
+      ctx.fillStyle='rgba(58,103,196,.25)';
+      ctx.beginPath();ctx.arc(sx+m.tw*.5,sy+m.th*.5,m.tw*.34,0,Math.PI*2);ctx.fill();
+      ctx.font=(m.unit*.32)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('B',sx+m.tw*.5,sy+m.th*.5);
+    }
+
+    /* 북/남 중앙 입구: 석제 계단 + 아치 */
+    if((x===21&&y===6)||(x===21&&y===24)){
+      ctx.fillStyle='rgba(236,212,153,.28)';
+      ctx.fillRect(sx+1,sy+1,m.tw-2,m.th-2);
+    }
+    if((x===21&&y===5)||(x===21&&y===25)){
+      ctx.fillStyle='rgba(41,46,57,.9)';
+      ctx.fillRect(sx+2,sy+2,m.tw-4,m.th-4);
+      ctx.font=(m.unit*.55)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🚪',sx+m.tw*.5,sy+m.th*.50);
+    }
+
+    /* 접수원 부스 */
+    if(x>=2&&x<=8&&y>=3&&y<=7){
+      ctx.fillStyle='rgba(33,36,45,.58)';
+      ctx.fillRect(sx+1,sy+1,m.tw-2,m.th-2);
+      if(y===3){
+        ctx.fillStyle='rgba(173,66,73,.95)';
+        ctx.fillRect(sx+1,sy+1,m.tw-2,Math.max(4,m.th*.20));
+      }
+      if(y===7){
+        ctx.fillStyle='rgba(221,187,103,.80)';
+        ctx.fillRect(sx+1,sy+m.th*.60,m.tw-2,Math.max(3,m.th*.16));
+      }
+    }
+    if(x===5&&y===7){
+      ctx.font=(m.unit*.42)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('📋',sx+m.tw*.5,sy+m.th*.47);
+    }
+
+    /* 깃발과 횃불 */
+    if((x===2&&y===10)||(x===2&&y===20))drawBannerPole(x,y,sx,sy,m,'A');
+    if((x===39&&y===10)||(x===39&&y===20))drawBannerPole(x,y,sx,sy,m,'B');
+    if((x===9&&y===7)||(x===33&&y===7)||(x===9&&y===23)||(x===33&&y===23))drawTorch(x,y,sx,sy,m);
+
+    /* 외곽 네 기둥 */
+    if((x===5&&y===8)||(x===36&&y===8)||(x===5&&y===23)||(x===36&&y===23)){
+      ctx.fillStyle='rgba(214,194,154,.72)';
+      ctx.fillRect(sx+m.tw*.20,sy+m.th*.12,m.tw*.60,m.th*.76);
+      ctx.fillStyle='rgba(75,65,64,.52)';
+      ctx.fillRect(sx+m.tw*.28,sy+m.th*.20,m.tw*.44,m.th*.58);
+      ctx.font=(m.unit*.28)+'px '+FONT;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('◆',sx+m.tw*.5,sy+m.th*.48);
+    }
+
+    /* 꼭대기 명판 */
+    if(x===18&&y===1){
+      ctx.fillStyle='rgba(22,25,33,.86)';
+      ctx.fillRect(sx,sy,m.tw*7,m.th*1.05);
+      ctx.fillStyle='rgba(238,213,151,.98)';
+      ctx.font='900 '+Math.max(9,m.unit*.34)+'px sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('⚔ 루미나 결투장',sx+m.tw*3.5,sy+m.th*.52);
+    }
+
+    ctx.restore();
+  };
+  try{drawMapTileRpg=globalThis.drawMapTileRpg;}catch(_e){}
+
+  function inArena(x,y){return x>=R.x&&x<R.x+R.w&&y>=R.y&&y<R.y+R.h;}
+  window.__rpgV102ArenaVisual=true;
+})();
+</script>
+
 </html>
