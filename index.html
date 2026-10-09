@@ -14597,7 +14597,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   'use strict';
   if(window.__RPG_V103_SERVER_RECOVERY__)return;
   window.__RPG_V103_SERVER_RECOVERY__=true;
-  const API='/api/recovery';
+  const API='https://emoji-rpg-recovery.kimjun23689.workers.dev/';
   const oldParser=globalThis.parseRecoveryCode;
 
   function b64UrlEncodeV103(text){
@@ -14664,7 +14664,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   function makePayloadV103(p){return [4,Date.now(),hexRandomV103(8),sessionV103(p),compactDataV103(p)];}
   async function apiV103(action,extra={}){
     const res=await fetch(API,{
-      method:'POST',credentials:'same-origin',cache:'no-store',
+      method:'POST',credentials:'omit',mode:'cors',cache:'no-store',
       headers:{'Content-Type':'application/json','Cache-Control':'no-cache'},
       body:JSON.stringify({action,...extra})
     });
@@ -14810,7 +14810,19 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     if(!code){try{lobbyMsg('복구 키를 붙여넣어 줘.');}catch(_e){}return;}
     if(hint)hint.textContent='☁️ Cloudflare에서 복구 키를 확인하는 중…';
     try{
-      const result=await apiV103('recover',{code});
+      let result;
+      if(/^ERPG3-/i.test(code)){
+        result=await apiV103('recover',{code});
+      }else{
+        // 구형 인라인 복구 키는 이 브라우저에서 먼저 해석한 뒤 최신 서버 키로 이전한다.
+        let legacyPlayer=null;
+        try{legacyPlayer=compactInlineCodeV103(code);}catch(_e){}
+        if(!legacyPlayer&&typeof oldParser==='function'){
+          try{legacyPlayer=oldParser(code);}catch(_e){}
+        }
+        if(!legacyPlayer)throw new Error('이 구형 복구 키 형식은 읽을 수 없어.');
+        result={kind:'object',payload:{data:playerAccountData(legacyPlayer),session:legacyPlayer.recoverySession||null}};
+      }
       const p=playerFromApiV103(result);
       p.id=S.uid;
       S.name=p.name;S.emoji=p.emoji;S.friendCode=p.friendCode;
@@ -14888,7 +14900,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   if(typeof previousHostRecvV103==='function'&&!previousHostRecvV103.__rpgV103RecoveryWrapper){
     const hostRecvV103=function(c,m){
       const code=String(m&&m.t==='hello'&&m.p&&m.p.recoveryCode||'');
-      if(!code||!m.p||!m.p.accountData||!/^ERPG[123]-/i.test(code))return previousHostRecvV103.apply(this,arguments);
+      if(!code||!m.p||!m.p.accountData||!/^ERPG3-/i.test(code))return previousHostRecvV103.apply(this,arguments);
       const self=this,originalArgs=arguments;
       apiV103('recover',{code}).then(result=>{
         const p=playerFromApiV103(result);
@@ -14917,7 +14929,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   }catch(_e){}
   const warn=document.querySelector('.recoveryWarn');
   if(warn)warn.textContent='새 복구 키는 Cloudflare D1에 진행 데이터를 저장해. 코드를 가진 사람은 계정을 복구할 수 있으니 다른 사람에게 공유하지 마.';
-  window.__RPG_BUILD_VERSION__='104';
+  window.__RPG_BUILD_VERSION__='105';
 })();
 </script>
 
@@ -15083,3 +15095,5 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 </script>
 
 </html>
+
+<!-- RPG v105: recovery API points to Cloudflare Worker; P2P transport unchanged. -->
