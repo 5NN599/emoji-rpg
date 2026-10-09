@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2a5fd1">
-<meta name="rpg-build-version" content="102">
+<meta name="rpg-build-version" content="104">
 <script src="./rpg-update-loader.js" defer></script>
 <title>이모지 RPG · P2P 멀티플레이</title>
 <style>
@@ -175,10 +175,10 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   <div id="rooms"><div class="empty">열려 있는 방을 찾는 중…</div></div>
   <h3>🗝️ 계정 복구</h3>
   <div class="recoveryLobby">
-    <div class="recoveryCode" id="lobbyRecoveryCode">연결하면 복구 코드가 발급돼.</div>
+    <div class="recoveryCode" id="lobbyRecoveryCode">연결하면 복구 키가 발급돼.</div>
     <div class="row"><button id="btnCopyRecovery" type="button">📋 코드 복사</button><button id="btnNewRecovery" type="button">🔄 새 코드</button></div>
-    <div class="row"><input id="recoveryInput" maxlength="12000" placeholder="복구 코드를 붙여넣으면 마지막 방도 찾아줘"><button id="btnRecover" type="button">🔐 복구 + 접속</button></div>
-    <div id="recoverySessionHint" class="empty">복구 코드를 입력하면 계정 데이터를 복원하고, 코드에 기록된 마지막 세션을 공개 방 디렉터리에서 찾아 마지막 공개 세션으로 접속해.</div>
+    <div class="row"><input id="recoveryInput" maxlength="12000" placeholder="복구 키를 붙여넣으면 마지막 방도 찾아줘"><button id="btnRecover" type="button">🔐 복구 + 접속</button></div>
+    <div id="recoverySessionHint" class="empty">복구 키를 입력하면 계정 데이터를 복원하고, 코드에 기록된 마지막 세션을 공개 방 디렉터리에서 찾아 마지막 공개 세션으로 접속해.</div>
   </div>
   <div id="msg" role="alert"></div>
 </div>
@@ -709,10 +709,10 @@ function makeRecoveryCode(p){
 }
 function parseRecoveryCode(code){
   const raw=String(code||'').trim();
-  if(!/^ERPG[12]-/.test(raw)) throw new Error('지원하지 않는 복구 코드');
-  const parts=raw.split('-'); if(parts.length<3) throw new Error('복구 코드 형식이 올바르지 않아');
+  if(!/^ERPG[12]-/.test(raw)) throw new Error('지원하지 않는 복구 키');
+  const parts=raw.split('-'); if(parts.length<3) throw new Error('복구 키 형식이 올바르지 않아');
   const checksum=parts.pop().toUpperCase(); parts.shift(); const packed=parts.join('-');
-  if(quickHash(packed)!==checksum) throw new Error('복구 코드 검증에 실패했어');
+  if(quickHash(packed)!==checksum) throw new Error('복구 키 검증에 실패했어');
   const payload=JSON.parse(b64UrlDecode(packed));
   if(!payload||!([1,2].includes(Number(payload.v)))||!payload.data) throw new Error('복구 데이터가 없어');
   const data=payload.data;
@@ -763,7 +763,7 @@ function resumeRecoveredSession(session){
 }
 function recoverAccountFromInput(){
   const input=$('recoveryInput'),code=input?input.value.trim():'';
-  if(!code){lobbyMsg('복구 코드를 붙여넣어줘.');return;}
+  if(!code){lobbyMsg('복구 키를 붙여넣어줘.');return;}
   try{
     const p=parseRecoveryCode(code);
     const data=playerAccountData(p);
@@ -771,12 +771,12 @@ function recoverAccountFromInput(){
     try{localStorage.setItem('emoji-rpg-account',JSON.stringify(S.accountSnapshot));localStorage.setItem('emoji-rpg-profile',JSON.stringify({n:S.name,e:S.emoji,fc:S.friendCode}));localStorage.setItem('emoji-rpg-recovery-code',code);}catch(e){}
     updateRecoveryUI();
     const hint=$('recoverySessionHint');
-    if(S.recoverySession&&S.recoverySession.code){ if(hint)hint.textContent='✅ 복구 코드 인식 · '+(S.recoverySession.roomName||'마지막 방')+' · '+S.recoverySession.code+' · 마지막 공개 세션 찾는 중…'; resumeRecoveredSession(S.recoverySession); }
+    if(S.recoverySession&&S.recoverySession.code){ if(hint)hint.textContent='✅ 복구 키 인식 · '+(S.recoverySession.roomName||'마지막 방')+' · '+S.recoverySession.code+' · 마지막 공개 세션 찾는 중…'; resumeRecoveredSession(S.recoverySession); }
     else { if(hint)hint.textContent='✅ 계정 복구 완료 · 마지막 온라인 세션 정보는 없어.'; lobbyMsg('✅ 계정 데이터를 복구했어. 공개 방 목록에서 방을 선택하면 돼.'); }
-  }catch(e){ const hint=$('recoverySessionHint');if(hint)hint.textContent='복구 코드를 확인해줘.';lobbyMsg('복구 실패: '+e.message); }
+  }catch(e){ const hint=$('recoverySessionHint');if(hint)hint.textContent='복구 키를 확인해줘.';lobbyMsg('복구 실패: '+e.message); }
 }
-function copyRecoveryCode(){ const code=issueRecoveryCode(false); navigator.clipboard?.writeText(code).then(()=>lobbyMsg('📋 복구 코드를 클립보드에 복사했어.')).catch(()=>window.rpgGameInput?.('🗝️ 복구 코드','자동 복사가 막혀서 아래 코드를 직접 복사해줘.',{value:code,maxLength:12000,multiline:true,okText:'닫기'})); }
-function updateRecoveryUI(){ const code=S.recoveryCode||''; const a=$('lobbyRecoveryCode');if(a)a.textContent=code||'연결하면 복구 코드가 발급돼.'; }
+function copyRecoveryCode(){ const code=issueRecoveryCode(false); navigator.clipboard?.writeText(code).then(()=>lobbyMsg('📋 복구 키를 클립보드에 복사했어.')).catch(()=>window.rpgGameInput?.('🗝️ 복구 키','자동 복사가 막혀서 아래 코드를 직접 복사해줘.',{value:code,maxLength:12000,multiline:true,okText:'닫기'})); }
+function updateRecoveryUI(){ const code=S.recoveryCode||''; const a=$('lobbyRecoveryCode');if(a)a.textContent=code||'연결하면 복구 키가 발급돼.'; }
 
 function saveCharacterStyle(){
   S.characterStyle=sanitizeAppearance(S.characterStyle);
@@ -819,7 +819,7 @@ function renderGuide(){
     npc:{i:'🏪',t:'NPC',d:'NPC 근처 2칸 안에서 해당 메뉴를 이용해.\n상인 루루: 구매/판매\n여관 주인: 휴식 안내\n대장장이: 장비 안내\n치유사: 회복\n길잡이: 이동 안내'},
     chat:{i:'💬',t:'채팅',d:'🌐 전체: 방의 모든 플레이어\n👥 파티: 같은 파티원만\n욕설/우회 표현/링크/도배는 자동 차단돼.\n최근 채팅은 캐릭터 머리 위에도 잠시 표시돼.'},
     party:{i:'👥',t:'파티',d:'친구/파티 메뉴에서 플레이어를 초대해.\n최대 4명까지 한 파티로 묶이고 파티 채팅을 사용할 수 있어.'},
-    save:{i:'🗝️',t:'계정/복구',d:'게임 상태는 브라우저에 자동 백업돼.\n🗝️ 복구 메뉴에서 최신 복구 코드를 보관해 두면 브라우저 데이터가 사라졌을 때 백업 데이터를 다시 적용할 수 있어.'}
+    save:{i:'🗝️',t:'계정/복구',d:'게임 상태는 브라우저에 자동 백업돼.\n🗝️ 복구 메뉴에서 최신 복구 키를 보관해 두면 브라우저 데이터가 사라졌을 때 백업 데이터를 다시 적용할 수 있어.'}
   };
   const first=topics.move;let detail=first.d;
   let html='<div class="guideGrid">';Object.entries(topics).forEach(([k,v],idx)=>{html+='<button class="guideBtn '+(idx===0?'active':'')+'" data-guide="'+k+'"><strong>'+v.i+'</strong><span>'+v.t+'</span></button>';});html+='</div><div class="guideDetail" id="guideDetail">'+escapeHtml(detail)+'</div>';
@@ -830,10 +830,10 @@ function renderGuide(){
 function renderRecoveryPanel(){
   const code=issueRecoveryCode(false), s=S.recoverySession;
   const last=s&&s.code?(String(s.roomName||'마지막 방')):'현재 연결된 온라인 세션 없음';
-  const html='<div class="section"><div class="sectionTitle">현재 계정 복구 코드</div><div class="recoveryCode" id="panelRecoveryCode">'+escapeHtml(code)+'</div><div class="recoveryActions"><button id="copyRecoveryPanel">📋 복사</button><button id="newRecoveryPanel">🔄 최신 코드</button></div></div><div class="section"><div class="sectionTitle">마지막 온라인 세션</div><div class="guideDetail">'+escapeHtml(last)+'</div><div class="recoveryWarn">복구 코드는 로비에서 입력해. 로비가 계정 데이터를 복원하고 마지막 공개 세션을 디렉터리에서 찾아 접속해.</div></div>';
+  const html='<div class="section"><div class="sectionTitle">현재 계정 복구 키</div><div class="recoveryCode" id="panelRecoveryCode">'+escapeHtml(code)+'</div><div class="recoveryActions"><button id="copyRecoveryPanel">📋 복사</button><button id="newRecoveryPanel">🔄 최신 코드</button></div></div><div class="section"><div class="sectionTitle">마지막 온라인 세션</div><div class="guideDetail">'+escapeHtml(last)+'</div><div class="recoveryWarn">복구 키는 로비에서 입력해. 로비가 계정 데이터를 복원하고 마지막 공개 세션을 디렉터리에서 찾아 접속해.</div></div>';
   openPanel('🗝️ 계정 복구',html);
   $('copyRecoveryPanel').onclick=copyRecoveryCode;
-  $('newRecoveryPanel').onclick=()=>{saveLocalAccountSnapshot();const n=issueRecoveryCode(true);$('panelRecoveryCode').textContent=n;log('🔄 최신 계정 데이터와 현재 세션 정보로 새 복구 코드를 발급했어.');};
+  $('newRecoveryPanel').onclick=()=>{saveLocalAccountSnapshot();const n=issueRecoveryCode(true);$('panelRecoveryCode').textContent=n;log('🔄 최신 계정 데이터와 현재 세션 정보로 새 복구 키를 발급했어.');};
 }
 function readProfile() {
   let prof={}; try{prof=JSON.parse(localStorage.getItem('emoji-rpg-profile')||'{}');}catch(e){}
@@ -2405,8 +2405,8 @@ function enterGame() {
   try{updateHud();}catch(e){log('HUD 초기화 경고: '+(e&&e.message||e));}
   if(!S.hudTimer) S.hudTimer=setInterval(()=>{try{updateHud();}catch(e){} try{saveLocalAccountSnapshot();}catch(e){}},400);
   try{saveLocalAccountSnapshot();}catch(e){}
-  try{issueRecoveryCode(true);}catch(e){log('복구 코드 발급 경고: '+(e&&e.message||e));}
-  if(!S.recoveryNoticeShown){S.recoveryNoticeShown=true;log('🗝️ 새 계정 복구 코드는 🗝️ 복구 메뉴에서 확인할 수 있어.');}
+  try{issueRecoveryCode(true);}catch(e){log('복구 키 발급 경고: '+(e&&e.message||e));}
+  if(!S.recoveryNoticeShown){S.recoveryNoticeShown=true;log('🗝️ 새 계정 복구 키는 🗝️ 복구 메뉴에서 확인할 수 있어.');}
   try{startCapabilityReporting();}catch(e){log('성능 측정 경고: '+(e&&e.message||e));}
   if(S.renderHealthTimer)clearTimeout(S.renderHealthTimer);
   S.renderHealthTimer=setTimeout(()=>{
@@ -2426,9 +2426,9 @@ function initLobby() {
   $('btnQuick').onclick=quickJoin;
   $('btnInv').onclick=renderInventory;$('btnTrade').onclick=openTradePanel;$('btnChat').onclick=renderChat;$('btnQuest').onclick=renderQuest;$('btnSocial').onclick=renderSocial;$('btnMap').onclick=renderTeleportPanel;$('btnCharacter').onclick=renderCharacterPanel;$('btnGuide').onclick=renderGuide;$('btnRecovery').onclick=renderRecoveryPanel;$('btnClosePanel').onclick=closePanel;
   $('btnCopyRecovery').onclick=copyRecoveryCode;
-  $('btnNewRecovery').onclick=()=>{saveLocalAccountSnapshot();const code=issueRecoveryCode(true);updateRecoveryUI();lobbyMsg('🔄 최신 계정 데이터로 새 복구 코드를 발급했어.');};
+  $('btnNewRecovery').onclick=()=>{saveLocalAccountSnapshot();const code=issueRecoveryCode(true);updateRecoveryUI();lobbyMsg('🔄 최신 계정 데이터로 새 복구 키를 발급했어.');};
   $('btnRecover').onclick=recoverAccountFromInput;
-  $('recoveryInput').addEventListener('input',()=>{const v=$('recoveryInput').value.trim(),hint=$('recoverySessionHint');if(!v){if(hint)hint.textContent='복구 코드를 입력하면 계정 데이터를 복원하고 마지막 방도 찾아줄게.';return;}try{const rp=parseRecoveryCode(v),rs=rp.recoverySession;if(rs&&rs.code){if(hint)hint.textContent='✅ 복구 코드 인식 · '+(rs.roomName||'마지막 방')+' · '+rs.code;}else if(hint)hint.textContent='✅ 계정 복구 코드 인식 · 세션 정보 없음';}catch(e){if(hint)hint.textContent='복구 코드를 확인하는 중…';}});
+  $('recoveryInput').addEventListener('input',()=>{const v=$('recoveryInput').value.trim(),hint=$('recoverySessionHint');if(!v){if(hint)hint.textContent='복구 키를 입력하면 계정 데이터를 복원하고 마지막 방도 찾아줄게.';return;}try{const rp=parseRecoveryCode(v),rs=rp.recoverySession;if(rs&&rs.code){if(hint)hint.textContent='✅ 복구 키 인식 · '+(rs.roomName||'마지막 방')+' · '+rs.code;}else if(hint)hint.textContent='✅ 계정 복구 키 인식 · 세션 정보 없음';}catch(e){if(hint)hint.textContent='복구 키를 확인하는 중…';}});
   updateRecoveryUI();
   $('networkErrorRetry').onclick=()=>{hideConnectionError();if(S.netErrorRetry){const fn=S.netErrorRetry;S.netErrorRetry=null;fn();}};
   $('networkErrorLobby').onclick=()=>{hideConnectionError();cleanupNetwork();S.started=false;$('game').hidden=true;$('lobby').hidden=false;lobbyMsg('연결 오류로 방을 종료했어.');updateBadge();};
@@ -3390,7 +3390,7 @@ window.__rpgOverhaulReady=true;
     return p;
   };
 
-  /* 계정 복구 코드를 새 데이터가 그대로 담도록 최종 래퍼 */
+  /* 계정 복구 키를 새 데이터가 그대로 담도록 최종 래퍼 */
   const _oldMakeRecoveryV3 = makeRecoveryCode;
   makeRecoveryCode = function(p){
     normalizePlayer(p);
@@ -6651,7 +6651,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   'use strict';
 
   /* -----------------------------------------------------------
-     1. 복구 코드에 실제 RPG 진행 데이터를 빠뜨리지 않기
+     1. 복구 키에 실제 RPG 진행 데이터를 빠뜨리지 않기
      ----------------------------------------------------------- */
   const _accountV33 = playerAccountData;
   playerAccountData = function(p){
@@ -8306,15 +8306,15 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   };
   window.onClientData=onClientData;
 
-  /* ---------- 5. 복구 코드는 레벨/직업/RPG 상태를 절대 잘라내지 않는다 ---------- */
+  /* ---------- 5. 복구 키는 레벨/직업/RPG 상태를 절대 잘라내지 않는다 ---------- */
   const _parseRecoveryV43=window.parseRecoveryCode;
   window.parseRecoveryCode=function(code){
     const raw=String(code||'').trim();
     if(!/^ERPG[12]-/.test(raw)) return _parseRecoveryV43(code);
     try{
-      const parts=raw.split('-');if(parts.length<3)throw new Error('복구 코드 형식이 올바르지 않아');
+      const parts=raw.split('-');if(parts.length<3)throw new Error('복구 키 형식이 올바르지 않아');
       const checksum=String(parts.pop()||'').toUpperCase();parts.shift();const packed=parts.join('-');
-      if(quickHash(packed)!==checksum)throw new Error('복구 코드 검증에 실패했어');
+      if(quickHash(packed)!==checksum)throw new Error('복구 키 검증에 실패했어');
       const payload=JSON.parse(b64UrlDecode(packed)),d=payload&&payload.data;
       if(!d||!d.name||!d.friendCode)throw new Error('복구 데이터가 없어');
       const p=starterPlayer('recovered',String(d.name).slice(0,10),EMOJIS.includes(d.emoji)?d.emoji:EMOJIS[0],0,String(d.friendCode).toUpperCase());
@@ -8979,11 +8979,11 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   };
   globalThis.reportPlayer=reportPlayer;
 
-  // 복구 코드 복사 실패 시에도 브라우저 prompt 대신 게임 내부 창 사용.
+  // 복구 키 복사 실패 시에도 브라우저 prompt 대신 게임 내부 창 사용.
   copyRecoveryCode=function(){
     const code=issueRecoveryCode(false);
-    navigator.clipboard?.writeText(code).then(()=>notice('📋 복구 코드를 클립보드에 복사했어.','success','sys')).catch(()=>{
-      gameInput('🗝️ 복구 코드','자동 복사가 막혀서 아래 코드를 직접 복사해줘.',{value:code,maxLength:12000,multiline:true,okText:'닫기'});
+    navigator.clipboard?.writeText(code).then(()=>notice('📋 복구 키를 클립보드에 복사했어.','success','sys')).catch(()=>{
+      gameInput('🗝️ 복구 키','자동 복사가 막혀서 아래 코드를 직접 복사해줘.',{value:code,maxLength:12000,multiline:true,okText:'닫기'});
     });
   };
   globalThis.copyRecoveryCode=copyRecoveryCode;
@@ -12382,243 +12382,8 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 </script>
 
 
-<!-- RPG v69: compact + integrity-checked recovery key -->
-<script>
-(function installRecoveryV69(){
-  'use strict';
-
-  /*
-   * v69 recovery format
-   * - keeps the legacy ERPG2- prefix so older routing/validation code still recognizes it
-   * - payload is compact array JSON instead of a large named-key object
-   * - recovery integrity uses HMAC-SHA-256 instead of the old quickHash
-   * - code is visually grouped, but spaces/newlines/hyphens are normalized when parsing
-   *
-   * IMPORTANT: this is stronger against casual/moderate tampering, not cryptographically
-   * unforgeable in a fully client-only app because the verification secret ships to the browser.
-   * True server-side authenticity requires the HMAC/signing secret to remain on a server.
-   */
-
-  const LEGACY_PARSE = globalThis.parseRecoveryCode;
-  const LEGACY_ISSUE = globalThis.issueRecoveryCode;
-  const RECOVERY_PREFIX = 'ERPG2-';
-  const RECOVERY_MARK = 'C3';
-
-  // Split across constants so the token is not sitting in source as one obvious literal.
-  const RECOVERY_KEY = [
-    'emoji', 'rpg', 'recovery', 'v69', 'integrity', 'key',
-    '7f2c', 'a91d', 'c4e8', '31b7', '5d06', 'ef49'
-  ].join('|');
-
-  function u8(str){ return new TextEncoder().encode(String(str)); }
-  function rotr(x,n){ return (x>>>n) | (x<<(32-n)); }
-  const K = new Uint32Array([
-    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-  ]);
-  const H0 = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
-
-  function sha256(bytes){
-    const n=bytes.length, bitLen=n*8;
-    const total=((n+9+63)>>6)<<6;
-    const m=new Uint8Array(total);m.set(bytes);m[n]=0x80;
-    const dv=new DataView(m.buffer);dv.setUint32(total-8,Math.floor(bitLen/0x100000000),false);dv.setUint32(total-4,bitLen>>>0,false);
-    const h=new Uint32Array(H0), w=new Uint32Array(64);
-    for(let off=0;off<total;off+=64){
-      for(let i=0;i<16;i++)w[i]=dv.getUint32(off+i*4,false);
-      for(let i=16;i<64;i++){
-        const s0=(rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>>3))>>>0;
-        const s1=(rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>>10))>>>0;
-        w[i]=(((w[i-16]+s0)>>>0)+(w[i-7]+s1)>>>0);
-      }
-      let [a,b,c,d,e,f,g,hh]=h;
-      for(let i=0;i<64;i++){
-        const S1=(rotr(e,6)^rotr(e,11)^rotr(e,25))>>>0;
-        const ch=((e&f)^((~e)&g))>>>0;
-        const t1=(hh+S1+ch+K[i]+w[i])>>>0;
-        const S0=(rotr(a,2)^rotr(a,13)^rotr(a,22))>>>0;
-        const maj=((a&b)^(a&c)^(b&c))>>>0;
-        const t2=(S0+maj)>>>0;
-        hh=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0;
-      }
-      h[0]=(h[0]+a)>>>0;h[1]=(h[1]+b)>>>0;h[2]=(h[2]+c)>>>0;h[3]=(h[3]+d)>>>0;
-      h[4]=(h[4]+e)>>>0;h[5]=(h[5]+f)>>>0;h[6]=(h[6]+g)>>>0;h[7]=(h[7]+hh)>>>0;
-    }
-    const out=new Uint8Array(32),od=new DataView(out.buffer);for(let i=0;i<8;i++)od.setUint32(i*4,h[i],false);return out;
-  }
-  function hmacSha256(message){
-    let key=u8(RECOVERY_KEY);if(key.length>64)key=sha256(key);
-    const kb=new Uint8Array(64);kb.set(key);
-    const ipad=new Uint8Array(64),opad=new Uint8Array(64);
-    for(let i=0;i<64;i++){ipad[i]=kb[i]^0x36;opad[i]=kb[i]^0x5c;}
-    const inner=new Uint8Array(64+message.length);inner.set(ipad);inner.set(message,64);
-    const innerHash=sha256(inner);
-    const outer=new Uint8Array(96);outer.set(opad);outer.set(innerHash,64);
-    return sha256(outer);
-  }
-  function hex(bytes){let s='';for(const b of bytes)s+=(b+256).toString(16).slice(1);return s;}
-  function safeEq(a,b){
-    a=String(a);b=String(b);let d=a.length^b.length;const n=Math.max(a.length,b.length);
-    for(let i=0;i<n;i++)d|=(a.charCodeAt(i%Math.max(1,a.length))^b.charCodeAt(i%Math.max(1,b.length)))||0;
-    return d===0;
-  }
-
-  function sortedPairs(obj, max){
-    return Object.keys(obj||{}).filter(k=>typeof ITEMS==='undefined'||ITEMS[k]).sort().slice(0,max||128).map(k=>[String(k),Math.max(0,Math.floor(Number(obj[k])||0))]);
-  }
-  function compactData(p){
-    const d=playerAccountData(p)||{};
-    const inv=sortedPairs(d.inv,128);
-    const storage=sortedPairs(d.storage,128);
-    const q=d.quest||{};
-    const j=d.job||{stage:0,code:'novice',name:'견습 모험가',icon:'🧑'};
-    const a=d.appearance||{};
-    const e=d.enhance||{};
-    const home=d.home||{};
-    const g=d.guildQuest||{};
-    return [
-      String(d.name||'모험가').slice(0,10),
-      String(d.emoji||'🧑'),
-      String(d.friendCode||'').toUpperCase().slice(0,8),
-      Math.max(1,Math.floor(Number(d.lv)||1)),
-      Math.max(0,Math.floor(Number(d.xp)||0)),
-      Math.max(1,Math.floor(Number(d.hp)||1)),
-      Math.max(0,Math.floor(Number(d.gold)||0)),
-      Math.max(1,Math.floor(Number(d.atk)||10)),
-      Math.max(0,Math.floor(Number(d.def)||0)),
-      inv,
-      [d.equip&&d.equip.weapon?String(d.equip.weapon):'',d.equip&&d.equip.armor?String(d.equip.armor):''],
-      [String(q.id||'slime_hunt'),Math.max(0,Math.floor(Number(q.progress)||0)),!!q.claimed],
-      [Math.max(0,Math.floor(Number(j.stage)||0)),String(j.code||'novice'),String(j.name||'견습 모험가').slice(0,24),String(j.icon||'🧑')],
-      [String(a.aura||''),String(a.hat||''),String(a.title||'초보 모험가')],
-      [Math.max(0,Math.floor(Number(e.weapon)||0)),Math.max(0,Math.floor(Number(e.armor)||0))],
-      storage,
-      [String(home.map||'town'),Math.floor(Number(home.x)||0),Math.floor(Number(home.y)||0)],
-      [String(g.active||''),Math.max(0,Math.floor(Number(g.progress)||0)),!!g.claimed,Object.entries(g.completed||{}).filter(([k,v])=>v).map(([k])=>String(k)).sort().slice(0,64)]
-    ];
-  }
-  function inflateData(arr){
-    if(!Array.isArray(arr)||arr.length<18)throw new Error('복구 데이터 형식이 올바르지 않아');
-    const inv={};for(const pair of (Array.isArray(arr[9])?arr[9]:[])){if(Array.isArray(pair)&&pair[0])inv[String(pair[0])]=Math.max(0,Math.floor(Number(pair[1])||0));}
-    const st={};for(const pair of (Array.isArray(arr[15])?arr[15]:[])){if(Array.isArray(pair)&&pair[0])st[String(pair[0])]=Math.max(0,Math.floor(Number(pair[1])||0));}
-    const q=Array.isArray(arr[11])?arr[11]:[];
-    const j=Array.isArray(arr[12])?arr[12]:[];
-    const a=Array.isArray(arr[13])?arr[13]:[];
-    const e=Array.isArray(arr[14])?arr[14]:[];
-    const h=Array.isArray(arr[16])?arr[16]:[];
-    const g=Array.isArray(arr[17])?arr[17]:[];
-    const completed={};for(const id of (Array.isArray(g[3])?g[3]:[]))completed[String(id)]=true;
-    return {
-      name:String(arr[0]||'모험가').slice(0,10), emoji:String(arr[1]||'🧑'), friendCode:String(arr[2]||'').toUpperCase(),
-      lv:Math.max(1,Math.floor(Number(arr[3])||1)),xp:Math.max(0,Math.floor(Number(arr[4])||0)),hp:Math.max(1,Math.floor(Number(arr[5])||1)),
-      gold:Math.max(0,Math.floor(Number(arr[6])||0)),atk:Math.max(1,Math.floor(Number(arr[7])||10)),def:Math.max(0,Math.floor(Number(arr[8])||0)),
-      inv,equip:{weapon:arr[10]&&arr[10][0]?String(arr[10][0]):null,armor:arr[10]&&arr[10][1]?String(arr[10][1]):null},
-      quest:{id:String(q[0]||'slime_hunt'),progress:Math.max(0,Math.floor(Number(q[1])||0)),claimed:!!q[2]},
-      job:{stage:Math.max(0,Math.floor(Number(j[0])||0)),code:String(j[1]||'novice'),name:String(j[2]||'견습 모험가').slice(0,24),icon:String(j[3]||'🧑')},
-      appearance:{aura:String(a[0]||''),hat:String(a[1]||''),title:String(a[2]||'초보 모험가')},
-      enhance:{weapon:Math.max(0,Math.floor(Number(e[0])||0)),armor:Math.max(0,Math.floor(Number(e[1])||0))},
-      storage:st,home:{map:String(h[0]||'town'),x:Math.floor(Number(h[1])||0),y:Math.floor(Number(h[2])||0)},
-      guildQuest:{active:g[0]?String(g[0]):null,progress:Math.max(0,Math.floor(Number(g[1])||0)),claimed:!!g[2],completed}
-    };
-  }
-
-  function issueId(){
-    if(globalThis.crypto&&crypto.getRandomValues){const b=new Uint8Array(6);crypto.getRandomValues(b);return hex(b);}
-    return Math.random().toString(36).slice(2,14);
-  }
-  function makeCodeV69(p){
-    const session=[String(S.code||'').toUpperCase().slice(0,5),Math.max(0,Number(S.gen)||0),String(S.roomName||'').slice(0,16),Date.now()];
-    const payload=[3,Date.now(),issueId(),session,compactData(p)];
-    const packed=RECOVERY_MARK+b64UrlEncode(JSON.stringify(payload));
-    const sig=hex(hmacSha256(u8(RECOVERY_PREFIX+packed))).slice(0,20);
-    const groups=[];for(let i=0;i<packed.length;i+=12)groups.push(packed.slice(i,i+12));
-    return RECOVERY_PREFIX+groups.join('.')+'.'+sig;
-  }
-  function parseV69(code){
-    const raw=String(code||'').trim();
-    if(!raw.startsWith(RECOVERY_PREFIX))return null;
-    const body=raw.slice(RECOVERY_PREFIX.length).replace(/\s+/g,'');
-    const cut=body.lastIndexOf('.');
-    if(cut<0)return null;
-    const packed=body.slice(0,cut).replace(/\./g,'');
-    const sig=body.slice(cut+1);
-    if(!packed.startsWith(RECOVERY_MARK))return null;
-    const expected=hex(hmacSha256(u8(RECOVERY_PREFIX+packed))).slice(0,20);
-    if(!safeEq(sig,expected))throw new Error('복구 코드 검증에 실패했어. 코드가 변조됐거나 잘못 입력됐어.');
-    let payload;
-    try{payload=JSON.parse(b64UrlDecode(packed.slice(RECOVERY_MARK.length)));}catch(e){throw new Error('복구 코드 데이터가 손상됐어.');}
-    if(!Array.isArray(payload)||payload[0]!==3)throw new Error('지원하지 않는 복구 코드 버전이야.');
-    const data=inflateData(payload[4]);
-    if(!data.name||!EMOJIS.includes(data.emoji)||!/^[A-Z0-9]{6,8}$/.test(data.friendCode))throw new Error('복구 데이터가 손상됐어.');
-    const p=starterPlayer('recovered',data.name,data.emoji,0,data.friendCode);
-    Object.assign(p,data);
-    const session=Array.isArray(payload[3])?payload[3]:null;
-    if(session){p.recoverySession={code:String(session[0]||'').toUpperCase().slice(0,5),gen:Math.max(0,Number(session[1])||0),roomName:String(session[2]||'').slice(0,16),ts:Math.max(0,Number(session[3])||0)};}
-    normalizePlayer(p);
-    jobData(p);if(typeof syncJobAppearance==='function')syncJobAppearance(p);
-    return p;
-  }
-
-  function issueV69(forceNew){
-    const p=S.players[S.uid]||newPlayer(S.uid,S.name,S.emoji,S.score,S.friendCode);normalizePlayer(p);
-    if(!forceNew && S.recoveryCode){
-      try{ if(parseV69(S.recoveryCode)) return S.recoveryCode; }catch(_e){}
-    }
-    const code=makeCodeV69(p);
-    S.recoveryCode=code;S.recoveryIssued=S.recoveryIssued||[];S.recoveryIssued.push(code);if(S.recoveryIssued.length>20)S.recoveryIssued=S.recoveryIssued.slice(-20);
-    try{localStorage.setItem('emoji-rpg-recovery-code',code);localStorage.setItem('emoji-rpg-recovery-ledger',JSON.stringify(S.recoveryIssued));}catch(_e){}
-    try{updateRecoveryUI();}catch(_e){}
-    return code;
-  }
-
-  function parseRecoveryV69(code){
-    const compact=parseV69(code);
-    if(compact)return compact;
-    return LEGACY_PARSE(code);
-  }
-
-  globalThis.parseRecoveryCode=parseRecoveryV69;
-  globalThis.issueRecoveryCode=issueV69;
-  parseRecoveryCode=parseRecoveryV69;
-  issueRecoveryCode=issueV69;
-  globalThis.__rpgV69Recovery=true;
-
-  // v1/v2 호환 코드를 성공적으로 열면 다음 최신 코드를 한 번만 발급하도록 준비.
-  try{
-    const known=String(localStorage.getItem('emoji-rpg-recovery-code')||'');
-    if(known.startsWith(RECOVERY_PREFIX) && !known.slice(RECOVERY_PREFIX.length).includes('C3')){
-      const p=LEGACY_PARSE(known);
-      if(p){S.recoverySession=p.recoverySession||null;}
-    }else if(known.startsWith(RECOVERY_PREFIX)){
-      const p=parseV69(known);if(p)S.recoverySession=p.recoverySession||null;
-    }
-    if(known.startsWith(RECOVERY_PREFIX))S.recoveryCode=known;
-    try{updateRecoveryUI();}catch(_e){}
-  }catch(_e){}
-
-  // v69 코드는 기존 서버측 복구 검증 경로에서도 인식되도록 ERPG2- prefix를 유지한다.
-  // 기존 hostRecv는 복구 코드가 ERPG2-이면 parseRecoveryCode를 통해 서명을 검증한다.
-
-  // 게임 안내문을 v69 형식에 맞게 교체.
-  try{
-    const saveInfo=document.querySelector('.recoveryWarn');
-    if(saveInfo)saveInfo.textContent='복구 코드는 계정 진행 상태가 들어간 백업 키야. 복사해서 안전한 곳에 보관해 줘. 코드 일부를 바꾸면 검증에 실패해서 복구되지 않아.';
-  }catch(_e){}
-
-  // 입력창에서 형식을 바로 알려주되, 실제 검증은 제출 시 수행.
-  try{
-    const inp=$('recoveryInput');
-    if(inp){inp.maxLength=12000;inp.placeholder='복구 키를 붙여넣어 줘 · ERPG2-…';}
-  }catch(_e){}
-})();
-
-</script>
+<!-- RPG v103: legacy client-side HMAC key removed. New recovery codes are opaque Cloudflare D1 tokens. -->
+<script>window.__rpgV69Recovery=true;window.__rpgV103ServerRecoveryPending=true;</script>
 
 
 <script id="rpg-v70-recovery-session-flow">
@@ -12729,7 +12494,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   // 복구 후 안내 문구도 실제 동작 순서와 맞춘다.
   try{
     const hint=$('recoverySessionHint');
-    if(hint && !S.recoverySession) hint.textContent='복구 코드를 입력하면 계정 데이터를 복원한 뒤, 마지막 방 → 일반 공개 세션 → 방 선택/생성 순서로 접속을 도와줄게.';
+    if(hint && !S.recoverySession) hint.textContent='복구 키를 입력하면 계정 데이터를 복원한 뒤, 마지막 방 → 일반 공개 세션 → 방 선택/생성 순서로 접속을 도와줄게.';
   }catch(_e){}
 
   globalThis.__rpgV70RecoverySessionFlow=true;
@@ -14823,6 +14588,497 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 
   function inArena(x,y){return x>=R.x&&x<R.x+R.w&&y>=R.y&&y<R.y+R.h;}
   window.__rpgV102ArenaVisual=true;
+})();
+</script>
+
+<!-- RPG v103: Cloudflare Pages Function-backed recovery. P2P transport remains unchanged. -->
+<script id="rpgV103ServerRecovery">
+(function installRpgV103ServerRecovery(){
+  'use strict';
+  if(window.__RPG_V103_SERVER_RECOVERY__)return;
+  window.__RPG_V103_SERVER_RECOVERY__=true;
+  const API='/api/recovery';
+  const oldParser=globalThis.parseRecoveryCode;
+
+  function b64UrlEncodeV103(text){
+    const bytes=new TextEncoder().encode(String(text));
+    let bin='';
+    for(let i=0;i<bytes.length;i+=0x8000)bin+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64UrlDecodeV103(text){
+    const raw=String(text||'').replace(/-/g,'+').replace(/_/g,'/');
+    const pad=raw.length%4?'='.repeat(4-(raw.length%4)):'';
+    const bin=atob(raw+pad),bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+  function hexRandomV103(n=8){
+    const a=new Uint8Array(n);
+    if(!globalThis.crypto||!crypto.getRandomValues)throw new Error('안전한 난수 생성을 사용할 수 없어. HTTPS로 접속해 줘.');
+    crypto.getRandomValues(a);
+    return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+  function pairsV103(obj,max=128){
+    return Object.keys(obj||{})
+      .filter(k=>typeof ITEMS==='undefined'||ITEMS[k])
+      .sort().slice(0,max)
+      .map(k=>[String(k),Math.max(0,Math.floor(Number(obj[k])||0))]);
+  }
+  function compactDataV103(p){
+    if(typeof normalizePlayer==='function')normalizePlayer(p);
+    const d=(typeof playerAccountData==='function'&&playerAccountData(p))||p||{};
+    const j=(typeof jobData==='function'&&jobData(p))||p.job||{stage:0,code:'novice',name:'견습 모험가',icon:'🧑'};
+    const q=p.quest||d.quest||{};
+    const a=(typeof sanitizeAppearance==='function'?sanitizeAppearance(p.appearance,p):p.appearance)||{};
+    const e=p.enhance||d.enhance||{};
+    const h=p.home||d.home||{};
+    const g=p.guildQuest||d.guildQuest||{};
+    return [
+      String(p.name||d.name||'모험가').slice(0,10),
+      String(p.emoji||d.emoji||'🧑'),
+      String(p.friendCode||d.friendCode||'').toUpperCase().slice(0,8),
+      Math.max(1,Math.floor(Number(p.lv??d.lv)||1)),
+      Math.max(0,Math.floor(Number(p.xp??d.xp)||0)),
+      Math.max(1,Math.floor(Number(p.hp??d.hp)||1)),
+      Math.max(0,Math.floor(Number(p.gold??d.gold)||0)),
+      Math.max(1,Math.floor(Number(p.atk??d.atk)||10)),
+      Math.max(0,Math.floor(Number(p.def??d.def)||0)),
+      pairsV103(p.inv||d.inv),
+      [p.equip&&p.equip.weapon?String(p.equip.weapon):'',p.equip&&p.equip.armor?String(p.equip.armor):''],
+      [String(q.id||'slime_hunt'),Math.max(0,Math.floor(Number(q.progress)||0)),!!q.claimed],
+      [Math.max(0,Math.floor(Number(j.stage)||0)),String(j.code||'novice'),String(j.name||'견습 모험가').slice(0,24),String(j.icon||'🧑')],
+      [String(a.aura||''),String(a.hat||''),String(a.title||'초보 모험가')],
+      [Math.max(0,Math.floor(Number(e.weapon)||0)),Math.max(0,Math.floor(Number(e.armor)||0))],
+      pairsV103(p.storage||d.storage),
+      [String(h.map||'town'),Math.floor(Number(h.x)||0),Math.floor(Number(h.y)||0)],
+      [String(g.active||''),Math.max(0,Math.floor(Number(g.progress)||0)),!!g.claimed,Object.entries(g.completed||{}).filter(([,v])=>v).map(([k])=>String(k)).sort().slice(0,64)]
+    ];
+  }
+  function sessionV103(p){
+    if(S.started&&S.code)return [String(S.code||'').toUpperCase().slice(0,5),Math.max(0,Number(S.gen)||0),String(S.roomName||'').slice(0,16),Date.now()];
+    const s=p&&p.recoverySession||S.recoverySession;
+    if(Array.isArray(s))return [String(s[0]||'').toUpperCase().slice(0,5),Math.max(0,Number(s[1])||0),String(s[2]||'').slice(0,16),Math.max(0,Number(s[3])||Date.now())];
+    return [String(s&&s.code||'').toUpperCase().slice(0,5),Math.max(0,Number(s&&s.gen)||0),String(s&&s.roomName||'').slice(0,16),Math.max(0,Number(s&&s.ts)||Date.now())];
+  }
+  function makePayloadV103(p){return [4,Date.now(),hexRandomV103(8),sessionV103(p),compactDataV103(p)];}
+  async function apiV103(action,extra={}){
+    const res=await fetch(API,{
+      method:'POST',credentials:'same-origin',cache:'no-store',
+      headers:{'Content-Type':'application/json','Cache-Control':'no-cache'},
+      body:JSON.stringify({action,...extra})
+    });
+    let data=null;
+    try{data=await res.json();}catch(_e){}
+    if(!res.ok||!data||!data.ok)throw new Error(data&&data.error||('Cloudflare 복구 API 오류 ('+res.status+')'));
+    return data;
+  }
+  function compactToPlayerV103(payload){
+    if(!Array.isArray(payload)||![3,4].includes(Number(payload[0]))||!Array.isArray(payload[4])||payload[4].length<18)throw new Error('복구 데이터 형식이 올바르지 않아.');
+    const a=payload[4],inv={},storage={};
+    for(const pair of (Array.isArray(a[9])?a[9]:[]))if(Array.isArray(pair)&&pair[0])inv[String(pair[0])]=Math.max(0,Math.floor(Number(pair[1])||0));
+    for(const pair of (Array.isArray(a[15])?a[15]:[]))if(Array.isArray(pair)&&pair[0])storage[String(pair[0])]=Math.max(0,Math.floor(Number(pair[1])||0));
+    const q=Array.isArray(a[11])?a[11]:[],j=Array.isArray(a[12])?a[12]:[],ap=Array.isArray(a[13])?a[13]:[],en=Array.isArray(a[14])?a[14]:[],h=Array.isArray(a[16])?a[16]:[],g=Array.isArray(a[17])?a[17]:[];
+    const completed={};for(const id of (Array.isArray(g[3])?g[3]:[]))completed[String(id)]=true;
+    const name=String(a[0]||'모험가').slice(0,10),emoji=String(a[1]||'🧑'),fc=String(a[2]||'').toUpperCase();
+    const p=starterPlayer('recovered',name,emoji,0,fc);
+    Object.assign(p,{
+      name,emoji,friendCode:fc,
+      lv:Math.max(1,Math.floor(Number(a[3])||1)),xp:Math.max(0,Math.floor(Number(a[4])||0)),hp:Math.max(1,Math.floor(Number(a[5])||1)),
+      gold:Math.max(0,Math.floor(Number(a[6])||0)),atk:Math.max(1,Math.floor(Number(a[7])||10)),def:Math.max(0,Math.floor(Number(a[8])||0)),
+      inv,equip:{weapon:a[10]&&a[10][0]?String(a[10][0]):null,armor:a[10]&&a[10][1]?String(a[10][1]):null},
+      quest:{id:String(q[0]||'slime_hunt'),progress:Math.max(0,Math.floor(Number(q[1])||0)),claimed:!!q[2]},
+      job:{stage:Math.max(0,Math.floor(Number(j[0])||0)),code:String(j[1]||'novice'),name:String(j[2]||'견습 모험가').slice(0,24),icon:String(j[3]||'🧑')},
+      appearance:{aura:String(ap[0]||''),hat:String(ap[1]||''),title:String(ap[2]||'초보 모험가')},
+      enhance:{weapon:Math.max(0,Math.floor(Number(en[0])||0)),armor:Math.max(0,Math.floor(Number(en[1])||0))},
+      storage,home:{map:String(h[0]||'town'),x:Math.floor(Number(h[1])||0),y:Math.floor(Number(h[2])||0)},
+      guildQuest:{active:g[0]?String(g[0]):null,progress:Math.max(0,Math.floor(Number(g[1])||0)),claimed:!!g[2],completed}
+    });
+    const ss=Array.isArray(payload[3])?payload[3]:null;
+    if(ss)p.recoverySession={code:String(ss[0]||'').toUpperCase().slice(0,5),gen:Math.max(0,Number(ss[1])||0),roomName:String(ss[2]||'').slice(0,16),ts:Math.max(0,Number(ss[3])||0)};
+    if(typeof normalizePlayer==='function')normalizePlayer(p);
+    if(typeof jobData==='function')jobData(p);
+    if(typeof syncJobAppearance==='function')try{syncJobAppearance(p);}catch(_e){}
+    return p;
+  }
+  function legacyObjectToPlayerV103(payload){
+    if(!payload||typeof payload!=='object'||!payload.data)throw new Error('구형 복구 키 데이터가 없어.');
+    const d=payload.data,p=starterPlayer('recovered',String(d.name||'모험가').slice(0,10),String(d.emoji||'🧑'),0,String(d.friendCode||''));
+    Object.assign(p,d);
+    p.name=String(d.name||'모험가').slice(0,10);p.emoji=String(d.emoji||'🧑');p.friendCode=String(d.friendCode||'').toUpperCase();
+    const ss=payload.session&&typeof payload.session==='object'?payload.session:null;
+    if(ss)p.recoverySession={code:String(ss.code||'').toUpperCase().slice(0,5),gen:Math.max(0,Number(ss.gen)||0),roomName:String(ss.roomName||'').slice(0,16),ts:Math.max(0,Number(ss.ts)||0)};
+    if(typeof normalizePlayer==='function')normalizePlayer(p);
+    if(typeof jobData==='function')jobData(p);
+    return p;
+  }
+  function playerFromApiV103(result){
+    if(result&&result.kind==='compact')return compactToPlayerV103(result.payload);
+    if(result&&result.kind==='object')return legacyObjectToPlayerV103(result.payload);
+    throw new Error('서버에서 복구 데이터를 받지 못했어.');
+  }
+  function compactInlineCodeV103(code){
+    const raw=String(code||'').trim().replace(/\s+/g,'');
+    if(!/^ERPG[12]-/.test(raw))return null;
+    const body=raw.slice(6),cut=body.lastIndexOf('.');
+    let packed=cut>=0?body.slice(0,cut).replace(/\./g,''):body.replace(/\./g,'');
+    if(!/^[C][34]/.test(packed))return null;
+    return compactToPlayerV103(JSON.parse(b64UrlDecodeV103(packed.slice(2))));
+  }
+  function parseRecoveryCodeV103(code){
+    const raw=String(code||'').trim();
+    if(/^ERPG3-/i.test(raw))throw new Error('이 복구 키는 서버에서 확인해야 해.');
+    const compact=compactInlineCodeV103(raw);
+    if(compact)return compact;
+    if(typeof oldParser==='function')return oldParser(code);
+    throw new Error('지원하지 않는 복구 키야.');
+  }
+  globalThis.parseRecoveryCode=parseRecoveryCodeV103;
+  try{parseRecoveryCode=parseRecoveryCodeV103;}catch(_e){}
+
+  async function issueRecoveryCodeV103(forceNew=false){
+    const known=String(S.recoveryCode||localStorage.getItem('emoji-rpg-recovery-code')||'').trim();
+    if(!forceNew&&/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(known)){
+      S.recoveryCode=known.toUpperCase();updateRecoveryUIV103();return S.recoveryCode;
+    }
+    const p=S.players&&S.players[S.uid]||newPlayer(S.uid,S.name,S.emoji,S.score,S.friendCode);
+    if(typeof normalizePlayer==='function')normalizePlayer(p);
+    const payload=makePayloadV103(p);
+    try{
+      const res=await apiV103('issue',{payload});
+      S.recoveryCode=String(res.code||'');
+      S.recoveryIssued=S.recoveryIssued||[];S.recoveryIssued.push(S.recoveryCode);S.recoveryIssued=S.recoveryIssued.slice(-20);
+      S.recoverySession=p.recoverySession||null;
+      try{localStorage.setItem('emoji-rpg-recovery-code',S.recoveryCode);localStorage.setItem('emoji-rpg-recovery-ledger',JSON.stringify(S.recoveryIssued));}catch(_e){}
+      updateRecoveryUIV103();
+      return S.recoveryCode;
+    }catch(e){
+      S._recoveryApiError=String(e&&e.message||e);
+      updateRecoveryUIV103();
+      try{if(S.started)log('🗝️ 복구 키 서버 연결 실패: '+S._recoveryApiError);}catch(_e){}
+      return '';
+    }
+  }
+  globalThis.issueRecoveryCode=issueRecoveryCodeV103;
+  try{issueRecoveryCode=issueRecoveryCodeV103;}catch(_e){}
+
+  function updateRecoveryUIV103(){
+    const code=String(S.recoveryCode||'');
+    const el=document.getElementById('lobbyRecoveryCode');
+    if(el)el.textContent=code|| (S._recoveryApiError?'복구 서버 설정을 확인해 줘.':'게임에 접속하면 서버 복구 키가 발급돼.');
+    const warn=document.querySelector('.recoveryWarn');
+    if(warn)warn.textContent='복구 키는 Cloudflare에 계정 진행 데이터가 저장되는 키야. 다른 사람에게 공유하지 말고 안전한 곳에 보관해 줘.';
+  }
+  globalThis.updateRecoveryUI=updateRecoveryUIV103;
+  try{updateRecoveryUI=updateRecoveryUIV103;}catch(_e){}
+
+  async function copyRecoveryCodeV103(){
+    const code=await issueRecoveryCodeV103(false);
+    if(!code){try{lobbyMsg('복구 서버가 준비되지 않았어. Cloudflare 설정을 확인해 줘.');}catch(_e){}return;}
+    try{await navigator.clipboard.writeText(code);try{lobbyMsg('📋 서버 복구 키를 복사했어.');}catch(_e){}}
+    catch(_e){if(typeof window.rpgGameInput==='function')window.rpgGameInput('🗝️ 복구 키','자동 복사가 막혀서 아래 코드를 직접 복사해 줘.',{value:code,maxLength:12000,multiline:true,okText:'닫기'});else window.prompt('복구 키를 복사해 줘',code);}
+  }
+  globalThis.copyRecoveryCode=copyRecoveryCodeV103;
+  try{copyRecoveryCode=copyRecoveryCodeV103;}catch(_e){}
+
+  async function renderRecoveryPanelV103(){
+    const saved=String(S.recoveryCode||localStorage.getItem('emoji-rpg-recovery-code')||'');
+    const codeForView=/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(saved)?saved:'서버 복구 키를 준비하고 있어…';
+    const ss=S.recoverySession;
+    const last=ss&&ss.code?(String(ss.roomName||'마지막 방')):'저장된 마지막 세션 정보 확인은 복구할 때 진행돼.';
+    const html='<div class="section"><div class="sectionTitle">현재 계정 복구 키</div><div class="recoveryCode" id="panelRecoveryCode">'+escapeHtml(codeForView)+'</div><div class="recoveryActions"><button id="copyRecoveryPanel">📋 복사</button><button id="newRecoveryPanel">🔄 새 키 발급</button></div></div><div class="section"><div class="sectionTitle">서버 백업</div><div class="guideDetail">진행 데이터는 Cloudflare에 저장되고, 복구 키는 그 데이터를 찾는 토큰이야. 코드를 가진 사람은 계정을 복구할 수 있으니 공유하지 마.</div></div>';
+    openPanel('🗝️ 계정 복구',html);
+    const box=document.getElementById('panelRecoveryCode');
+    document.getElementById('copyRecoveryPanel').onclick=copyRecoveryCodeV103;
+    document.getElementById('newRecoveryPanel').onclick=async()=>{
+      saveLocalAccountSnapshot();
+      const code=await issueRecoveryCodeV103(true);
+      if(box)box.textContent=code||'발급 실패 · Cloudflare 설정을 확인해 줘.';
+      if(code)try{log('🔄 서버 복구 키와 최신 계정 데이터를 저장했어.');}catch(_e){}
+    };
+    if(!/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(saved)){
+      const code=await issueRecoveryCodeV103(false);
+      if(box)box.textContent=code||'발급 실패 · Cloudflare 설정을 확인해 줘.';
+    }
+  }
+  globalThis.renderRecoveryPanel=renderRecoveryPanelV103;
+  try{renderRecoveryPanel=renderRecoveryPanelV103;}catch(_e){}
+
+  async function recoverAccountFromInputV103(){
+    const input=document.getElementById('recoveryInput'),code=input?input.value.trim():'';
+    const hint=document.getElementById('recoverySessionHint');
+    if(!code){try{lobbyMsg('복구 키를 붙여넣어 줘.');}catch(_e){}return;}
+    if(hint)hint.textContent='☁️ Cloudflare에서 복구 키를 확인하는 중…';
+    try{
+      const result=await apiV103('recover',{code});
+      const p=playerFromApiV103(result);
+      p.id=S.uid;
+      S.name=p.name;S.emoji=p.emoji;S.friendCode=p.friendCode;
+      S.characterStyle=(typeof sanitizeAppearance==='function'?sanitizeAppearance(p.appearance,p):p.appearance)||{};
+      S.recoverySession=p.recoverySession||null;
+      S.players=S.players||{};S.players[S.uid]=p;
+      S.accountSnapshot=playerAccountData(p);
+      S.recoveryCode=/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(code)?code.toUpperCase():'';
+      try{
+        localStorage.setItem('emoji-rpg-account',JSON.stringify(S.accountSnapshot));
+        localStorage.setItem('emoji-rpg-profile',JSON.stringify({n:S.name,e:S.emoji,fc:S.friendCode}));
+        localStorage.setItem('emoji-rpg-character',JSON.stringify(S.characterStyle));
+        if(S.recoveryCode)localStorage.setItem('emoji-rpg-recovery-code',S.recoveryCode);
+      }catch(_e){}
+      updateRecoveryUIV103();
+      if(!S.recoveryCode){
+        S.recoveryCode='';
+        const migrated=await issueRecoveryCodeV103(true);
+        if(!migrated)throw new Error('구형 코드는 읽었지만 새 서버 복구 키 발급에 실패했어. Cloudflare D1 설정을 확인해 줘.');
+      }
+      if(hint)hint.textContent='✅ 계정 데이터를 서버에서 복구했어.';
+      try{lobbyMsg('✅ 계정 데이터를 복구했어.');}catch(_e){}
+      const session=p.recoverySession;
+      resumeRecoveredSession(session||null);
+    }catch(e){
+      const message=String(e&&e.message||e);
+      const tokenCode=/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(code);
+      const missingServerRecord=tokenCode&&/찾을 수 없어|서버 기록이 없어|복구 코드를 찾을 수 없어/i.test(message);
+      if(missingServerRecord){
+        try{
+          if(String(S.recoveryCode||'').toUpperCase()===code.toUpperCase())S.recoveryCode='';
+          if(String(localStorage.getItem('emoji-rpg-recovery-code')||'').toUpperCase()===code.toUpperCase())localStorage.removeItem('emoji-rpg-recovery-code');
+        }catch(_e){}
+        S._recoveryApiError='입력한 키의 서버 기록이 없어. 현재 로컬 데이터는 유지할게.';
+        updateRecoveryUIV103();
+        if(hint)hint.textContent='⚠️ 이 키로 서버에 저장된 계정을 찾지 못했어. 기존 로컬 데이터는 유지하고 공개 방을 찾을게.';
+        try{lobbyMsg('⚠️ 복구 키의 서버 기록이 없어. 기존 로컬 데이터는 유지하고 공개 방으로 접속할게.');}catch(_e){}
+        resumeRecoveredSession(null);
+        return;
+      }
+      if(hint)hint.textContent='❌ 복구 실패: '+message;
+      try{lobbyMsg('복구 실패: '+message);}catch(_e){}
+    }
+  }
+  globalThis.recoverAccountFromInput=recoverAccountFromInputV103;
+  try{recoverAccountFromInput=recoverAccountFromInputV103;}catch(_e){}
+
+  // initLobby가 먼저 연결한 클릭 핸들러들을 서버 기반 동작으로 교체한다.
+  const copyBtn=document.getElementById('btnCopyRecovery');if(copyBtn)copyBtn.onclick=copyRecoveryCodeV103;
+  const newBtn=document.getElementById('btnNewRecovery');if(newBtn)newBtn.onclick=async()=>{saveLocalAccountSnapshot();const code=await issueRecoveryCodeV103(true);try{lobbyMsg(code?'🔄 새 서버 복구 키를 발급했어.':'복구 키 발급 실패 · Cloudflare 설정을 확인해 줘.');}catch(_e){}};
+  const recoverBtn=document.getElementById('btnRecover');if(recoverBtn)recoverBtn.onclick=recoverAccountFromInputV103;
+  const panelBtn=document.getElementById('btnRecovery');if(panelBtn)panelBtn.onclick=renderRecoveryPanelV103;
+  const recoveryInput=document.getElementById('recoveryInput');
+  if(recoveryInput)recoveryInput.addEventListener('input',()=>{
+    const v=recoveryInput.value.trim(),hint=document.getElementById('recoverySessionHint');if(!v||!hint)return;
+    if(/^ERPG3-/i.test(v))hint.textContent='☁️ 서버에 저장된 복구 키야. 「복구 + 접속」을 눌러 확인해 줘.';
+    else if(/^ERPG[12]-C3/i.test(v))hint.textContent='구형 복구 키야. 서버에서 서명을 확인한 뒤 복구할게.';
+    else hint.textContent='구형 복구 키를 서버에서 확인할게.';
+  });
+
+  // 기존 로컬 백업과 별개로 15초마다 서버 백업도 갱신한다. 네트워크 게임 프로토콜은 변경하지 않는다.
+  let syncBusy=false;
+  setInterval(async()=>{
+    if(syncBusy||!S.started||!S.players||!S.players[S.uid])return;
+    const code=String(S.recoveryCode||localStorage.getItem('emoji-rpg-recovery-code')||'');
+    if(!/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(code))return;
+    syncBusy=true;
+    try{await apiV103('update',{code:code.toUpperCase(),payload:makePayloadV103(S.players[S.uid])});}catch(_e){}
+    finally{syncBusy=false;}
+  },15000);
+
+  // 구형 코드도 Cloudflare에서 확인한다. ERPG3는 DB 레코드를 읽고, 이후 기존 hostRecv에
+  // 검증된 임시 페이로드로 전달해 P2P 입장/세션 프로토콜은 그대로 보존한다.
+  const previousHostRecvV103=globalThis.hostRecv;
+  if(typeof previousHostRecvV103==='function'&&!previousHostRecvV103.__rpgV103RecoveryWrapper){
+    const hostRecvV103=function(c,m){
+      const code=String(m&&m.t==='hello'&&m.p&&m.p.recoveryCode||'');
+      if(!code||!m.p||!m.p.accountData||!/^ERPG[123]-/i.test(code))return previousHostRecvV103.apply(this,arguments);
+      const self=this,originalArgs=arguments;
+      apiV103('recover',{code}).then(result=>{
+        const p=playerFromApiV103(result);
+        const originalPayload=Array.isArray(result.payload)?result.payload:makePayloadV103(p);
+        const internalCode='ERPG2-C4'+b64UrlEncodeV103(JSON.stringify(originalPayload))+'.SERVER';
+        const mp={...m.p,recoveryCode:internalCode,accountData:playerAccountData(p),name:p.name,emoji:p.emoji,friendCode:p.friendCode};
+        const cloned={...m,p:mp};
+        previousHostRecvV103.call(self,c,cloned);
+      }).catch(()=>{
+        const mp={...m.p,recoveryCode:'',accountData:null};
+        previousHostRecvV103.call(self,c,{...m,p:mp});
+      });
+      return;
+    };
+    hostRecvV103.__rpgV103RecoveryWrapper=true;
+    globalThis.hostRecv=hostRecvV103;
+    try{hostRecv=hostRecvV103;}catch(_e){}
+  }
+
+  // Restore a stored opaque code on load, as the old client reader only knew ERPG1/2 formats.
+  try{
+    const stored=String(localStorage.getItem('emoji-rpg-recovery-code')||'');
+    if(/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(stored)){
+      S.recoveryCode=stored.toUpperCase();S._firstTimePlayer=false;S._recoveryApiError='';updateRecoveryUIV103();
+    }
+  }catch(_e){}
+  const warn=document.querySelector('.recoveryWarn');
+  if(warn)warn.textContent='새 복구 키는 Cloudflare D1에 진행 데이터를 저장해. 코드를 가진 사람은 계정을 복구할 수 있으니 다른 사람에게 공유하지 마.';
+  window.__RPG_BUILD_VERSION__='104';
+})();
+</script>
+
+
+
+<!-- RPG v104: short server recovery keys + robust room fallback; P2P protocol unchanged. -->
+<script id="rpgV104ShortKeyAndFallback">
+(function installRpgV104ShortKeyAndFallback(){
+  'use strict';
+  if(window.__RPG_V104_SHORTKEY_FALLBACK__)return;
+  window.__RPG_V104_SHORTKEY_FALLBACK__=true;
+
+  const TOKEN_RE=/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i;
+  const oldFailJoin=typeof globalThis.failJoin==='function'?globalThis.failJoin:null;
+  const oldEnterGame=typeof globalThis.enterGame==='function'?globalThis.enterGame:null;
+  let pollTimer=null;
+
+  function listPublicRooms(excludeCode){
+    let rooms=[];
+    try{
+      rooms=typeof getLivePublicRooms==='function'
+        ?getLivePublicRooms('')
+        :Object.values(S.rooms||{}).filter(r=>r&&r.public!==false&&r.code&&
+          Date.now()-Number(r.ts||0)<45000&&Number(r.count||0)<12);
+    }catch(_e){}
+    const excluded=String(excludeCode||'').toUpperCase();
+    return rooms.filter(r=>String(r.code||'').toUpperCase()!==excluded)
+      .sort((a,b)=>{
+        const ap=String(a.name||'').trim()==='🌍 공개 광장'?1:0;
+        const bp=String(b.name||'').trim()==='🌍 공개 광장'?1:0;
+        return bp-ap || Number(b.ts||0)-Number(a.ts||0) || Number(a.count||0)-Number(b.count||0);
+      });
+  }
+
+  function showLobbyV104(){
+    try{
+      if(!S.started){
+        const game=document.getElementById('game');
+        const lobby=document.getElementById('lobby');
+        if(game)game.hidden=true;
+        if(lobby)lobby.hidden=false;
+      }
+      if(typeof hideConnectionError==='function')hideConnectionError();
+    }catch(_e){}
+  }
+
+  function resetFailedConnectionV104(){
+    try{if(typeof cleanupNetwork==='function')cleanupNetwork();}catch(_e){}
+    S.isHost=false;S.migrating=false;S.targetHid='';S.hostUid='';
+    S.code='';S.gen=0;S.roomName='';S.quick=false;S.quickJoinPending=false;
+    if(S.quickJoinTimer){clearTimeout(S.quickJoinTimer);S.quickJoinTimer=null;}
+    showLobbyV104();
+  }
+
+  function publicOrCreateV104(excludeCode,reason){
+    if(pollTimer){clearTimeout(pollTimer);pollTimer=null;}
+    if(S.started)return;
+    S._rpgV104RecoveryStage='searching-public';
+    const started=Date.now();
+    const poll=()=>{
+      if(S.started){S._rpgV104RecoveryActive=false;return;}
+      const rooms=listPublicRooms(excludeCode);
+      const room=rooms[0];
+      if(room){
+        S._rpgV104RecoveryStage='public';
+        S._rpgV104RecoveryTargetCode=String(room.code||'').toUpperCase();
+        try{lobbyMsg((reason?reason+' ':'')+'🌍 공개 방을 찾았어. 접속 중…');}catch(_e){}
+        try{joinRoom(room.code,room.gen,room.peerId||hostId(room.code,room.gen));}
+        catch(_e){
+          if(!S.started){resetFailedConnectionV104();S._rpgV104RecoveryStage='creating';setTimeout(()=>{try{createRoom(true);}catch(_e2){}},0);}
+        }
+        return;
+      }
+      if(Date.now()-started<2800){pollTimer=setTimeout(poll,250);return;}
+      S._rpgV104RecoveryStage='creating';
+      try{lobbyMsg((reason?reason+' ':'')+'현재 공개 방이 없어. 공개 방을 자동으로 만들고 있어…');}catch(_e){}
+      resetFailedConnectionV104();
+      S._rpgV104RecoveryStage='creating';
+      setTimeout(()=>{if(!S.started){try{createRoom(true);}catch(_e){}}},0);
+    };
+    poll();
+  }
+
+  function resumeRecoveredSessionV104(session){
+    if(S.started)return;
+    S._rpgV104RecoveryActive=true;
+    const lastCode=String(session&&session.code||'').toUpperCase();
+    S._rpgV104RecoveryLastCode=lastCode;
+    if(pollTimer){clearTimeout(pollTimer);pollTimer=null;}
+
+    if(!lastCode){
+      publicOrCreateV104('', '계정 데이터 확인을 마쳤어.');
+      return;
+    }
+
+    S._rpgV104RecoveryStage='searching-last';
+    const started=Date.now();
+    const check=()=>{
+      if(S.started||!S._rpgV104RecoveryActive)return;
+      let room=null;
+      try{room=typeof findLatestRoomForRecovery==='function'?findLatestRoomForRecovery(session):null;}catch(_e){}
+      if(room){
+        S._rpgV104RecoveryStage='last';
+        S._rpgV104RecoveryTargetCode=String(room.code||lastCode).toUpperCase();
+        try{lobbyMsg('🔎 마지막 방을 찾았어. 연결 중…');}catch(_e){}
+        try{joinRoom(room.code,room.gen,room.peerId||hostId(room.code,room.gen));}
+        catch(_e){resetFailedConnectionV104();publicOrCreateV104(lastCode,'마지막 방에 접속할 수 없어.');}
+        return;
+      }
+      if(Date.now()-started<3000){pollTimer=setTimeout(check,250);return;}
+      publicOrCreateV104(lastCode,'마지막 방을 찾을 수 없어.');
+    };
+    check();
+  }
+
+  globalThis.resumeRecoveredSession=resumeRecoveredSessionV104;
+  try{resumeRecoveredSession=resumeRecoveredSessionV104;}catch(_e){}
+
+  if(oldFailJoin){
+    const failJoinV104=function(){
+      if(!S.started&&S._rpgV104RecoveryActive){
+        const stage=String(S._rpgV104RecoveryStage||'');
+        if(stage==='last'){
+          resetFailedConnectionV104();
+          publicOrCreateV104(String(S._rpgV104RecoveryLastCode||''),'마지막 방 연결에 실패했어.');
+          return;
+        }
+        if(stage==='public'){
+          resetFailedConnectionV104();
+          S._rpgV104RecoveryStage='creating';
+          try{lobbyMsg('공개 방 연결에 실패했어. 새 공개 방을 만들고 있어…');}catch(_e){}
+          setTimeout(()=>{if(!S.started){try{createRoom(true);}catch(_e){}}},0);
+          return;
+        }
+      }
+      return oldFailJoin.apply(this,arguments);
+    };
+    failJoinV104.__rpgV104RecoveryFallback=true;
+    globalThis.failJoin=failJoinV104;
+    try{failJoin=failJoinV104;}catch(_e){}
+  }
+
+  if(oldEnterGame){
+    const enterGameV104=function(){
+      const out=oldEnterGame.apply(this,arguments);
+      S._rpgV104RecoveryActive=false;
+      S._rpgV104RecoveryStage='';
+      if(pollTimer){clearTimeout(pollTimer);pollTimer=null;}
+      return out;
+    };
+    globalThis.enterGame=enterGameV104;
+    try{enterGame=enterGameV104;}catch(_e){}
+  }
+
+  // Update the lobby placeholder for shorter ERPG3 keys, preserving all old key formats.
+  try{
+    const input=document.getElementById('recoveryInput');
+    if(input)input.placeholder='복구 키를 입력해 줘 · ERPG3-ABCD…';
+    const hint=document.getElementById('recoverySessionHint');
+    if(hint&&!hint.textContent)hint.textContent='복구 키로 계정을 복원한 뒤 마지막 방 → 공개 방 → 새 공개 방 순서로 접속해.';
+  }catch(_e){}
 })();
 </script>
 
