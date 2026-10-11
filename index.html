@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2a5fd1">
-<meta name="rpg-build-version" content="108">
+<meta name="rpg-build-version" content="110">
 <meta name="application-name" content="이모지 RPG">
 <meta name="apple-mobile-web-app-title" content="이모지 RPG">
 <meta name="description" content="이모지 RPG는 브라우저에서 바로 즐기는 한국어 온라인 RPG입니다. 이모지 캐릭터로 세계를 탐험하고 몬스터 전투, 퀘스트, 아이템 수집과 거래를 즐기며 P2P 멀티플레이로 친구와 함께 모험하세요.">
@@ -14249,7 +14249,8 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   window.__RPG_AUTO_UPDATER_V100__=true;
 
   const CHECK_MS=30000, START_DELAY=1500, UPDATE_QUERY='_rpg_update';
-  let localVersion='0', remoteVersion='0', busy=false, notice=null;
+  let localVersion='0', remoteVersion='0', busy=false, notice=null, dismissedVersion='';
+  try{dismissedVersion=sessionStorage.getItem('rpgUpdateDismissedVersionV100')||'';}catch(_e){}
   const num=v=>{const m=String(v??'').match(/\d+(?:\.\d+)*/);return m?parseFloat(m[0]):0};
   function baseIndex(){
     const u=new URL(location.href);
@@ -14272,15 +14273,16 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     const r=await fetch(bust(baseIndex()),{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache, no-store, max-age=0'}});
     if(!r.ok)throw new Error('index HTTP '+r.status);
     const h=await r.text();
-    const versions=[];
     const m=h.match(/<meta[^>]+name=["']rpg-build-version["'][^>]+content=["']([^"']+)["'][^>]*>/i)
          ||h.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']rpg-build-version["'][^>]*>/i);
-    if(m)versions.push(m[1]);
+    /* The explicit meta marker is authoritative. This HTML retains historical patch assignments,
+       so taking their maximum falsely advertises an old embedded version as a newer release. */
+    if(m && m[1]) return String(m[1]);
     const marker=/window\.__RPG_BUILD_VERSION__\s*=\s*["']([^"']+)["']/gi;
-    let match;
-    while((match=marker.exec(h))!==null)versions.push(match[1]);
-    if(!versions.length)throw new Error('build marker missing');
-    return String(Math.max(...versions.map(num)));
+    let match,last='';
+    while((match=marker.exec(h))!==null)last=match[1];
+    if(!last)throw new Error('build marker missing');
+    return String(last);
   }
   async function fetchRemote(){
     // HTML is authoritative; version.json is only a fallback.
@@ -14315,11 +14317,11 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     notice.innerHTML='<div class="card"><div class="icon">🔄</div><div class="body"><b>새 게임 업데이트가 있어!</b><div class="txt" id="rpgUpdateTextV100"></div><div class="actions"><button class="now" id="rpgUpdateNowV100">지금 업데이트</button><button class="rpgV100Later" id="rpgUpdateLaterV100">나중에</button></div></div></div>';
     document.body.appendChild(notice);
     notice.querySelector('#rpgUpdateNowV100').onclick=()=>reload();
-    notice.querySelector('#rpgUpdateLaterV100').onclick=()=>notice.classList.remove('show');
+    notice.querySelector('#rpgUpdateLaterV100').onclick=()=>{dismissedVersion=String(remoteVersion);try{sessionStorage.setItem('rpgUpdateDismissedVersionV100',dismissedVersion);}catch(_e){}notice.classList.remove('show');};
     return notice;
   }
   function show(){
-    if(window.__RPG_PREFLIGHT_UPDATE__)return;
+    if(window.__RPG_PREFLIGHT_UPDATE__||String(remoteVersion)===dismissedVersion)return;
     const el=ensure(),t=el.querySelector('#rpgUpdateTextV100');
     if(t)t.textContent=`현재 v${localVersion} → 최신 v${remoteVersion}. 최신 버전으로 업데이트할 수 있어.`;
     el.classList.add('show');
@@ -14336,7 +14338,8 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       readLocal();
       const v=await fetchRemote();
       remoteVersion=String(v);
-      if(num(remoteVersion)>num(localVersion)){show();return true;}
+      if(num(remoteVersion)>num(localVersion)){if(String(remoteVersion)!==dismissedVersion)show();return true;}
+      if(dismissedVersion&&num(localVersion)>=num(dismissedVersion)){dismissedVersion='';try{sessionStorage.removeItem('rpgUpdateDismissedVersionV100');}catch(_e){}}
       return false;
     }catch(_e){return false}
     finally{busy=false}
@@ -15533,6 +15536,23 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
+<!-- RPG v110: authoritative build marker + updater loop fix -->
+<script id="rpgV110UpdateLoopFix">
+(function(){
+  'use strict';
+  window.__RPG_BUILD_VERSION__='110';
+  var m=document.querySelector('meta[name="rpg-build-version"]');
+  if(m)m.content='110';
+  /* Clean the one-time update query so later boots can check for future releases normally. */
+  try{
+    var u=new URL(location.href);
+    if(u.searchParams.has('_rpg_update')){
+      u.searchParams.delete('_rpg_update');
+      history.replaceState(null,'',u.pathname+(u.search?'?'+u.searchParams.toString():'')+u.hash);
+    }
+  }catch(_e){}
+})();
+</script>
 </html>
 
 <!-- RPG v105: recovery API points to Cloudflare Worker; P2P transport unchanged. -->
