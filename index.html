@@ -212,7 +212,7 @@ button:disabled { opacity:.55; cursor:not-allowed; }
   <h3>🗝️ 계정 복구</h3>
   <div class="recoveryLobby">
     <div class="recoveryCode" id="lobbyRecoveryCode">연결하면 복구 키가 발급돼.</div>
-    <div class="row"><button id="btnCopyRecovery" type="button">📋 코드 복사</button><button id="btnNewRecovery" type="button">🔄 새 코드</button></div>
+    <div class="row"><button id="btnCopyRecovery" type="button">📋 코드 복사</button><button id="btnNewRecovery" type="button">💾 현재 상태 저장</button></div>
     <div class="row"><input id="recoveryInput" maxlength="12000" placeholder="복구 키를 붙여넣으면 마지막 방도 찾아줘"><button id="btnRecover" type="button">🔐 복구 + 접속</button></div>
     <div id="recoverySessionHint" class="empty">복구 키를 입력하면 계정 데이터를 복원하고, 코드에 기록된 마지막 세션을 공개 방 디렉터리에서 찾아 마지막 공개 세션으로 접속해.</div>
   </div>
@@ -9328,6 +9328,19 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   try{refreshFacilityLegend();}catch(_e){}
 })();
 </script>
+
+<!-- RPG v109: complete remaining NPC dialogue + same-key manual cloud save -->
+<script id="rpgV109NpcAndSameKeySaveMarker">
+(function(){
+  'use strict';
+  try{
+    const b=document.getElementById('btnNewRecovery');
+    if(b)b.textContent='💾 현재 상태 저장';
+    window.__RPG_BUILD_VERSION__='109';
+  }catch(_e){}
+})();
+</script>
+
 </body>
 
 
@@ -10575,6 +10588,83 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       '저쪽 창고에는 수확한 곡식이 있어요. 아버지가 하나하나 세어 두셨대요.',
       '나는 농장 냄새가 좋아. 흙 냄새가 나면 집에 왔다는 느낌이 들거든.',
       '언젠가는 마을 농장에서도 재미있는 행사가 열리면 좋겠어요.'
+    ],
+
+    /* RPG v109: 이전 대화 시스템에만 있던 야외·주민 NPC 대사를 최종 대화창에 이관 */
+    guardWest:[
+      '서문 경비대장 카일이다. 바람초원으로 나가는 길은 이쪽이지만, 장비와 체력부터 확인하고 출발하게.',
+      '초원에서는 몬스터가 길을 막을 때가 있어. 무리해서 지나가기보다 안전한 길로 돌아가는 편이 낫지.',
+      '전투가 버겁다면 마을로 돌아와 치료를 받고, 무기와 방어구도 살펴보게.'
+    ],
+    guardEast:[
+      '동문을 지키는 루크야. 이 길은 외곽과 광산 쪽으로 이어져서 정찰을 게을리할 수 없어.',
+      '광산은 초원보다 위험할 수 있으니 포션과 장비를 미리 준비해 두는 게 좋아.',
+      '길을 잃으면 무작정 깊이 들어가지 말고 이동석이나 지도를 기준으로 돌아가.'
+    ],
+    villagerSori:[
+      '안녕! 나는 시장 근처에 사는 소리야. 요즘 새 모험가들이 늘어서 광장도 한결 활기차졌어.',
+      '상인 루루는 물건을 고르는 요령을 잘 알려 줘. 가방 공간을 생각하면서 필요한 것부터 사는 게 좋아.',
+      '모험 이야기를 듣는 걸 좋아하니까, 큰일을 겪고 돌아오면 또 들려줘!'
+    ],
+    villagerDoran:[
+      '나는 대장간 주변 일을 돕는 도란이야. 브람 아저씨의 망치 소리는 멀리서도 들리지.',
+      '장비를 새로 살 때는 공격력만 보지 말고 방어력과 강화 수치도 같이 비교해 봐.',
+      '골드를 전부 장비에 쓰지는 말게. 급할 때 쓸 포션 값도 남겨 두는 게 좋아.'
+    ],
+    childNavi:[
+      '안녕하세요! 마을 중앙에 파란빛이 나는 돌이 있죠? 그게 텔레포트석이에요!',
+      '텔레포트석 가까이에서 월드맵을 열면 다른 지역으로 이동할 수 있대요. 정말 신기하죠?',
+      '나도 언젠가는 멋진 모험가가 될 거예요. 그때까지 길을 더 많이 외워 둘래요!'
+    ],
+    courierPip:[
+      '우편배달부 핍입니다! 마을 구석구석을 다니다 보니 주민들의 소식을 누구보다 먼저 듣게 되죠.',
+      '새 지역에 다녀온 모험가가 있으면 지도나 소문이 금방 퍼져요. 작은 소식도 꽤 도움이 된답니다.',
+      '길을 떠나기 전에는 목적지와 귀환 경로를 확인하세요. 배달할 때도 길을 아는 게 제일 중요하거든요.'
+    ],
+    oldFarmer:[
+      '허허, 나는 오델이라고 하네. 성문 근처 밭을 오래 돌봐 와서 이 주변 길은 눈 감고도 알지.',
+      '밭을 지키는 데 가장 중요한 건 날씨와 주변 경계야. 몬스터가 가까이 오면 경비병에게 알려 주게.',
+      '모험도 농사도 서두른다고 좋은 건 아니야. 준비를 마치고 한 걸음씩 나아가게.'
+    ],
+    librarianEris:[
+      '기록관 에리스입니다. 마을의 지도와 모험가들이 남긴 탐험 기록을 정리하고 있어요.',
+      '새 지역에 도착하면 지형과 이동석 위치를 먼저 살펴보세요. 기록을 남기는 습관은 길을 잃었을 때 큰 도움이 됩니다.',
+      '직업과 장비에 관한 기본 안내는 도움말에서도 확인할 수 있어요. 필요하면 천천히 읽어 보세요.'
+    ],
+    rangerMilo:[
+      '정찰대 미로야. 바람초원에서는 몬스터가 한 자리에만 머무르지 않으니 주변을 자주 확인해.',
+      '체력이 부족한 상태에서 깊이 들어가면 돌아오는 길이 더 위험해져. 포션과 퇴로를 준비하고 움직여.',
+      '초원 북쪽으로 갈수록 길이 복잡해질 수 있어. 지도를 보고 안전한 통로를 골라.'
+    ],
+    herbalistRena:[
+      '나는 약초꾼 레나야. 초원에서 치료에 쓸 수 있는 풀과 향이 좋은 허브를 찾고 있어.',
+      '약초가 많아 보여도 아직 채집할 수 없는 풀도 있지. 지금은 주변을 관찰하고 안전하게 돌아오는 게 우선이야.',
+      '회복 아이템이 부족하면 무리하지 말고 마을로 돌아가 상인에게 들러. 준비를 갖추는 것도 모험의 일부야.'
+    ],
+    caravanTaro:[
+      '행상인 타로라고 해. 마을과 사냥터를 오가며 물건과 소문을 옮기지.',
+      '지역마다 위험도와 필요한 준비가 달라. 초원에서 익숙해졌다고 광산까지 가볍게 생각하면 안 돼.',
+      '짐을 너무 꽉 채우면 새로 얻은 전리품을 담기 어려워. 출발 전에 가방을 정리해 두게.'
+    ],
+    shepherdYuri:[
+      '양치기 유리야. 양들은 풀밭을 잘 찾아가는데, 가끔 몬스터가 나타나서 긴장을 놓을 수가 없어.',
+      '이 근처는 넓어 보여도 울타리와 바위 때문에 돌아가야 할 때가 있어. 길을 보면서 움직이는 게 좋아.',
+      '잠깐 쉬어 가는 것도 괜찮아. 무리하지 않는 모험가가 결국 더 멀리 가더라고.'
+    ],
+    mineGuardBex:[
+      '광산 경비 벡스다. 이 안쪽으로 갈 생각이면 체력과 장비부터 확인하고 들어가.',
+      '좁은 통로에서는 몬스터와 마주쳤을 때 피하기 어려울 수 있어. 포션을 충분히 준비해 두게.',
+      '깊이 들어가기 전에 이동석 위치를 기억해 둬. 퇴로를 아는 것만으로도 훨씬 안전해진다.'
+    ],
+    minerHolt:[
+      '으윽… 난 광부 홀트야. 안쪽 광맥을 찾다가 몬스터에게 당했지.',
+      '광산에서는 눈앞의 광물에 정신이 팔리기 쉬워. 주변을 확인하지 않으면 몬스터가 다가오는 걸 놓칠 수 있어.',
+      '체력이 충분하지 않다면 더 깊이 들어가지 말게. 살아서 돌아와야 다음에도 도전할 수 있지.'
+    ],
+    scoutVera:[
+      '정찰병 베라야. 나는 광산 입구 주변의 몬스터와 통로 상태를 확인하고 있어.',
+      '새 구역으로 이동하면 먼저 주변을 둘러보고, 너무 강한 적이 보이면 거리를 두는 게 좋아.',
+      '탐험 기록을 남길 때는 이동석과 갈림길 위치를 적어 둬. 나중에 돌아올 때 큰 도움이 될 거야.'
     ]
   };
 
@@ -10595,6 +10685,12 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       `${mapName}에서 지내다 보면 생각보다 많은 사람과 이야기를 나누게 돼.`,
       '다음에 다시 들르면 오늘과는 다른 이야기를 들려줄게.'
     ];
+  }
+
+  function showResponse(message){
+    window.__rpgNpcV46Response=String(message||'이야기를 들었어.');
+    page=99;
+    render();
   }
 
   function actionFor(id){
@@ -10620,7 +10716,22 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
         ['🛏️ 푹 쉬기',()=>send({t:'town_service',npc:'guestkeeperIra',action:'guest-rest'})],
         ['🏠 귀환 지점 저장',()=>send({t:'town_service',npc:'guestkeeperIra',action:'guest-home'})]
       ],
-      farmerOdel:[['🌽 농장 식량 1개 · 💰9',()=>send({t:'town_service',npc:'farmerOdel',action:'farm'})]]
+      farmerOdel:[['🌽 농장 식량 1개 · 💰9',()=>send({t:'town_service',npc:'farmerOdel',action:'farm'})]],
+      librarianEris:[['📖 게임 도움말 열기',()=>{try{window.renderGuide?.();}catch(_){}}]],
+      guardWest:[['🗺️ 이동 정보 확인',()=>showResponse('서문은 바람초원으로 나가는 길이야. 체력과 포션을 준비하고, 위험하면 이동석을 기준으로 마을로 돌아와.')]],
+      guardEast:[['🗺️ 동문 안내 듣기',()=>showResponse('동문은 외곽과 광산 방향으로 이어져. 광산에 들어가기 전에는 방어구와 회복 아이템을 충분히 챙겨 줘.')]],
+      rangerMilo:[['🗺️ 월드맵 열기',()=>{try{window.renderTeleportPanelRpg?.();}catch(_){}}]],
+      mineGuardBex:[['🗺️ 월드맵 열기',()=>{try{window.renderTeleportPanelRpg?.();}catch(_){}}]],
+      scoutVera:[['🗺️ 월드맵 열기',()=>{try{window.renderTeleportPanelRpg?.();}catch(_){}}]],
+      courierPip:[['📍 안전한 귀환 요령',()=>showResponse('출발 전에 귀환 지점과 가까운 이동석을 기억해 둬. 체력이 부족하면 더 멀리 가기보다 안전하게 돌아오는 게 좋아.')]],
+      oldFarmer:[['🌾 밭 주변 이야기',()=>showResponse('밭 주변에는 길과 울타리가 많으니 몬스터를 피해 이동할 때 지형을 잘 살펴봐. 준비 없이 깊이 들어가지는 말고.')]],
+      villagerSori:[['💡 초보 모험가 조언',()=>showResponse('처음에는 바람초원에서 전투와 이동에 익숙해져 봐. 장비를 살 때는 포션을 살 골드도 남겨 두면 좋아.')]],
+      villagerDoran:[['⚒️ 장비 조언 듣기',()=>showResponse('공격력만 보지 말고 방어력과 강화 수치도 함께 비교해 봐. 지금 장비보다 실제로 나아지는지 확인하는 게 중요해.')]],
+      childNavi:[['🌀 텔레포트석 안내',()=>showResponse('이동석 가까이에서 월드맵을 열면 갈 수 있는 지역을 확인할 수 있어. 지금 열려 있는 지역부터 차근차근 탐험해 봐!')]],
+      herbalistRena:[['❤️ 회복 준비 팁',()=>showResponse('회복 아이템이 부족한 상태라면 전투를 계속하지 말고 마을로 돌아가 상인이나 치유사를 찾아봐.')]],
+      caravanTaro:[['🎒 출발 준비 팁',()=>showResponse('가방 공간을 조금 비우고 출발해. 전리품을 얻었는데 가방이 꽉 차 있으면 정리하느라 시간이 걸려.')]],
+      shepherdYuri:[['🧭 주변 지형 살펴보기',()=>showResponse('울타리와 바위는 이동 경로를 막을 수 있어. 길이 막히면 무작정 밀고 가지 말고 돌아가는 길을 찾아봐.')]],
+      minerHolt:[['⛏️ 광산 생존 팁',()=>showResponse('광산에서는 몬스터가 가까이 왔는지 수시로 확인하고, 체력이 부족하면 더 깊이 들어가지 마.')]]
     };
     return actions[String(id)]||[];
   }
@@ -14834,6 +14945,33 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     if(!res.ok||!data||!data.ok)throw new Error(data&&data.error||('Cloudflare 복구 API 오류 ('+res.status+')'));
     return data;
   }
+  async function saveCurrentCloudStateV103(){
+    const code=String(S.recoveryCode||localStorage.getItem('emoji-rpg-recovery-code')||'').trim().toUpperCase();
+    if(!/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/.test(code)){
+      const message='저장할 기존 복구 키가 없어. 새 키는 발급하지 않았어. 먼저 기존 복구 키를 복구해 줘.';
+      try{if(S.started)log('⚠️ '+message);else lobbyMsg('⚠️ '+message);}catch(_e){}
+      return false;
+    }
+    let p=S.players&&S.players[S.uid];
+    if(!p){
+      try{p=typeof loadLocalAccountSnapshot==='function'?loadLocalAccountSnapshot():null;}catch(_e){p=null;}
+    }
+    if(!p){try{lobbyMsg('⚠️ 저장할 플레이어 데이터가 없어. 게임에 접속한 뒤 다시 저장해 줘.');}catch(_e){}return false;}
+    try{
+      if(typeof normalizePlayer==='function')normalizePlayer(p);
+      saveLocalAccountSnapshot();
+      await apiV103('update',{code,payload:makePayloadV103(p)});
+      S.recoveryCode=code;
+      try{localStorage.setItem('emoji-rpg-recovery-code',code);}catch(_e){}
+      updateRecoveryUIV103();
+      try{if(S.started)log('💾 현재 진행 상태를 기존 복구 키에 저장했어. 키는 바뀌지 않았어.');else lobbyMsg('💾 현재 상태 저장 완료. 기존 복구 키는 그대로야.');}catch(_e){}
+      return true;
+    }catch(e){
+      const message='현재 상태 저장 실패: '+String(e&&e.message||e);
+      try{if(S.started)log('⚠️ '+message);else lobbyMsg('⚠️ '+message);}catch(_e){}
+      return false;
+    }
+  }
   function compactToPlayerV103(payload){
     if(!Array.isArray(payload)||![3,4].includes(Number(payload[0]))||!Array.isArray(payload[4])||payload[4].length<18)throw new Error('복구 데이터 형식이 올바르지 않아.');
     let a=payload[4];
@@ -14930,7 +15068,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     const el=document.getElementById('lobbyRecoveryCode');
     if(el)el.textContent=code|| (S._recoveryApiError?'복구 서버 설정을 확인해 줘.':'게임에 접속하면 서버 복구 키가 발급돼.');
     const warn=document.querySelector('.recoveryWarn');
-    if(warn)warn.textContent='복구 키는 Cloudflare에 계정 진행 데이터가 저장되는 키야. 다른 사람에게 공유하지 말고 안전한 곳에 보관해 줘.';
+    if(warn)warn.textContent='💾 현재 상태 저장은 기존 복구 키에 데이터를 덮어써. 저장할 때 새 키를 만들지 않으며, 키를 가진 사람은 계정을 복구할 수 있으니 공유하지 마.';
   }
   globalThis.updateRecoveryUI=updateRecoveryUIV103;
   try{updateRecoveryUI=updateRecoveryUIV103;}catch(_e){}
@@ -14949,15 +15087,14 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     const codeForView=/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(saved)?saved:'서버 복구 키를 준비하고 있어…';
     const ss=S.recoverySession;
     const last=ss&&ss.code?(String(ss.roomName||'마지막 방')):'저장된 마지막 세션 정보 확인은 복구할 때 진행돼.';
-    const html='<div class="section"><div class="sectionTitle">현재 계정 복구 키</div><div class="recoveryCode" id="panelRecoveryCode">'+escapeHtml(codeForView)+'</div><div class="recoveryActions"><button id="copyRecoveryPanel">📋 복사</button><button id="newRecoveryPanel">🔄 새 키 발급</button></div></div><div class="section"><div class="sectionTitle">서버 백업</div><div class="guideDetail">진행 데이터는 Cloudflare에 저장되고, 복구 키는 그 데이터를 찾는 토큰이야. 코드를 가진 사람은 계정을 복구할 수 있으니 공유하지 마.</div></div>';
+    const html='<div class="section"><div class="sectionTitle">현재 계정 복구 키</div><div class="recoveryCode" id="panelRecoveryCode">'+escapeHtml(codeForView)+'</div><div class="recoveryActions"><button id="copyRecoveryPanel">📋 복사</button><button id="newRecoveryPanel">💾 현재 상태 저장</button></div></div><div class="section"><div class="sectionTitle">서버 백업</div><div class="guideDetail">진행 데이터는 Cloudflare에 저장되고, 복구 키는 그 데이터를 찾는 토큰이야. 코드를 가진 사람은 계정을 복구할 수 있으니 공유하지 마.</div></div>';
     openPanel('🗝️ 계정 복구',html);
     const box=document.getElementById('panelRecoveryCode');
     document.getElementById('copyRecoveryPanel').onclick=copyRecoveryCodeV103;
     document.getElementById('newRecoveryPanel').onclick=async()=>{
-      saveLocalAccountSnapshot();
-      const code=await issueRecoveryCodeV103(true);
-      if(box)box.textContent=code||'발급 실패 · Cloudflare 설정을 확인해 줘.';
-      if(code)try{log('🔄 서버 복구 키와 최신 계정 데이터를 저장했어.');}catch(_e){}
+      const ok=await saveCurrentCloudStateV103();
+      const current=String(S.recoveryCode||localStorage.getItem('emoji-rpg-recovery-code')||'');
+      if(box)box.textContent=ok?current:(current||'기존 복구 키 없음 · 키를 새로 발급하지 않았어.');
     };
     if(!/^ERPG3-(?:[0-9A-F]{48}|[A-HJ-NP-Z2-9]{16})$/i.test(saved)){
       const code=await issueRecoveryCodeV103(false);
@@ -15035,7 +15172,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 
   // initLobby가 먼저 연결한 클릭 핸들러들을 서버 기반 동작으로 교체한다.
   const copyBtn=document.getElementById('btnCopyRecovery');if(copyBtn)copyBtn.onclick=copyRecoveryCodeV103;
-  const newBtn=document.getElementById('btnNewRecovery');if(newBtn)newBtn.onclick=async()=>{saveLocalAccountSnapshot();const code=await issueRecoveryCodeV103(true);try{lobbyMsg(code?'🔄 새 서버 복구 키를 발급했어.':'복구 키 발급 실패 · Cloudflare 설정을 확인해 줘.');}catch(_e){}};
+  const newBtn=document.getElementById('btnNewRecovery');if(newBtn)newBtn.onclick=async()=>{await saveCurrentCloudStateV103();};
   const recoverBtn=document.getElementById('btnRecover');if(recoverBtn)recoverBtn.onclick=recoverAccountFromInputV103;
   const panelBtn=document.getElementById('btnRecovery');if(panelBtn)panelBtn.onclick=renderRecoveryPanelV103;
   const recoveryInput=document.getElementById('recoveryInput');
@@ -15092,7 +15229,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   }catch(_e){}
   const warn=document.querySelector('.recoveryWarn');
   if(warn)warn.textContent='새 복구 키는 Cloudflare D1에 진행 데이터를 저장해. 코드를 가진 사람은 계정을 복구할 수 있으니 다른 사람에게 공유하지 마.';
-  window.__RPG_BUILD_VERSION__='106';
+  window.__RPG_BUILD_VERSION__='109';
 })();
 </script>
 
