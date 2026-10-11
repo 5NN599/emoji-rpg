@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2a5fd1">
-<meta name="rpg-build-version" content="106">
+<meta name="rpg-build-version" content="108">
 <meta name="application-name" content="이모지 RPG">
 <meta name="apple-mobile-web-app-title" content="이모지 RPG">
 <meta name="description" content="이모지 RPG는 브라우저에서 바로 즐기는 한국어 온라인 RPG입니다. 이모지 캐릭터로 세계를 탐험하고 몬스터 전투, 퀘스트, 아이템 수집과 거래를 즐기며 P2P 멀티플레이로 친구와 함께 모험하세요.">
@@ -12982,46 +12982,90 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   function arenaReset(){S.arenaState={players:{},started:false,winner:null,round:(Number(S.arenaState.round)||0)+1,updatedAt:Date.now()};arenaSendState();}
   function arenaJoinHost(uid){
     const p=S.players[uid];if(!p||p.map!=='arena')return;
+    S.arenaState=S.arenaState||{players:{},started:false,winner:null,round:0,updatedAt:0};
+    if(S.arenaState.winner){
+      const nextRound=(Number(S.arenaState.round)||0)+1;
+      Object.keys(S.arenaState.players||{}).forEach(id=>{
+        const other=S.players[id];if(other&&other.map==='arena'){other.x=5;other.y=6;S.moveAck[id]=(S.moveAck[id]||0)+1;}
+      });
+      S.arenaState={players:{},started:false,winner:null,round:nextRound,updatedAt:Date.now()};
+    }
     if(S.arenaState.players[uid])return arenaSendState();
     const ids=arenaLiveIds();if(ids.length>=4){sendTo(uid,{t:'arena_notice',s:'⚔️ 결투장은 최대 4명까지야.'});return;}
-    const a=ids.filter(id=>S.arenaState.players[id].team==='A').length,b=ids.filter(id=>S.arenaState.players[id].team==='B').length;
-    const team=a<=b?'A':'B';
-    S.arenaState.players[uid]={team,hp:100,max:100,alive:true,name:p.name,emoji:p.emoji};
-    if(ids.length+1>=2&&['A','B'].every(t=>Object.values(S.arenaState.players).some(x=>x.team===t)))S.arenaState.started=true;
-    S.arenaState.winner=null;S.arenaState.updatedAt=Date.now();arenaSendState();
+    const aCount=ids.filter(id=>S.arenaState.players[id].team==='A').length;
+    const bCount=ids.filter(id=>S.arenaState.players[id].team==='B').length;
+    const team=aCount<=bCount?'A':'B';
+    const hp=Math.max(100,Math.floor(Number(typeof maxHp==='function'?maxHp(p):100)||100));
+    p.x=team==='A'?16:26;p.y=15;S.moveAck[uid]=(S.moveAck[uid]||0)+1;
+    S.arenaState.players[uid]={team,hp,max:hp,alive:true,name:p.name,emoji:p.emoji,lastAtk:0};
+    const all=Object.values(S.arenaState.players);
+    const wasStarted=!!S.arenaState.started;
+    S.arenaState.started=all.length>=2&&all.some(x=>x.team==='A'&&x.alive)&&all.some(x=>x.team==='B'&&x.alive);
+    S.arenaState.winner=null;S.arenaState.updatedAt=Date.now();
+    if(!wasStarted&&S.arenaState.started)broadcastEvent({k:'log',s:'⚔️ 결투 시작! 양 팀은 이동해 상대를 사거리 안에 넣고 공격해 줘.'});
+    arenaSendState();
   }
-  function arenaLeaveHost(uid){if(S.arenaState.players[uid]){delete S.arenaState.players[uid];if(arenaLiveIds().length<2)S.arenaState.started=false;arenaSendState();}}
-  function arenaAttackHost(uid){
-    const p=S.players[uid],me=S.arenaState.players[uid];if(!p||!me||!S.arenaState.started||!me.alive)return;
-    const now=Date.now();me.lastAtk=Number(me.lastAtk)||0;if(now-me.lastAtk<500)return;me.lastAtk=now;
-    const enemies=arenaLiveIds().filter(id=>S.arenaState.players[id].team!==me.team&&S.arenaState.players[id].alive).map(id=>S.players[id]).filter(Boolean);
+  function arenaLeaveHost(uid){
+    const p=S.players[uid];
+    if(S.arenaState.players[uid]){
+      delete S.arenaState.players[uid];
+      if(p&&p.map==='arena'){p.x=5;p.y=6;S.moveAck[uid]=(S.moveAck[uid]||0)+1;}
+      const alive=arenaLiveIds().filter(id=>S.arenaState.players[id].alive);
+      if(alive.length<2)S.arenaState.started=false;
+      if(!Object.keys(S.arenaState.players||{}).length)S.arenaState.winner=null;
+      S.arenaState.updatedAt=Date.now();arenaSendState();
+    }
+  }
+  function arenaAttackHost(uid,targetId){
+    const p=S.players[uid],me=S.arenaState&&S.arenaState.players&&S.arenaState.players[uid];
+    if(!p||p.map!=='arena'||!me||!S.arenaState.started||!me.alive)return;
+    const zone=window.__rpgV92ArenaFightZone;
+    const inFight=q=>!!q&&q.map==='arena'&&(!zone||(q.x>=zone.x&&q.x<zone.x+zone.w&&q.y>=zone.y&&q.y<zone.y+zone.h));
+    if(!inFight(p)){sendTo(uid,{t:'arena_notice',s:'🛡️ 관중 구역에서는 공격할 수 없어. 결투 구역에 들어가 줘.'});return;}
+    const now=Date.now();if(now-(Number(me.lastAtk)||0)<650)return;me.lastAtk=now;
+    const enemies=arenaLiveIds().filter(id=>S.arenaState.players[id]&&S.arenaState.players[id].team!==me.team&&S.arenaState.players[id].alive)
+      .map(id=>S.players[id]).filter(q=>q&&inFight(q));
+    let target=targetId?enemies.find(q=>String(q.id)===String(targetId)):null;
+    if(targetId&&!target){sendTo(uid,{t:'arena_notice',s:'대상을 찾을 수 없어. 상대가 탈락했거나 팀이 같을 수 있어.'});return;}
+    if(!target)target=enemies.sort((a,b)=>cheb(a,p)-cheb(b,p))[0];
     const range=typeof classProfile==='function'?Math.max(1,Number(classProfile(p).range)||1):1;
-    const target=enemies.sort((a,b)=>cheb(a,p)-cheb(b,p))[0];if(!target||cheb(target,p)>range)return;
-    const tm=S.arenaState.players[target.id];
-    const atk=Math.max(1,Number(effectiveAtkRpg(p)||1));
-    const def=Math.max(0,Number(effectiveDefRpg(target)||0));
+    if(!target){sendTo(uid,{t:'arena_notice',s:'⚔️ 공격할 상대가 없어. 상대 팀 참가자를 기다려 줘.'});return;}
+    if(cheb(target,p)>range){sendTo(uid,{t:'arena_notice',s:'📏 '+String(target.name||'상대')+' 님이 사거리 밖이야. 더 가까이 이동해 줘.'});return;}
+    const tm=S.arenaState.players[target.id];if(!tm||!tm.alive)return;
+    const atk=Math.max(1,Number(effectiveAtkRpg(p)||1)),def=Math.max(0,Number(effectiveDefRpg(target)||0));
     const power=typeof classProfile==='function'?Math.max(.9,Number(classProfile(p).power)||1):1;
-    const dmg=Math.max(1,Math.floor(atk*power-def*.25+Math.random()*4));
-    tm.hp=Math.max(0,tm.hp-dmg);
+    const dmg=Math.max(4,Math.floor(atk*power*.32-def*.5+Math.random()*5));
+    tm.hp=Math.max(0,Number(tm.hp||0)-dmg);
     broadcastEvent({k:'hit',id:target.id,x:target.x,y:target.y,dmg});
-    if(tm.hp<=0){tm.alive=false;broadcastEvent({k:'log',s:'⚔️ '+target.name+' 님이 결투에서 쓰러졌어!'});}
-    const teamAlive=t=>arenaLiveIds().some(id=>S.arenaState.players[id].team===t&&S.arenaState.players[id].alive);
-    if(!teamAlive('A')||!teamAlive('B')){S.arenaState.winner=teamAlive('A')?'A':'B';S.arenaState.started=false;broadcastEvent({k:'log',s:'🏆 결투 종료! '+S.arenaState.winner+'팀 승리!'});}
+    broadcastEvent({k:'log',s:'⚔️ '+String(p.name||'모험가')+' → '+String(target.name||'상대')+' · '+dmg+' 피해'});
+    if(tm.hp<=0){tm.alive=false;broadcastEvent({k:'log',s:'💥 '+String(target.name||'상대')+' 님이 결투에서 쓰러졌어!'});}
+    const teamAlive=t=>arenaLiveIds().some(id=>S.arenaState.players[id]&&S.arenaState.players[id].team===t&&S.arenaState.players[id].alive);
+    if(!teamAlive('A')||!teamAlive('B')){
+      S.arenaState.winner=teamAlive('A')?'A':'B';S.arenaState.started=false;
+      broadcastEvent({k:'log',s:'🏆 결투 종료! '+S.arenaState.winner+'팀 승리! 접수대 근처에서 나가기를 누르면 다음 경기에 다시 참가할 수 있어.'});
+    }
     S.arenaState.updatedAt=Date.now();arenaSendState();
   }
   function renderArenaPanel(){
     const p=S.players[S.uid],a=S.arenaState||{players:{},started:false};if(!p)return;
     const ids=Object.keys(a.players||{});
-    let html='<div class="section"><div class="sectionTitle">⚔️ 결투장</div><div class="socialSub">최소 2명 · 최대 4명 · A/B 2팀. 기본 공격으로 상대를 쓰러뜨리면 승리.</div></div>';
+    let html='<div class="section"><div class="sectionTitle">⚔️ 결투장</div><div class="socialSub">최소 2명 · 최대 4명 · A/B 2팀. 이동해 사거리 안의 상대를 공격하고, 상대 팀을 모두 쓰러뜨리면 승리해. HP는 결투장에서만 적용돼.</div></div>';
     html+='<div class="section"><div class="sectionTitle">참가자 '+ids.length+'/4</div>';
     if(!ids.length)html+='<div class="empty">아직 참가자가 없어.</div>';
-    ids.forEach(id=>{const q=a.players[id],pl=S.players[id];html+='<div class="tradeLine"><span>팀 '+q.team+' · '+escapeHtml((pl&&pl.name)||q.name||'플레이어')+' · ❤️ '+q.hp+'/100</span>'+(id===S.uid?' <b>나</b>':'')+'</div>';});
+    ids.forEach(id=>{
+      const q=a.players[id],pl=S.players[id],hp=Math.max(0,Number(q.hp)||0),mx=Math.max(1,Number(q.max)||100),pct=Math.max(0,Math.min(100,hp/mx*100));
+      const fighterName=escapeHtml((pl&&pl.name)||q.name||'플레이어');
+      html+='<div class="tradeLine arenaFighterV107"><div class="arenaFighterTopV107"><span>팀 '+q.team+' · '+fighterName+(id===S.uid?' · <b>나</b>':'')+'</span><b>'+(q.alive===false?'💀 탈락':'❤️ '+hp+'/'+mx)+'</b></div><div class="arenaHpTrackV107"><i style="width:'+pct+'%"></i></div>';
+      if(a.started&&a.players[S.uid]&&id!==S.uid&&q.team!==a.players[S.uid].team&&q.alive!==false)html+='<button class="arenaTargetBtnV107" data-arena-target="'+escapeHtml(id)+'">🎯 '+fighterName+' 공격</button>';
+      html+='</div>';
+    });
     html+='</div><div class="tradeActions">'+(a.players[S.uid]?'':'<button id="arenaJoinBtn">⚔️ 참가</button>')+(a.players[S.uid]?'<button id="arenaLeaveBtn">나가기</button>':'')+(a.players[S.uid]&&a.started?'<button id="arenaAtkBtn">⚔️ 공격</button>':'')+'</div>';
     if(a.winner)html+='<div class="section"><b>🏆 '+a.winner+'팀 승리</b><br>다시 참가하려면 결투장에 재입장해줘.</div>';
     openPanel('⚔️ 결투장',html);
     if($('arenaJoinBtn'))$('arenaJoinBtn').onclick=()=>sendLocalHost({t:'arena_join'});
     if($('arenaLeaveBtn'))$('arenaLeaveBtn').onclick=()=>sendLocalHost({t:'arena_leave'});
     if($('arenaAtkBtn'))$('arenaAtkBtn').onclick=()=>sendLocalHost({t:'arena_attack'});
+    $('panelBody').querySelectorAll('[data-arena-target]').forEach(b=>b.onclick=()=>sendLocalHost({t:'arena_attack',target:b.dataset.arenaTarget}));
   }
   globalThis.renderArenaPanel=renderArenaPanel;
 
@@ -13076,6 +13120,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       if(m.arena&&typeof m.arena==='object')S.arenaState={players:m.arena.players||{},started:!!m.arena.started,winner:m.arena.winner||null,round:+m.arena.round||0,updatedAt:Date.now()};
     }
     if(m&&m.t==='market_notice'){notice(String(m.s||''),'info','sys');if(marketVisible())setTimeout(renderMarketPanel,0);return;}
+    if(m&&m.t==='arena_notice'){notice(String(m.s||''),'info','sys');return;}
     if(m&&m.t==='arena_state'){S.arenaState={players:m.state&&m.state.players||{},started:!!(m.state&&m.state.started),winner:m.state&&m.state.winner||null,round:+(m.state&&m.state.round)||0,updatedAt:Date.now()};if($('overlayPanel').classList.contains('open')&&$('panelTitle').textContent.includes('결투장'))setTimeout(renderArenaPanel,0);return;}
     return _onClientDataV90.apply(this,arguments);
   };
@@ -13092,7 +13137,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     if(m.t==='market_cancel'&&c.uid&&S.players[c.uid]){marketCancelHost(c.uid,m);return;}
     if(m.t==='arena_join'&&c.uid&&S.players[c.uid]){arenaJoinHost(c.uid);return;}
     if(m.t==='arena_leave'&&c.uid){arenaLeaveHost(c.uid);return;}
-    if(m.t==='arena_attack'&&c.uid){arenaAttackHost(c.uid);return;}
+    if(m.t==='arena_attack'&&c.uid){arenaAttackHost(c.uid,m.target);return;}
     if(m.t==='use_unstable_warp'&&c.uid&&S.players[c.uid]){
       const p=S.players[c.uid],dest=String(m.dest||''),md=mapDef(dest),n=itemCount(p,'unstableWarpStone');
       if(!md||!n||!RPG_MAPS[dest])return;
@@ -14207,7 +14252,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   'use strict';
   if(window.__RPG_V101_PATCH__)return;
   window.__RPG_V101_PATCH__=true;
-  window.__RPG_BUILD_VERSION__='102';
+  window.__RPG_BUILD_VERSION__='107';
 
   /* =========================================================
      1) 플레이어/NPC 투명해짐 방지
@@ -14666,6 +14711,88 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       .sort().slice(0,max)
       .map(k=>[String(k),Math.max(0,Math.floor(Number(obj[k])||0))]);
   }
+  // C1 storage format: short field tags separated by |. The outer 18-slot array
+  // remains compatible with the existing D1 Worker validator; older JSON-array
+  // payloads are still decoded below.
+  function compactSafeV103(v){
+    return String(v==null?'':v).replace(/%/g,'%25').replace(/\|/g,'%7C').replace(/,/g,'%2C').replace(/:/g,'%3A').replace(/;/g,'%3B');
+  }
+  function compactUnsafeV103(v){
+    return String(v==null?'':v).replace(/%7C/gi,'|').replace(/%2C/gi,',').replace(/%3A/gi,':').replace(/%3B/gi,';').replace(/%25/gi,'%');
+  }
+  function compactItemHashV103(id){
+    const text=String(id||'');let h=2166136261;
+    for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}
+    return '~'+(h>>>0).toString(36);
+  }
+  function compactItemTokenV103(id){
+    id=String(id||'');if(id.length<=7)return id;
+    const key=compactItemHashV103(id);
+    try{for(const other of Object.keys(ITEMS||{}))if(other!==id&&compactItemHashV103(other)===key)return id;}catch(_e){}
+    return key;
+  }
+  function expandItemTokenV103(token){
+    token=String(token||'');if(token[0]!=='~')return token;
+    const wanted=token.slice(1);
+    try{for(const id of Object.keys(ITEMS||{}))if(compactItemHashV103(id).slice(1)===wanted)return id;}catch(_e){}
+    return token;
+  }
+  function compactPairsToTextV103(list){
+    return (Array.isArray(list)?list:[]).filter(x=>Array.isArray(x)&&x[0]&&Number(x[1])>0)
+      .map(x=>compactSafeV103(compactItemTokenV103(x[0]))+':'+Math.max(0,Math.floor(Number(x[1])||0))).join(',');
+  }
+  function textToCompactPairsV103(text){
+    if(!text)return [];
+    return String(text).split(',').map(pair=>{
+      const i=pair.lastIndexOf(':');if(i<0)return null;
+      const id=expandItemTokenV103(compactUnsafeV103(pair.slice(0,i)));
+      const n=Math.max(0,Math.floor(Number(pair.slice(i+1))||0));
+      return id&&n>0?[id,n]:null;
+    }).filter(Boolean);
+  }
+  function encodeCompactDataV103(a){
+    const q=a[11]||[],j=a[12]||[],ap=a[13]||[],en=a[14]||[],h=a[16]||[],g=a[17]||[];
+    const fields=[
+      'N'+compactSafeV103(a[0]),'E'+compactSafeV103(a[1]),'F'+compactSafeV103(a[2]),
+      'L'+(Number(a[3])||1),'X'+(Number(a[4])||0),'H'+(Number(a[5])||1),
+      'G'+(Number(a[6])||0),'A'+(Number(a[7])||10),'D'+(Number(a[8])||0),
+      'I'+compactPairsToTextV103(a[9]),
+      'W'+compactSafeV103(a[10]&&a[10][0]||''),'R'+compactSafeV103(a[10]&&a[10][1]||''),
+      'Q'+compactSafeV103(q[0]||'slime_hunt')+','+(Number(q[1])||0)+','+(q[2]?1:0),
+      'J'+(Number(j[0])||0)+','+compactSafeV103(j[1]||'novice')+','+compactSafeV103(j[2]||'견습 모험가')+','+compactSafeV103(j[3]||'🧑'),
+      'C'+compactSafeV103(ap[0]||'')+','+compactSafeV103(ap[1]||'')+','+compactSafeV103(ap[2]||'초보 모험가'),
+      'EN'+(Number(en[0])||0)+','+(Number(en[1])||0),
+      'S'+compactPairsToTextV103(a[15]),
+      'HM'+compactSafeV103(h[0]||'town')+','+(Number(h[1])||0)+','+(Number(h[2])||0),
+      'GQ'+compactSafeV103(g[0]||'')+','+(Number(g[1])||0)+','+(g[2]?1:0)+','+(Array.isArray(g[3])?g[3].map(compactSafeV103).join(';'):'')
+    ];
+    const packed='!1!'+fields.join('|');
+    const envelope=new Array(18).fill('');envelope[0]=packed;return envelope;
+  }
+  function decodeCompactDataV103(a){
+    if(!Array.isArray(a)||typeof a[0]!=='string'||!a[0].startsWith('!1!'))return a;
+    const tags=Object.create(null);
+    const fieldTags=['EN','HM','GQ','N','E','F','L','X','H','G','A','D','I','W','R','Q','J','C','S'];
+    for(const part of a[0].slice(3).split('|')){
+      const tag=fieldTags.find(t=>part.startsWith(t));if(!tag)continue;tags[tag]=part.slice(tag.length);
+    }
+    const get=(k)=>compactUnsafeV103(tags[k]||'');
+    const split=(tag,n)=>{const vals=String(tags[tag]||'').split(',');while(vals.length<n)vals.push('');return vals.slice(0,n).map(compactUnsafeV103);};
+    const q=split('Q',3),j=split('J',4),ap=split('C',3),en=split('EN',2),h=split('HM',3),g=split('GQ',4);
+    const inv=textToCompactPairsV103(get('I')),storage=textToCompactPairsV103(get('S'));
+    return [
+      get('N')||'모험가',get('E')||'🧑',get('F'),Math.max(1,Math.floor(Number(tags.L)||1)),
+      Math.max(0,Math.floor(Number(tags.X)||0)),Math.max(1,Math.floor(Number(tags.H)||1)),
+      Math.max(0,Math.floor(Number(tags.G)||0)),Math.max(1,Math.floor(Number(tags.A)||10)),Math.max(0,Math.floor(Number(tags.D)||0)),
+      inv,[get('W'),get('R')],
+      [q[0]||'slime_hunt',Math.max(0,Math.floor(Number(q[1])||0)),q[2]==='1'],
+      [Math.max(0,Math.floor(Number(j[0])||0)),j[1]||'novice',j[2]||'견습 모험가',j[3]||'🧑'],
+      [ap[0]||'',ap[1]||'',ap[2]||'초보 모험가'],
+      [Math.max(0,Math.floor(Number(en[0])||0)),Math.max(0,Math.floor(Number(en[1])||0))],storage,
+      [h[0]||'town',Math.floor(Number(h[1])||0),Math.floor(Number(h[2])||0)],
+      [g[0]||'',Math.max(0,Math.floor(Number(g[1])||0)),g[2]==='1',g[3]?g[3].split(';').map(compactUnsafeV103).filter(Boolean):[]]
+    ];
+  }
   function compactDataV103(p){
     if(typeof normalizePlayer==='function')normalizePlayer(p);
     const d=(typeof playerAccountData==='function'&&playerAccountData(p))||p||{};
@@ -14675,26 +14802,19 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     const e=p.enhance||d.enhance||{};
     const h=p.home||d.home||{};
     const g=p.guildQuest||d.guildQuest||{};
-    return [
-      String(p.name||d.name||'모험가').slice(0,10),
-      String(p.emoji||d.emoji||'🧑'),
-      String(p.friendCode||d.friendCode||'').toUpperCase().slice(0,8),
-      Math.max(1,Math.floor(Number(p.lv??d.lv)||1)),
-      Math.max(0,Math.floor(Number(p.xp??d.xp)||0)),
-      Math.max(1,Math.floor(Number(p.hp??d.hp)||1)),
-      Math.max(0,Math.floor(Number(p.gold??d.gold)||0)),
-      Math.max(1,Math.floor(Number(p.atk??d.atk)||10)),
-      Math.max(0,Math.floor(Number(p.def??d.def)||0)),
-      pairsV103(p.inv||d.inv),
-      [p.equip&&p.equip.weapon?String(p.equip.weapon):'',p.equip&&p.equip.armor?String(p.equip.armor):''],
+    const raw=[
+      String(p.name||d.name||'모험가').slice(0,10),String(p.emoji||d.emoji||'🧑'),String(p.friendCode||d.friendCode||'').toUpperCase().slice(0,8),
+      Math.max(1,Math.floor(Number(p.lv??d.lv)||1)),Math.max(0,Math.floor(Number(p.xp??d.xp)||0)),Math.max(1,Math.floor(Number(p.hp??d.hp)||1)),
+      Math.max(0,Math.floor(Number(p.gold??d.gold)||0)),Math.max(1,Math.floor(Number(p.atk??d.atk)||10)),Math.max(0,Math.floor(Number(p.def??d.def)||0)),
+      pairsV103(p.inv||d.inv),[p.equip&&p.equip.weapon?String(p.equip.weapon):'',p.equip&&p.equip.armor?String(p.equip.armor):''],
       [String(q.id||'slime_hunt'),Math.max(0,Math.floor(Number(q.progress)||0)),!!q.claimed],
       [Math.max(0,Math.floor(Number(j.stage)||0)),String(j.code||'novice'),String(j.name||'견습 모험가').slice(0,24),String(j.icon||'🧑')],
       [String(a.aura||''),String(a.hat||''),String(a.title||'초보 모험가')],
       [Math.max(0,Math.floor(Number(e.weapon)||0)),Math.max(0,Math.floor(Number(e.armor)||0))],
-      pairsV103(p.storage||d.storage),
-      [String(h.map||'town'),Math.floor(Number(h.x)||0),Math.floor(Number(h.y)||0)],
+      pairsV103(p.storage||d.storage),[String(h.map||'town'),Math.floor(Number(h.x)||0),Math.floor(Number(h.y)||0)],
       [String(g.active||''),Math.max(0,Math.floor(Number(g.progress)||0)),!!g.claimed,Object.entries(g.completed||{}).filter(([,v])=>v).map(([k])=>String(k)).sort().slice(0,64)]
     ];
+    return encodeCompactDataV103(raw);
   }
   function sessionV103(p){
     if(S.started&&S.code)return [String(S.code||'').toUpperCase().slice(0,5),Math.max(0,Number(S.gen)||0),String(S.roomName||'').slice(0,16),Date.now()];
@@ -14716,7 +14836,9 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   }
   function compactToPlayerV103(payload){
     if(!Array.isArray(payload)||![3,4].includes(Number(payload[0]))||!Array.isArray(payload[4])||payload[4].length<18)throw new Error('복구 데이터 형식이 올바르지 않아.');
-    const a=payload[4],inv={},storage={};
+    let a=payload[4];
+    if(Array.isArray(a)&&typeof a[0]==='string'&&a[0].startsWith('!1!'))a=decodeCompactDataV103(a);
+    const inv={},storage={};
     for(const pair of (Array.isArray(a[9])?a[9]:[]))if(Array.isArray(pair)&&pair[0])inv[String(pair[0])]=Math.max(0,Math.floor(Number(pair[1])||0));
     for(const pair of (Array.isArray(a[15])?a[15]:[]))if(Array.isArray(pair)&&pair[0])storage[String(pair[0])]=Math.max(0,Math.floor(Number(pair[1])||0));
     const q=Array.isArray(a[11])?a[11]:[],j=Array.isArray(a[12])?a[12]:[],ap=Array.isArray(a[13])?a[13]:[],en=Array.isArray(a[14])?a[14]:[],h=Array.isArray(a[16])?a[16]:[],g=Array.isArray(a[17])?a[17]:[];
@@ -14924,7 +15046,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     else hint.textContent='구형 복구 키를 서버에서 확인할게.';
   });
 
-  // 기존 로컬 백업과 별개로 15초마다 서버 백업도 갱신한다. 네트워크 게임 프로토콜은 변경하지 않는다.
+  // Cloudflare 서버 백업은 5분마다 갱신한다. 로컬 저장은 기존처럼 별도로 즉시 처리하고 P2P 프로토콜은 유지한다.
   let syncBusy=false;
   setInterval(async()=>{
     if(syncBusy||!S.started||!S.players||!S.players[S.uid])return;
@@ -14933,7 +15055,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     syncBusy=true;
     try{await apiV103('update',{code:code.toUpperCase(),payload:makePayloadV103(S.players[S.uid])});}catch(_e){}
     finally{syncBusy=false;}
-  },15000);
+  },300000);
 
   // 구형 코드도 Cloudflare에서 확인한다. ERPG3는 DB 레코드를 읽고, 이후 기존 hostRecv에
   // 검증된 임시 페이로드로 전달해 P2P 입장/세션 프로토콜은 그대로 보존한다.
@@ -15132,6 +15254,145 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     const hint=document.getElementById('recoverySessionHint');
     if(hint&&!hint.textContent)hint.textContent='복구 키로 계정을 복원한 뒤 마지막 방 → 공개 방 → 새 공개 방 순서로 접속해.';
   }catch(_e){}
+})();
+</script>
+
+<style id="rpgV107ArenaUi">
+  .arenaFighterV107{display:block!important;padding:9px 10px!important}
+  .arenaFighterTopV107{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;line-height:1.35}
+  .arenaHpTrackV107{height:7px;margin-top:6px;border-radius:999px;background:rgba(120,120,120,.2);overflow:hidden}
+  .arenaHpTrackV107 i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#df5c56,#efb94d);transition:width .18s ease}
+  .arenaTargetBtnV107{margin-top:7px;width:100%;font-size:11px}
+</style>
+<script id="rpgV107MarketDoorAndArenaArrival">
+(function installRpgV107MapFixes(){
+  'use strict';
+  if(window.__RPG_V107_MAP_FIXES__)return;
+  window.__RPG_V107_MAP_FIXES__=true;
+  window.__RPG_BUILD_VERSION__='107';
+  const versionMeta=document.querySelector('meta[name="rpg-build-version"]');if(versionMeta)versionMeta.content='107';
+  try{
+    /* 시장 내부의 진입점과 출구를 같은 남쪽 문 축으로 정렬한다. */
+    if(typeof RPG_MAPS!=='undefined'&&RPG_MAPS.market){
+      Object.assign(RPG_MAPS.market,{kind:'interior',buildingId:'market',safe:true,w:36,h:26,spawn:{x:18,y:22},name:'달빛시장',meta:'공개 장터 · 시장 관리인 유리에게 등록'});
+    }
+    if(typeof buildingInteriorDefs!=='undefined'){
+      buildingInteriorDefs.market=Object.assign(buildingInteriorDefs.market||{},{interior:'market',exit:{x:18,y:24},title:'달빛시장 · 공개 장터'});
+    }
+    if(typeof RPG_BUILDINGS!=='undefined'){
+      const mb=RPG_BUILDINGS.find(b=>b&&b.map==='town'&&(b.id==='market'||b.interior==='market'));
+      if(mb){
+        mb.interior='market';mb.door={x:mb.x+Math.floor(mb.w/2),y:mb.y+mb.h-1};
+        const candidates=[{x:mb.door.x,y:mb.door.y+1},{x:mb.door.x-1,y:mb.door.y},{x:mb.door.x+1,y:mb.door.y},{x:mb.door.x,y:mb.door.y-1}];
+        const ret=candidates.find(q=>{try{return !isMapBlocked('town',q.x,q.y);}catch(_e){return q.x>=0&&q.y>=0;}})||{x:mb.door.x,y:mb.door.y+1};
+        mb.returnPos={x:ret.x,y:ret.y};
+        if(typeof buildingInteriorDefs!=='undefined'){buildingInteriorDefs.market.returnX=ret.x;buildingInteriorDefs.market.returnY=ret.y;}
+      }
+      const ab=RPG_BUILDINGS.find(b=>b&&b.map==='town'&&(b.id==='arena'||b.interior==='arena'));
+      if(ab){
+        ab.interior='arena';ab.door={x:ab.x+Math.floor(ab.w/2),y:ab.y+ab.h-1};
+        const candidates=[{x:ab.door.x,y:ab.door.y+1},{x:ab.door.x-1,y:ab.door.y},{x:ab.door.x+1,y:ab.door.y},{x:ab.door.x,y:ab.door.y-1}];
+        const ret=candidates.find(q=>{try{return !isMapBlocked('town',q.x,q.y);}catch(_e){return q.x>=0&&q.y>=0;}})||{x:ab.door.x,y:ab.door.y+1};
+        ab.returnPos={x:ret.x,y:ret.y};
+        if(typeof buildingInteriorDefs!=='undefined'){buildingInteriorDefs.arena=Object.assign(buildingInteriorDefs.arena||{},{interior:'arena',returnX:ret.x,returnY:ret.y,exit:{x:21,y:25},title:'관중석과 중앙 경기장이 있는 공식 결투장'});}
+      }
+    }
+    /* 결투장 입구는 남쪽 출입구 바로 안쪽, 퇴장 표시도 같은 축으로 맞춘다. */
+    if(typeof RPG_MAPS!=='undefined'&&RPG_MAPS.arena){Object.assign(RPG_MAPS.arena,{kind:'interior',buildingId:'arena',safe:false,w:42,h:30,spawn:{x:21,y:24},name:'루미나 결투장',meta:'관중석 · 접수 후 2~4인 팀 PvP'});}
+    if(typeof RPG_NPCS!=='undefined'){
+      if(RPG_NPCS.marketBroker)Object.assign(RPG_NPCS.marketBroker,{map:'market',x:4,y:12});
+      if(RPG_NPCS.merchant)Object.assign(RPG_NPCS.merchant,{map:'market',x:18,y:7});
+      if(RPG_NPCS.arenaReceptionist)Object.assign(RPG_NPCS.arenaReceptionist,{map:'arena',x:5,y:5});
+    }
+    /* 접속 중인 캐릭터가 구형 맵 크기 밖에 저장된 경우에만 안전한 진입점으로 보정한다. */
+    const p=typeof S!=='undefined'&&S.players&&S.players[S.uid];
+    if(p&&p.map==='market'&&(p.x<1||p.y<1||p.x>=RPG_MAPS.market.w-1||p.y>=RPG_MAPS.market.h-1)){p.x=RPG_MAPS.market.spawn.x;p.y=RPG_MAPS.market.spawn.y;}
+    if(p&&p.map==='arena'&&(p.x<1||p.y<1||p.x>=RPG_MAPS.arena.w-1||p.y>=RPG_MAPS.arena.h-1)){p.x=RPG_MAPS.arena.spawn.x;p.y=RPG_MAPS.arena.spawn.y;}
+    try{if(typeof drawMinimapRpg==='function')drawMinimapRpg();}catch(_e){}
+  }catch(e){try{console.warn('RPG v107 map patch',e);}catch(_e){}}
+})();
+</script>
+
+<script id="rpgV108GuildQuestCounterFix">
+(function installGuildQuestCounterFixV108(){
+  'use strict';
+  if(window.__RPG_GUILD_QUEST_COUNTER_FIX_V108)return;
+  window.__RPG_GUILD_QUEST_COUNTER_FIX_V108=true;
+  window.__RPG_BUILD_VERSION__='108';
+  try{
+    const versionMeta=document.querySelector('meta[name="rpg-build-version"]');
+    if(versionMeta)versionMeta.content='108';
+  }catch(_e){}
+
+  /*
+    v3에서 만든 guildQuest 카운터 래퍼가 이후 버전의 addMonsterReward 교체로
+    덮어써진 문제를 복구한다. 기존 드롭/일반 퀘스트/희귀 장비 보상은 먼저 실행한다.
+  */
+  const previousReward=window.addMonsterReward;
+  if(typeof previousReward==='function'){
+    const rewardWithGuildProgressV108=function(p,e){
+      const result=previousReward.apply(this,arguments);
+      try{
+        if(!p||!p.guildQuest||!p.guildQuest.active)return result;
+        const defs=window.QUEST_DEFS_V3;
+        const q=p.guildQuest;
+        const d=defs&&defs[q.active];
+        if(!d)return result;
+        if(String(d.map||'')!==String(p.map||''))return result;
+        if(d.target!=='*'&&String(d.target)!==String(e))return result;
+        const need=Math.max(1,Math.floor(Number(d.count)||1));
+        const before=Math.max(0,Math.floor(Number(q.progress)||0));
+        if(before>=need)return result;
+        q.progress=Math.min(need,before+1);
+        if(q.progress>=need&&before<need){
+          try{if(typeof broadcastEvent==='function')broadcastEvent({k:'log',s:'📌 '+String(p.name||'모험가')+' 님의 길드 의뢰 「'+String(d.name||'의뢰')+'」가 완료됐어!'});}catch(_e){}
+        }
+        /* 진행도를 해당 플레이어에게 보내 현재 의뢰 창도 즉시 새로고침한다. */
+        try{
+          if(typeof sendTo==='function'&&p.id!=null){
+            sendTo(p.id,{t:'guild_progress_v108',active:q.active,progress:q.progress,count:need});
+          }
+        }catch(_e){}
+        if(typeof S!=='undefined'&&S&&String(p.id)===String(S.uid)){
+          try{if(typeof updateHud==='function')updateHud();}catch(_e){}
+          try{if(typeof saveLocalAccountSnapshot==='function')saveLocalAccountSnapshot();}catch(_e){}
+          try{
+            const panel=typeof $==='function'?$ ('overlayPanel'):null;
+            const title=typeof $==='function'?$ ('panelTitle'):null;
+            if(panel&&title&&panel.classList.contains('open')&&title.textContent.includes('길드')&&window.__rpgNpcApiV32&&typeof window.__rpgNpcApiV32.guild==='function')window.__rpgNpcApiV32.guild();
+          }catch(_e){}
+        }
+      }catch(err){try{console.warn('Guild quest progress update failed',err);}catch(_e){}}
+      return result;
+    };
+    window.addMonsterReward=rewardWithGuildProgressV108;
+    try{addMonsterReward=rewardWithGuildProgressV108;}catch(_e){}
+  }
+
+  /* 원격 플레이어의 클라이언트에도 진행도를 반영해 HUD/의뢰 패널이 갱신되게 한다. */
+  const previousClientData=window.onClientData;
+  if(typeof previousClientData==='function'){
+    const clientDataWithGuildProgressV108=function(m){
+      if(m&&m.t==='guild_progress_v108'){
+        try{
+          if(typeof S!=='undefined'&&S&&S.players&&S.players[S.uid]){
+            const p=S.players[S.uid];
+            if(p.guildQuest&&String(p.guildQuest.active||'')===String(m.active||'')){
+              p.guildQuest.progress=Math.max(0,Math.floor(Number(m.progress)||0));
+              if(typeof updateHud==='function')updateHud();
+              if(typeof saveLocalAccountSnapshot==='function')saveLocalAccountSnapshot();
+              const panel=typeof $==='function'?$ ('overlayPanel'):null;
+              const title=typeof $==='function'?$ ('panelTitle'):null;
+              if(panel&&title&&panel.classList.contains('open')&&title.textContent.includes('길드')&&window.__rpgNpcApiV32&&typeof window.__rpgNpcApiV32.guild==='function')window.__rpgNpcApiV32.guild();
+            }
+          }
+        }catch(_e){}
+      }
+      return previousClientData.apply(this,arguments);
+    };
+    window.onClientData=clientDataWithGuildProgressV108;
+    try{onClientData=clientDataWithGuildProgressV108;}catch(_e){}
+  }
 })();
 </script>
 
