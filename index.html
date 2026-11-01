@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2a5fd1">
-<meta name="rpg-build-version" content="112">
+<meta name="rpg-build-version" content="113">
 <meta name="application-name" content="이모지 RPG">
 <meta name="apple-mobile-web-app-title" content="이모지 RPG">
 <meta name="description" content="이모지 RPG는 브라우저에서 바로 즐기는 한국어 온라인 RPG입니다. 이모지 캐릭터로 세계를 탐험하고 몬스터 전투, 퀘스트, 아이템 수집과 거래를 즐기며 P2P 멀티플레이로 친구와 함께 모험하세요.">
@@ -16325,4 +16325,367 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
+
+<script id="rpgV113OnboardingPatch">
+/* RPG v113: first-screen character naming + guided in-world onboarding */
+(function installRpgV113Onboarding(){
+  'use strict';
+  if(window.__RPG_V113_ONBOARDING__) return;
+  window.__RPG_V113_ONBOARDING__ = true;
+
+  const NAME_KEY = 'emoji-rpg-name-confirmed-v111';
+  const LEGACY_TUTORIAL_KEY = 'emoji-rpg-tutorial-v111';
+  const ONBOARD_KEY = 'emoji-rpg-onboarding-v113';
+  const $ = id => document.getElementById(id);
+  const safe = v => String(v == null ? '' : v);
+  const storage = {
+    get(k, fallback='') { try { return localStorage.getItem(k) ?? fallback; } catch (_) { return fallback; } },
+    set(k, v) { try { localStorage.setItem(k, v); return true; } catch (_) { return false; } }
+  };
+
+  const css = document.createElement('style');
+  css.id = 'rpgV113OnboardingStyle';
+  css.textContent = `
+    #rpgV113StartGate{position:fixed;inset:0;z-index:200000;display:grid;place-items:center;overflow:auto;overscroll-behavior:contain;padding:max(18px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:radial-gradient(ellipse at 50% 12%,rgba(70,116,177,.27),transparent 52%),linear-gradient(145deg,#0b1220 0%,#111d30 52%,#172438 100%);color:#f6f8fc;font-family:inherit}
+    #rpgV113StartGate *{box-sizing:border-box}
+    .rpgV113StartCard{width:min(460px,100%);padding:clamp(22px,5vw,34px);border:1px solid rgba(255,255,255,.14);border-radius:25px;background:linear-gradient(160deg,rgba(31,45,66,.96),rgba(17,27,42,.98));box-shadow:0 28px 90px rgba(0,0,0,.42);text-align:left}
+    .rpgV113Brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+    .rpgV113BrandIcon{width:52px;height:52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#5a9bd8,#4265a9);font-size:27px;box-shadow:0 9px 24px rgba(50,110,185,.28)}
+    .rpgV113Brand small{display:block;color:#9db5d1;font-size:10px;font-weight:800;letter-spacing:.16em}
+    .rpgV113Brand b{display:block;font-size:19px;letter-spacing:-.03em;margin-top:2px}
+    .rpgV113Eyebrow{color:#8eb9e6;font-size:11px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+    .rpgV113StartCard h2{margin:8px 0 9px;font-size:clamp(24px,6vw,31px);line-height:1.2;letter-spacing:-.045em}
+    .rpgV113StartDesc{margin:0 0 19px;color:#b6c4d5;font-size:13px;line-height:1.65}
+    .rpgV113AvatarPreview{display:flex;align-items:center;gap:12px;margin:0 0 17px;padding:12px;border:1px solid rgba(167,193,222,.16);border-radius:15px;background:rgba(7,16,28,.48)}
+    .rpgV113AvatarFigure{width:54px;height:54px;flex:0 0 54px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#283d58,#18283d);font-size:31px}
+    .rpgV113AvatarText small{display:block;color:#8faac8;font-size:9px;font-weight:900;letter-spacing:.13em}
+    .rpgV113AvatarText b{display:block;margin-top:3px;font-size:14px;overflow-wrap:anywhere}
+    .rpgV113AvatarText span{display:block;margin-top:3px;color:#91a7c2;font-size:10px}
+    .rpgV113AvatarLabel{margin:0 0 8px;color:#dbe7f5;font-size:11px;font-weight:900}
+    #rpgV113AvatarPicker{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-bottom:17px}
+    #rpgV113AvatarPicker button{min-width:0;min-height:43px;padding:5px;border:1px solid rgba(167,193,222,.18);border-radius:11px;background:rgba(8,17,29,.56);color:#fff;font-size:22px}
+    #rpgV113AvatarPicker button[aria-pressed="true"]{border-color:#8dc5ff;background:rgba(100,157,220,.23);box-shadow:0 0 0 2px rgba(141,197,255,.18)}
+    .rpgV113NameLabel{display:block;margin-bottom:8px;font-size:12px;color:#dbe7f5;font-weight:800}
+    #rpgV113NameInput{display:block;width:100%;height:52px;border-radius:13px;border:1px solid rgba(167,193,222,.3);outline:none;background:#0d1726;color:#fff;padding:0 15px;font:inherit;font-size:17px;letter-spacing:.01em;box-shadow:inset 0 1px 3px rgba(0,0,0,.2)}
+    #rpgV113NameInput:focus{border-color:#83baff;box-shadow:0 0 0 3px rgba(103,166,230,.2)}
+    .rpgV113NameMeta{display:flex;justify-content:space-between;gap:10px;margin:8px 1px 0;color:#8fa4bc;font-size:10px}
+    .rpgV113NameError{min-height:19px;margin:7px 1px 2px;color:#ff9b9b;font-size:12px}
+    #rpgV113StartButton{width:100%;min-height:51px;margin-top:9px;border:0;border-radius:13px;background:linear-gradient(100deg,#8dc5ff,#6ea3ef);color:#10243b;font:inherit;font-size:15px;font-weight:950;box-shadow:0 9px 24px rgba(70,136,210,.25);cursor:pointer}
+    #rpgV113StartButton:active{transform:translateY(1px)}
+    #rpgV113RecoverButton{display:block;width:100%;margin-top:15px;border:0;background:transparent;color:#9db5d1;font:inherit;font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:9px}
+    .rpgV113StartFoot{margin-top:13px;color:#748ba5;font-size:10px;line-height:1.55;text-align:center}
+    @media(max-width:520px){.rpgV113StartCard{border-radius:21px;padding:22px 18px}.rpgV113Brand{margin-bottom:18px}.rpgV113BrandIcon{width:47px;height:47px}#rpgV113AvatarPicker{grid-template-columns:repeat(4,minmax(0,1fr))}#rpgV113AvatarPicker button{min-height:40px}}
+
+    #rpgV113Tutorial{position:absolute;z-index:180;top:max(58px,calc(env(safe-area-inset-top) + 48px));left:50%;transform:translateX(-50%);width:min(470px,calc(100% - 20px));display:none;pointer-events:none;color:#f4f7fb}
+    #rpgV113Tutorial.show{display:block}
+    .rpgV113TutCard{pointer-events:auto;border:1px solid rgba(180,205,232,.2);border-radius:17px;background:linear-gradient(145deg,rgba(16,27,42,.96),rgba(24,38,57,.96));box-shadow:0 13px 38px rgba(0,0,0,.3);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:12px 14px}
+    .rpgV113TutTop{display:flex;align-items:center;gap:9px}
+    .rpgV113TutIcon{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:12px;background:rgba(122,174,226,.15);font-size:21px}
+    .rpgV113TutHead{min-width:0;flex:1}
+    .rpgV113TutEyebrow{font-size:9px;color:#8fb9e5;font-weight:900;letter-spacing:.12em}
+    .rpgV113TutTitle{font-size:14px;font-weight:950;line-height:1.25;margin-top:2px}
+    .rpgV113TutCount{color:#a6b8ce;font-size:10px;white-space:nowrap}
+    .rpgV113TutText{margin-top:9px;font-size:12px;line-height:1.55;color:#d2dcea;white-space:pre-line}
+    .rpgV113TutGoal{margin-top:9px;padding:8px 10px;border-radius:10px;background:rgba(128,177,224,.12);border:1px solid rgba(128,177,224,.16);font-size:11px;font-weight:850;line-height:1.45}
+    .rpgV113TutBottom{display:flex;align-items:center;gap:10px;margin-top:10px}
+    .rpgV113TutSegments{display:flex;gap:4px;flex:1}
+    .rpgV113TutSegments i{height:4px;flex:1;border-radius:9px;background:rgba(255,255,255,.15)}
+    .rpgV113TutSegments i.on{background:#8bc3ff}
+    #rpgV113TutSkip,#rpgV113TutDone{min-height:30px;padding:5px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#e6eef8;font:inherit;font-size:10px;font-weight:800;cursor:pointer}
+    #rpgV113TutDone{background:#8dc5ff;color:#10243b;border-color:transparent;padding:7px 15px;font-size:12px}
+    .rpgV113Target{position:relative!important;z-index:181!important;outline:3px solid #9bcaff!important;outline-offset:3px!important;box-shadow:0 0 0 7px rgba(116,180,246,.2),0 0 22px rgba(116,180,246,.65)!important;animation:rpgV113Pulse 1.1s ease-in-out infinite!important}
+    @keyframes rpgV113Pulse{50%{outline-offset:6px;filter:brightness(1.12)}}
+    @media(max-width:560px),(pointer:coarse){#rpgV113Tutorial{top:max(108px,calc(env(safe-area-inset-top) + 98px));width:calc(100% - 14px)}.rpgV113TutCard{padding:10px 11px}.rpgV113TutIcon{width:34px;height:34px;flex-basis:34px;font-size:19px}.rpgV113TutText{font-size:11px;margin-top:7px}.rpgV113TutGoal{font-size:10px;padding:7px 8px}}
+    @media(max-height:430px) and (orientation:landscape){#rpgV113Tutorial{top:max(76px,calc(env(safe-area-inset-top) + 66px));width:min(430px,calc(100% - 16px))}.rpgV113TutCard{padding:8px 10px}.rpgV113TutText{margin-top:5px;font-size:10px}.rpgV113TutGoal{margin-top:5px;padding:5px 7px}.rpgV113TutBottom{margin-top:6px}}
+    body.rpg-phone-ui #rpgV87PhoneToggle{z-index:190!important}
+    body.rpg-phone-ui #rpgV87PhoneMenu{z-index:191!important}
+    #rpgTutorialV111,#rpgTutorialV49,#rpgTutorialMarkerV49,#rpgTutorialV32{display:none!important}
+  `;
+  (document.head || document.documentElement).appendChild(css);
+
+  function readJson(key){try{return JSON.parse(storage.get(key,'')||'null');}catch(_){return null;}}
+  function saveProfile(){
+    try{localStorage.setItem('emoji-rpg-profile',JSON.stringify({n:S.name,e:S.emoji,fc:S.friendCode}));}catch(_){}
+  }
+  function hasChosenName(){
+    if(storage.get(NAME_KEY)==='1') return true;
+    if(S.accountSnapshot && safe(S.accountSnapshot.name).trim()) return true;
+    const profile=readJson('emoji-rpg-profile')||{};
+    const name=safe(profile.n).trim();
+    if(name && !/^사용자\d{3}$/.test(name)) return true;
+    if(/^ERPG[123]-/.test(storage.get('emoji-rpg-recovery-code'))) return true;
+    return false;
+  }
+  function showStartGate(){
+    if($('rpgV113StartGate')) return;
+    const gate=document.createElement('div');
+    gate.id='rpgV113StartGate';
+    gate.setAttribute('role','dialog');gate.setAttribute('aria-modal','true');gate.setAttribute('aria-labelledby','rpgV113StartTitle');
+    gate.innerHTML=`
+      <section class="rpgV113StartCard">
+        <div class="rpgV113Brand"><div class="rpgV113BrandIcon">🗡️</div><div><small>YOUR ADVENTURE STARTS HERE</small><b>이모지 RPG</b></div></div>
+        <div class="rpgV113Eyebrow">CHARACTER CREATION · 01</div>
+        <h2 id="rpgV113StartTitle">모험가를 만들어 보자.</h2>
+        <p class="rpgV113StartDesc">모험을 시작하기 전에 캐릭터의 이름과 모습을 정해 줘. 이 이름은 다른 모험가에게도 보여.</p>
+        <div class="rpgV113AvatarPreview"><div class="rpgV113AvatarFigure" id="rpgV113AvatarPreview">⚔️</div><div class="rpgV113AvatarText"><small>YOUR ADVENTURER</small><b id="rpgV113PreviewName">새 모험가</b><span>Lv.1 · 견습 모험가</span></div></div>
+        <div class="rpgV113AvatarLabel">캐릭터 모습</div>
+        <div id="rpgV113AvatarPicker" role="group" aria-label="캐릭터 모습 선택"></div>
+        <label class="rpgV113NameLabel" for="rpgV113NameInput">모험가 이름</label>
+        <input id="rpgV113NameInput" maxlength="10" type="text" autocomplete="nickname" autocapitalize="off" spellcheck="false" placeholder="예: 별빛검사">
+        <div class="rpgV113NameMeta"><span>한글·영문·숫자 추천 · 최대 10글자</span><span id="rpgV113NameCount">0 / 10</span></div>
+        <div class="rpgV113NameError" id="rpgV113NameError" aria-live="polite"></div>
+        <button id="rpgV113StartButton" type="button">이 이름으로 모험 시작</button>
+        <button id="rpgV113RecoverButton" type="button">이미 계정이 있어 · 복구하기</button>
+        <div class="rpgV113StartFoot">이름은 게임 안의 캐릭터 설정에서 나중에 변경할 수 있어.</div>
+      </section>`;
+    document.body.appendChild(gate);
+    const input=$('rpgV113NameInput'),count=$('rpgV113NameCount'),error=$('rpgV113NameError');
+    let selectedAvatar=EMOJIS.includes(S.emoji)?S.emoji:EMOJIS[0];
+    const avatarPicker=$('rpgV113AvatarPicker');
+    avatarPicker.innerHTML=EMOJIS.map(emoji=>'<button type="button" data-avatar="'+emoji+'" aria-label="'+emoji+' 캐릭터" aria-pressed="'+(emoji===selectedAvatar)+'">'+emoji+'</button>').join('');
+    const updatePreview=()=>{$('rpgV113AvatarPreview').textContent=selectedAvatar;$('rpgV113PreviewName').textContent=input.value.trim()||'새 모험가';};
+    avatarPicker.querySelectorAll('[data-avatar]').forEach(button=>button.addEventListener('click',()=>{selectedAvatar=button.dataset.avatar;avatarPicker.querySelectorAll('[data-avatar]').forEach(x=>x.setAttribute('aria-pressed',String(x===button)));updatePreview();}));
+    const updateCount=()=>{if(count)count.textContent=Array.from(input.value).length+' / 10';updatePreview();};
+    input.addEventListener('input',updateCount);
+    const submit=()=>{
+      const name=Array.from(safe(input.value).trim().replace(/[\r\n\t]/g,' ').replace(/\s+/g,' ')).slice(0,10).join('');
+      if(!name){error.textContent='이름을 한 글자 이상 입력해 줘.';input.focus();return;}
+      if(/[<>\u0000-\u001f]/.test(name)){error.textContent='이름에 사용할 수 없는 문자가 있어.';input.focus();return;}
+      S.name=name;
+      S.emoji=selectedAvatar;
+      saveProfile();
+      storage.set(NAME_KEY,'1');
+      if(S.players && S.players[S.uid]){S.players[S.uid].name=name;S.players[S.uid].emoji=selectedAvatar;}
+      gate.remove();
+      try{lobbyMsg('✨ '+name+' 모험가, 환영해! 방을 만들거나 공개 방에 참가해 봐.');}catch(_){}
+    };
+    $('rpgV113StartButton').addEventListener('click',submit);
+    input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submit();}});
+    $('rpgV113RecoverButton').addEventListener('click',()=>{
+      gate.remove();
+      const recovery=$('recoveryInput');
+      try{$('lobby').scrollIntoView({block:'start',behavior:'smooth'});}catch(_){}
+      setTimeout(()=>{try{recovery&&recovery.focus({preventScroll:false});}catch(_){recovery&&recovery.focus();}},120);
+    });
+    updateCount();
+    updatePreview();
+  }
+
+  /* 이름은 방 만들기/빠른 참가를 누른 뒤가 아니라 사이트 첫 화면에서 받는다. */
+  const askName=!!S._firstTimePlayer && !hasChosenName();
+  if(askName) showStartGate();
+  else if(hasChosenName()) storage.set(NAME_KEY,'1');
+
+  /* 기존 복구 함수는 성공했을 때 신규 플레이어 플래그를 확실히 해제한다. */
+  if(typeof window.recoverAccountFromInput==='function' && !window.__rpgV113RecoverWrapped){
+    window.__rpgV113RecoverWrapped=true;
+    const oldRecover=window.recoverAccountFromInput;
+    window.recoverAccountFromInput=function(){
+      const out=oldRecover.apply(this,arguments);
+      if(S.accountSnapshot && S.recoveryCode){S._firstTimePlayer=false;storage.set(NAME_KEY,'1');}
+      return out;
+    };
+  }
+
+  const tutorial={step:0,done:false,skipped:false,questOpened:false,pendingSkill:'',skillPendingAt:0};
+  let tutorialTimer=null,active=false,guideRestartTimer=null;
+  function onboardingStorageKey(){
+    const id=safe(S.friendCode||'guest').replace(/[^A-Z0-9]/gi,'').slice(0,12)||'guest';
+    return ONBOARD_KEY+'-'+id;
+  }
+  function loadTutorial(){
+    const saved=readJson(onboardingStorageKey()) || readJson(ONBOARD_KEY);
+    if(saved && typeof saved==='object') Object.assign(tutorial,saved);
+    tutorial.step=Math.max(0,Math.min(5,Math.floor(Number(tutorial.step)||0)));
+    tutorial.done=!!tutorial.done;tutorial.skipped=!!tutorial.skipped;
+    tutorial.questOpened=!!tutorial.questOpened;
+    tutorial.pendingSkill=safe(tutorial.pendingSkill);
+  }
+  function saveTutorial(){storage.set(onboardingStorageKey(),JSON.stringify(tutorial));}
+  function player(){return S.players && S.players[S.uid] || null;}
+  function panelOpen(){const panel=$('overlayPanel');return !!(panel&&panel.classList.contains('open'));}
+  function panelTitle(){return safe($('panelTitle')&&$('panelTitle').textContent);}
+  function questPanelOpen(){return panelOpen()&&panelTitle().includes('퀘스트');}
+  function teleportPanelOpen(){return panelOpen()&&panelTitle().includes('월드맵');}
+  function questInfo(){
+    const p=player(),q=p&&p.quest||{},d=(typeof QUESTS!=='undefined' && QUESTS[q.id]) || (typeof QUESTS!=='undefined' && QUESTS.slime_hunt) || {need:5};
+    const need=Math.max(1,Number(d.need)||5),progress=Math.max(0,Math.min(need,Number(q.progress)||0));
+    return {p,q,d,need,progress};
+  }
+  function skillChoice(){
+    const p=player();
+    if(!p)return null;
+    try{
+      const prof=typeof classProfile==='function'?classProfile(p):null;
+      const skills=prof&&Array.isArray(prof.skills)?prof.skills:[];
+      return skills.find(s=>s&&(s.buff||s.heal)) || skills[0] || null;
+    }catch(_){return null;}
+  }
+  function stepData(){
+    const {p,q,d,need,progress}=questInfo();
+    const skill=skillChoice();
+    const skillName=skill&&skill.name?skill.name:'사용 가능한 스킬';
+    return [
+      {icon:'📜',title:'초보자 임무 확인',text:'모험을 시작하기 전에 첫 임무를 확인하자. PC는 상단의 📜 퀘스트, 휴대폰은 ☰ 메뉴에서 📜 퀘스트를 눌러 줘.',goal:'📜 퀘스트 창 열기'},
+      {icon:'🌀',title:'첫 사냥터로 이동',text:questPanelOpen()?'첫 임무 내용을 확인했으면 퀘스트 창을 닫아 줘. 닫으면 월드맵 버튼을 안내할게.':teleportPanelOpen()?'월드맵에서 「바람초원」을 선택해 줘. 이동석이 멀리 있다고 나오면 마을 중앙의 🔷 이동석으로 걸어가면 돼.':'마을 중앙의 🔷 텔레포트석 옆에서 🗺️ 월드맵을 열어 바람초원으로 이동해 줘.',goal:questPanelOpen()?'퀘스트 창 닫기':teleportPanelOpen()?'🌿 바람초원 선택하기':'바람초원에 도착하기'},
+      {icon:'🦠',title:'슬라임 토벌',text:'첫 사냥이야! 바람초원에서 슬라임을 찾아 처치해 줘. PC는 스페이스 또는 ⚔️ 공격 버튼, 휴대폰은 화면의 ⚔️ 공격 버튼을 사용하면 돼.',goal:'슬라임 처치 '+progress+' / '+need+'마리',progress:progress/need},
+      {icon:'🎁',title:'퀘스트 보상 받기',text:questPanelOpen()?'초보자 임무의 「보상 받기」를 눌러 줘. 보상을 받으면 다음 단계로 넘어갈게.':'📜 퀘스트 창을 다시 열어 초보자 임무의 보상을 받아 줘.',goal:questPanelOpen()?'🎁 보상 받기 버튼 누르기':'퀘스트 창 열기'},
+      {icon:'✨',title:'직업 스킬 사용해 보기',text:'마지막 실습이야. 화면 아래 스킬 바에서 '+skillName+' 스킬을 한 번 사용해 봐. 공격 스킬은 몬스터가 사거리 안에 있을 때 눌러야 해.',goal:'스킬이 실제로 발동하기'},
+      {icon:'🏆',title:'기본 안내 완료!',text:'이동, 퀘스트, 사냥, 보상, 스킬까지 모두 익혔어. 이제부터는 네 방식대로 자유롭게 모험하면 돼!',goal:'이제 모험을 시작해 보자'}
+    ];
+  }
+  function ensureTutorialUi(){
+    const stage=$('stage');if(!stage||$('rpgV113Tutorial'))return;
+    const el=document.createElement('div');el.id='rpgV113Tutorial';
+    el.innerHTML=`<div class="rpgV113TutCard">
+      <div class="rpgV113TutTop"><div class="rpgV113TutIcon" id="rpgV113TutIcon">🧭</div><div class="rpgV113TutHead"><div class="rpgV113TutEyebrow">LUMINA ADVENTURE GUIDE</div><div class="rpgV113TutTitle" id="rpgV113TutTitle"></div></div><div class="rpgV113TutCount" id="rpgV113TutCount"></div></div>
+      <div class="rpgV113TutText" id="rpgV113TutText"></div>
+      <div class="rpgV113TutGoal" id="rpgV113TutGoal"></div>
+      <div class="rpgV113TutBottom"><div class="rpgV113TutSegments" id="rpgV113TutSegments"></div><button id="rpgV113TutSkip" type="button">건너뛰기</button><button id="rpgV113TutDone" type="button" hidden>모험 시작</button></div>
+    </div>`;
+    stage.appendChild(el);
+    $('rpgV113TutSkip').addEventListener('click',()=>finishTutorial(true));
+    $('rpgV113TutDone').addEventListener('click',()=>finishTutorial(false));
+  }
+  function clearTargets(){document.querySelectorAll('.rpgV113Target').forEach(e=>e.classList.remove('rpgV113Target'));}
+  function applyTargets(){
+    clearTargets();
+    const step=tutorial.step;
+    const add=el=>{if(el)el.classList.add('rpgV113Target');};
+    if(step===0 || step===3){
+      if(step===3&&questPanelOpen()){add($('questClaim'));}
+      else if(document.body.classList.contains('rpg-phone-ui')){
+        add($('rpgV87PhoneToggle'));
+        const menu=$('rpgV87PhoneMenu');
+        if(menu){const b=Array.from(menu.querySelectorAll('button')).find(x=>x.textContent.includes('퀘스트'));if(menu.classList.contains('open'))add(b);}
+      }else add($('btnQuest'));
+    }else if(step===1){
+      if(questPanelOpen())add($('btnClosePanel'));
+      else if(teleportPanelOpen()){
+        const field=$('panelBody')&&$('panelBody').querySelector('[data-map="field"]');
+        add(field);
+        if(!field)add($('btnClosePanel'));
+      }else if(document.body.classList.contains('rpg-phone-ui')){
+        add($('rpgV87PhoneToggle'));
+        const menu=$('rpgV87PhoneMenu');
+        if(menu){const b=Array.from(menu.querySelectorAll('button')).find(x=>x.textContent.includes('월드맵'));if(menu.classList.contains('open'))add(b);}
+      }else add($('btnMap'));
+    }else if(step===4){
+      const chosen=skillChoice();
+      if(chosen){const el=document.querySelector('#skillBarV29 [data-skill="'+CSS.escape(chosen.id)+'"]');add(el);}
+      else add($('skillBarV29'));
+    }
+  }
+  function renderTutorial(){
+    ensureTutorialUi();const el=$('rpgV113Tutorial');if(!el)return;
+    const data=stepData(),s=data[Math.min(tutorial.step,5)];
+    if(!s)return;
+    el.classList.add('show');
+    $('rpgV113TutIcon').textContent=s.icon;$('rpgV113TutTitle').textContent=s.title;
+    $('rpgV113TutCount').textContent=tutorial.step<5?(tutorial.step+1)+' / 5':'완료';
+    $('rpgV113TutText').textContent=s.text;$('rpgV113TutGoal').textContent=s.goal;
+    if(tutorial.step===2){const pct=Math.round((s.progress||0)*100);$('rpgV113TutGoal').textContent=s.goal+' · '+pct+'%';}
+    $('rpgV113TutSegments').innerHTML=Array.from({length:5},(_,i)=>'<i class="'+(i<tutorial.step?'on':'')+'"></i>').join('');
+    $('rpgV113TutSkip').hidden=tutorial.step>=5;$('rpgV113TutDone').hidden=tutorial.step<5;
+    applyTargets();
+  }
+  function hideTutorial(){
+    active=false;const el=$('rpgV113Tutorial');if(el)el.classList.remove('show');
+    clearTargets();if(tutorialTimer){clearInterval(tutorialTimer);tutorialTimer=null;}
+  }
+  function finishTutorial(skipped){
+    tutorial.done=true;tutorial.skipped=!!skipped;saveTutorial();hideTutorial();
+    try{log(skipped?'🧭 튜토리얼을 건너뛰었어. 게임 도움말에서 다시 시작할 수 있어.':'🎉 기본 튜토리얼 완료! 루미나 월드에서 자유롭게 모험해 봐.');}catch(_){}
+  }
+  function advance(step){
+    tutorial.step=Math.max(0,Math.min(5,step));saveTutorial();renderTutorial();
+    try{if(typeof playSound==='function')playSound('quest');}catch(_){}
+  }
+  function reconcileProgress(){
+    const {p,q,need,progress}=questInfo();if(!p)return;
+    if(tutorial.step>=1){
+      if(q.claimed && tutorial.step<4){tutorial.step=4;saveTutorial();}
+      else if(progress>=need && tutorial.step<3){tutorial.step=3;saveTutorial();}
+    }
+    if(tutorial.step===1 && String(p.map)==='field')advance(2);
+    if(tutorial.step===2 && progress>=need)advance(3);
+    if(tutorial.step===3 && !!q.claimed)advance(4);
+    if(tutorial.step===4 && tutorial.pendingSkill){
+      const cooldown=Number(p._skillCd&&p._skillCd[tutorial.pendingSkill]||0);
+      if(cooldown>tutorial.skillPendingAt){tutorial.pendingSkill='';tutorial.skillPendingAt=0;advance(5);}
+    }
+  }
+  function tickTutorial(){
+    if(!active||!S.started)return;
+    reconcileProgress();
+    if(active)renderTutorial();
+  }
+  function startTutorial(manual){
+    loadTutorial();
+    if(manual){Object.assign(tutorial,{step:0,done:false,skipped:false,questOpened:false,pendingSkill:'',skillPendingAt:0});}
+    else if(tutorial.done||tutorial.skipped)return;
+    active=true;
+    try{if(typeof closePanel==='function')closePanel();}catch(_){}
+    reconcileProgress();renderTutorial();saveTutorial();
+    if(!tutorialTimer) tutorialTimer=setInterval(tickTutorial,250);
+    try{log(manual?'🧭 초보 모험 안내를 다시 시작할게.':'🧭 루미나 초보 모험 안내를 시작할게.');}catch(_){}
+  }
+
+  /* 튜토리얼 이벤트는 실제 게임 UI 조작과 서버 응답을 기준으로 진행한다. */
+  document.addEventListener('click',e=>{
+    const t=e.target;
+    if(!active)return;
+    if(t && t.closest){
+      const questTap=t.closest('#btnQuest') || (t.closest('#rpgV87PhoneMenu button') && t.closest('#rpgV87PhoneMenu button').textContent.includes('퀘스트'));
+      if(questTap && tutorial.step===0){
+        setTimeout(()=>{if(active&&tutorial.step===0&&$('overlayPanel')?.classList.contains('open')&&safe($('panelTitle')?.textContent).includes('퀘스트')){tutorial.questOpened=true;advance(1);}},120);
+      }
+      if(tutorial.step===4){
+        const skill=t.closest('#skillBarV29 [data-skill]');
+        if(skill && !skill.disabled){tutorial.pendingSkill=safe(skill.dataset.skill);tutorial.skillPendingAt=Date.now();saveTutorial();}
+      }
+    }
+  },true);
+
+  /* 기존 튜토리얼 자동 실행을 멈추고 v113 안내로 교체한다. */
+  const oldEnterGame=window.enterGame;
+  if(typeof oldEnterGame==='function'&&!window.__rpgV113EnterWrapped){
+    window.__rpgV113EnterWrapped=true;
+    window.enterGame=function(){
+      const first=!!S._firstTimePlayer && !S.accountSnapshot;
+      storage.set(LEGACY_TUTORIAL_KEY,JSON.stringify({step:0,done:true,dismissed:true}));
+      const out=oldEnterGame.apply(this,arguments);
+      loadTutorial();
+      if((first || (!tutorial.done&&!tutorial.skipped)) && !tutorial.done&&!tutorial.skipped){
+        if(!S._rpgV113TutorialQueued){S._rpgV113TutorialQueued=true;setTimeout(()=>{S._rpgV113TutorialQueued=false;if(S.started)startTutorial(false);},650);}
+      }
+      return out;
+    };
+  }
+
+  /* 도움말에서도 새 튜토리얼을 다시 시작할 수 있게 한다. */
+  function addRestartButton(){
+    const body=$('panelBody');if(!body)return;
+    const old1=$('tutorialRestartV111'),old2=$('tutorialRestartV49');
+    if(old1)old1.style.display='none';if(old2)old2.style.display='none';
+    let b=$('tutorialRestartV113');
+    if(!b){b=document.createElement('button');b.id='tutorialRestartV113';b.type='button';b.textContent='🧭 초보 모험 안내 다시 시작';b.style.cssText='width:100%;margin-top:9px';body.appendChild(b);}
+    b.onclick=()=>{try{closePanel();}catch(_){}startTutorial(true);};
+  }
+  if(typeof window.renderGuide==='function'&&!window.__rpgV113GuideWrapped){
+    window.__rpgV113GuideWrapped=true;
+    const oldGuide=window.renderGuide;
+    window.renderGuide=function(){const out=oldGuide.apply(this,arguments);if(guideRestartTimer)clearTimeout(guideRestartTimer);guideRestartTimer=setTimeout(addRestartButton,180);return out;};
+  }
+  document.addEventListener('click',e=>{if(e.target&&e.target.closest&&e.target.closest('#btnGuide'))setTimeout(addRestartButton,240);},true);
+
+  /* v113은 모바일에서도 같은 이름 첫 화면과 짧은 안내를 그대로 사용한다. */
+  document.documentElement.dataset.rpgBuild='113';
+  const meta=document.querySelector('meta[name="rpg-build-version"]');if(meta)meta.content='113';
+  window.__RPG_BUILD_VERSION__='113';
+  window.__rpgV113TutorialStart=()=>startTutorial(true);
+  window.__rpgV113TutorialState=()=>({...tutorial,active});
+})();
+
+</script>
 </html>
