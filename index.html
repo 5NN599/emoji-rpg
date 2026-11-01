@@ -16327,7 +16327,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 
 
 <script id="rpgV113OnboardingPatch">
-/* RPG v113: first-screen character naming + guided in-world onboarding */
+/* RPG v114: job-bound character appearance + first-screen name entry + guided onboarding */
 (function installRpgV113Onboarding(){
   'use strict';
   if(window.__RPG_V113_ONBOARDING__) return;
@@ -16361,10 +16361,6 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     .rpgV113AvatarText small{display:block;color:#8faac8;font-size:9px;font-weight:900;letter-spacing:.13em}
     .rpgV113AvatarText b{display:block;margin-top:3px;font-size:14px;overflow-wrap:anywhere}
     .rpgV113AvatarText span{display:block;margin-top:3px;color:#91a7c2;font-size:10px}
-    .rpgV113AvatarLabel{margin:0 0 8px;color:#dbe7f5;font-size:11px;font-weight:900}
-    #rpgV113AvatarPicker{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-bottom:17px}
-    #rpgV113AvatarPicker button{min-width:0;min-height:43px;padding:5px;border:1px solid rgba(167,193,222,.18);border-radius:11px;background:rgba(8,17,29,.56);color:#fff;font-size:22px}
-    #rpgV113AvatarPicker button[aria-pressed="true"]{border-color:#8dc5ff;background:rgba(100,157,220,.23);box-shadow:0 0 0 2px rgba(141,197,255,.18)}
     .rpgV113NameLabel{display:block;margin-bottom:8px;font-size:12px;color:#dbe7f5;font-weight:800}
     #rpgV113NameInput{display:block;width:100%;height:52px;border-radius:13px;border:1px solid rgba(167,193,222,.3);outline:none;background:#0d1726;color:#fff;padding:0 15px;font:inherit;font-size:17px;letter-spacing:.01em;box-shadow:inset 0 1px 3px rgba(0,0,0,.2)}
     #rpgV113NameInput:focus{border-color:#83baff;box-shadow:0 0 0 3px rgba(103,166,230,.2)}
@@ -16374,7 +16370,7 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
     #rpgV113StartButton:active{transform:translateY(1px)}
     #rpgV113RecoverButton{display:block;width:100%;margin-top:15px;border:0;background:transparent;color:#9db5d1;font:inherit;font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:9px}
     .rpgV113StartFoot{margin-top:13px;color:#748ba5;font-size:10px;line-height:1.55;text-align:center}
-    @media(max-width:520px){.rpgV113StartCard{border-radius:21px;padding:22px 18px}.rpgV113Brand{margin-bottom:18px}.rpgV113BrandIcon{width:47px;height:47px}#rpgV113AvatarPicker{grid-template-columns:repeat(4,minmax(0,1fr))}#rpgV113AvatarPicker button{min-height:40px}}
+    @media(max-width:520px){.rpgV113StartCard{border-radius:21px;padding:22px 18px}.rpgV113Brand{margin-bottom:18px}.rpgV113BrandIcon{width:47px;height:47px}}
 
     #rpgV113Tutorial{position:absolute;z-index:180;top:max(58px,calc(env(safe-area-inset-top) + 48px));left:50%;transform:translateX(-50%);width:min(470px,calc(100% - 20px));display:none;pointer-events:none;color:#f4f7fb}
     #rpgV113Tutorial.show{display:block}
@@ -16426,10 +16422,8 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
         <div class="rpgV113Brand"><div class="rpgV113BrandIcon">🗡️</div><div><small>YOUR ADVENTURE STARTS HERE</small><b>이모지 RPG</b></div></div>
         <div class="rpgV113Eyebrow">CHARACTER CREATION · 01</div>
         <h2 id="rpgV113StartTitle">모험가를 만들어 보자.</h2>
-        <p class="rpgV113StartDesc">모험을 시작하기 전에 캐릭터의 이름과 모습을 정해 줘. 이 이름은 다른 모험가에게도 보여.</p>
-        <div class="rpgV113AvatarPreview"><div class="rpgV113AvatarFigure" id="rpgV113AvatarPreview">⚔️</div><div class="rpgV113AvatarText"><small>YOUR ADVENTURER</small><b id="rpgV113PreviewName">새 모험가</b><span>Lv.1 · 견습 모험가</span></div></div>
-        <div class="rpgV113AvatarLabel">캐릭터 모습</div>
-        <div id="rpgV113AvatarPicker" role="group" aria-label="캐릭터 모습 선택"></div>
+        <p class="rpgV113StartDesc">모험가의 이름을 정해 줘. 캐릭터 모습과 전투 방식은 직업에 따라 자동으로 결정돼.</p>
+        <div class="rpgV113AvatarPreview"><div class="rpgV113AvatarFigure" id="rpgV113AvatarPreview">🧑</div><div class="rpgV113AvatarText"><small>STARTING CLASS</small><b id="rpgV113PreviewName">새 모험가</b><span id="rpgV114JobPreview">🧑 견습 모험가 · Lv.10에 첫 전직 가능</span></div></div>
         <label class="rpgV113NameLabel" for="rpgV113NameInput">모험가 이름</label>
         <input id="rpgV113NameInput" maxlength="10" type="text" autocomplete="nickname" autocapitalize="off" spellcheck="false" placeholder="예: 별빛검사">
         <div class="rpgV113NameMeta"><span>한글·영문·숫자 추천 · 최대 10글자</span><span id="rpgV113NameCount">0 / 10</span></div>
@@ -16440,11 +16434,12 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       </section>`;
     document.body.appendChild(gate);
     const input=$('rpgV113NameInput'),count=$('rpgV113NameCount'),error=$('rpgV113NameError');
-    let selectedAvatar=EMOJIS.includes(S.emoji)?S.emoji:EMOJIS[0];
-    const avatarPicker=$('rpgV113AvatarPicker');
-    avatarPicker.innerHTML=EMOJIS.map(emoji=>'<button type="button" data-avatar="'+emoji+'" aria-label="'+emoji+' 캐릭터" aria-pressed="'+(emoji===selectedAvatar)+'">'+emoji+'</button>').join('');
-    const updatePreview=()=>{$('rpgV113AvatarPreview').textContent=selectedAvatar;$('rpgV113PreviewName').textContent=input.value.trim()||'새 모험가';};
-    avatarPicker.querySelectorAll('[data-avatar]').forEach(button=>button.addEventListener('click',()=>{selectedAvatar=button.dataset.avatar;avatarPicker.querySelectorAll('[data-avatar]').forEach(x=>x.setAttribute('aria-pressed',String(x===button)));updatePreview();}));
+    /* 시작 화면의 캐릭터 표시는 기존 직업 시스템의 견습 모험가 외형을 사용한다.
+       이모지는 여기서 선택/변경하지 않는다. 전직 때 jobData()가 외형을 자동 갱신한다. */
+    const noviceJob=(typeof JOB_BY_CODE!=='undefined'&&JOB_BY_CODE.novice)?JOB_BY_CODE.novice:{name:'견습 모험가',icon:'🧑'};
+    $('rpgV113AvatarPreview').textContent=noviceJob.icon||'🧑';
+    $('rpgV114JobPreview').textContent=(noviceJob.icon||'🧑')+' '+(noviceJob.name||'견습 모험가')+' · Lv.10에 첫 전직 가능';
+    const updatePreview=()=>{$('rpgV113PreviewName').textContent=input.value.trim()||'새 모험가';};
     const updateCount=()=>{if(count)count.textContent=Array.from(input.value).length+' / 10';updatePreview();};
     input.addEventListener('input',updateCount);
     const submit=()=>{
@@ -16452,10 +16447,14 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
       if(!name){error.textContent='이름을 한 글자 이상 입력해 줘.';input.focus();return;}
       if(/[<>\u0000-\u001f]/.test(name)){error.textContent='이름에 사용할 수 없는 문자가 있어.';input.focus();return;}
       S.name=name;
-      S.emoji=selectedAvatar;
+      /* 이름만 저장한다. 외형/이모지는 기존 jobData()와 syncJobAppearance()가 관리한다. */
+      if(S.players && S.players[S.uid]){
+        S.players[S.uid].name=name;
+        try{if(typeof jobData==='function')jobData(S.players[S.uid]);}catch(_){}
+        try{if(typeof syncJobAppearance==='function')syncJobAppearance(S.players[S.uid]);}catch(_){}
+      }
       saveProfile();
       storage.set(NAME_KEY,'1');
-      if(S.players && S.players[S.uid]){S.players[S.uid].name=name;S.players[S.uid].emoji=selectedAvatar;}
       gate.remove();
       try{lobbyMsg('✨ '+name+' 모험가, 환영해! 방을 만들거나 공개 방에 참가해 봐.');}catch(_){}
     };
@@ -16680,9 +16679,9 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   document.addEventListener('click',e=>{if(e.target&&e.target.closest&&e.target.closest('#btnGuide'))setTimeout(addRestartButton,240);},true);
 
   /* v113은 모바일에서도 같은 이름 첫 화면과 짧은 안내를 그대로 사용한다. */
-  document.documentElement.dataset.rpgBuild='113';
-  const meta=document.querySelector('meta[name="rpg-build-version"]');if(meta)meta.content='113';
-  window.__RPG_BUILD_VERSION__='113';
+  document.documentElement.dataset.rpgBuild='114';
+  const meta=document.querySelector('meta[name="rpg-build-version"]');if(meta)meta.content='114';
+  window.__RPG_BUILD_VERSION__='114';
   window.__rpgV113TutorialStart=()=>startTutorial(true);
   window.__rpgV113TutorialState=()=>({...tutorial,active});
 })();
