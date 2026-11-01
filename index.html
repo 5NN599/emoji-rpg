@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2a5fd1">
-<meta name="rpg-build-version" content="113">
+<meta name="rpg-build-version" content="115">
 <meta name="application-name" content="이모지 RPG">
 <meta name="apple-mobile-web-app-title" content="이모지 RPG">
 <meta name="description" content="이모지 RPG는 브라우저에서 바로 즐기는 한국어 온라인 RPG입니다. 이모지 캐릭터로 세계를 탐험하고 몬스터 전투, 퀘스트, 아이템 수집과 거래를 즐기며 P2P 멀티플레이로 친구와 함께 모험하세요.">
@@ -17102,9 +17102,9 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
   document.addEventListener('click',e=>{if(e.target&&e.target.closest&&e.target.closest('#btnGuide'))setTimeout(addRestartButton,240);},true);
 
   /* v113은 모바일에서도 같은 이름 첫 화면과 짧은 안내를 그대로 사용한다. */
-  document.documentElement.dataset.rpgBuild='114';
-  const meta=document.querySelector('meta[name="rpg-build-version"]');if(meta)meta.content='114';
-  window.__RPG_BUILD_VERSION__='114';
+  document.documentElement.dataset.rpgBuild='115';
+  const meta=document.querySelector('meta[name="rpg-build-version"]');if(meta)meta.content='115';
+  window.__RPG_BUILD_VERSION__='115';
   window.__rpgV113TutorialStart=()=>startTutorial(true);
   window.__rpgV113TutorialState=()=>({...tutorial,active});
 })();
