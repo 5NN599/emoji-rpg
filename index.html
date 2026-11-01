@@ -9341,6 +9341,429 @@ PC에서는 E 또는 NPC 메뉴, 스마트폰에서는 대화 버튼으로 말�
 })();
 </script>
 
+
+<script>
+/* Emoji RPG v115: keyboard accessibility, monster encyclopedia and visual polish */
+(function installEmojiRpgV115(){
+  'use strict';
+  if(window.__RPG_V115_INSTALLED__) return;
+  window.__RPG_V115_INSTALLED__ = true;
+  const $ = id => document.getElementById(id);
+  const esc = value => typeof escapeHtml === 'function' ? escapeHtml(String(value ?? '')) : String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const safeCall = fn => { try { return fn(); } catch (_) { return undefined; } };
+
+  /* ---------------- Keyboard / accessibility ---------------- */
+  const KEY_STYLE = document.createElement('style');
+  KEY_STYLE.id = 'rpgV115KeyboardStyle';
+  KEY_STYLE.textContent = `
+    button:focus-visible,[role="button"]:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+      outline:3px solid #ffd166!important;outline-offset:3px!important;position:relative;z-index:2
+    }
+    #menu button,#rpgV87PhoneMenu button,#pad button,#overlayPanel button{touch-action:manipulation}
+    #btnDex{border-color:color-mix(in srgb,#8ec5ff 55%,var(--line));}
+    .rpgV115KeyHint{font-size:10px;line-height:1.55;color:var(--sub);padding:8px 10px;border:1px dashed var(--line);border-radius:10px;background:color-mix(in srgb,var(--tile2) 40%,transparent)}
+    .rpgV115DexHero{padding:14px;border-radius:15px;border:1px solid color-mix(in srgb,#8dbfff 35%,var(--line));background:radial-gradient(circle at 90% 0%,rgba(100,160,240,.2),transparent 45%),linear-gradient(135deg,color-mix(in srgb,var(--card) 96%,#183c62),var(--bg));}
+    .rpgV115DexHeroTop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .rpgV115DexHeroTitle{font-size:17px;font-weight:950;letter-spacing:-.03em}
+    .rpgV115DexHeroSub{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.5}
+    .rpgV115DexCount{font-size:20px;font-weight:950;white-space:nowrap;color:var(--acc)}
+    .rpgV115DexTrack{height:8px;border-radius:99px;background:color-mix(in srgb,var(--line) 70%,transparent);overflow:hidden;margin-top:11px}
+    .rpgV115DexTrack i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#62b7ff,#8ce1bb);transition:width .25s ease}
+    .rpgV115DexTools{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.55fr);gap:7px;margin:10px 0}
+    .rpgV115DexTools input,.rpgV115DexTools select{min-width:0;width:100%;box-sizing:border-box;min-height:39px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);padding:7px 9px;font:inherit;font-size:12px}
+    .rpgV115DexGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .rpgV115DexCard{position:relative;display:grid;grid-template-columns:43px minmax(0,1fr);align-items:center;gap:9px;text-align:left;min-width:0;min-height:82px;padding:10px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,var(--card),var(--bg));color:var(--fg);cursor:pointer}
+    .rpgV115DexCard:active{transform:scale(.985)}
+    .rpgV115DexCard.selected{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 20%,transparent) inset}
+    .rpgV115DexCard.boss{border-color:color-mix(in srgb,#e7b95a 50%,var(--line));background:linear-gradient(145deg,color-mix(in srgb,#9b7135 13%,var(--card)),var(--bg))}
+    .rpgV115DexIcon{width:42px;height:42px;display:grid;place-items:center;border-radius:11px;background:color-mix(in srgb,var(--tile2) 76%,transparent);font-size:27px}
+    .rpgV115DexIcon.unknown{filter:grayscale(1);opacity:.64;font-size:25px}
+    .rpgV115DexName{display:block;font-size:12px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rpgV115DexMeta{display:block;margin-top:4px;font-size:9px;line-height:1.4;color:var(--sub)}
+    .rpgV115DexBadge{display:inline-block;margin-top:5px;border-radius:99px;padding:2px 6px;font-size:8px;font-weight:900;background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--acc)}
+    .rpgV115DexBadge.boss{background:rgba(219,167,63,.16);color:#d6a944}
+    .rpgV115DexDetail{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:13px;background:color-mix(in srgb,var(--card) 95%,var(--bg))}
+    .rpgV115DexDetailHead{display:flex;align-items:center;gap:12px}
+    .rpgV115DexDetailIcon{width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,color-mix(in srgb,var(--acc) 19%,var(--bg)),var(--bg));font-size:36px}
+    .rpgV115DexDetailHead b{font-size:15px}
+    .rpgV115DexDetailHead small{display:block;color:var(--sub);font-size:10px;margin-top:4px;line-height:1.45}
+    .rpgV115DexStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:10px}
+    .rpgV115DexStat{padding:8px 4px;text-align:center;border:1px solid var(--line);border-radius:9px;background:var(--bg);font-size:9px;color:var(--sub)}
+    .rpgV115DexStat b{display:block;color:var(--fg);font-size:13px;margin-bottom:2px}
+    .rpgV115DexLore{font-size:11px;line-height:1.65;color:var(--sub);margin-top:10px}
+    .rpgV115DexInfo{margin-top:8px;padding:8px 9px;border-radius:9px;background:color-mix(in srgb,var(--tile2) 62%,transparent);font-size:10px;line-height:1.6}
+    .rpgV115Toast{position:fixed;z-index:250000;left:50%;top:max(14px,env(safe-area-inset-top));transform:translateX(-50%) translateY(-10px) scale(.97);opacity:0;pointer-events:none;min-width:min(260px,calc(100vw - 34px));max-width:calc(100vw - 34px);padding:11px 15px;border:1px solid rgba(180,210,245,.32);border-radius:14px;background:linear-gradient(135deg,rgba(18,31,49,.97),rgba(32,48,68,.97));box-shadow:0 12px 36px rgba(0,0,0,.35);color:#f4f8ff;text-align:center;transition:opacity .18s ease,transform .18s ease}
+    .rpgV115Toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+    .rpgV115Toast b{display:block;font-size:14px}.rpgV115Toast small{display:block;margin-top:3px;color:#b9cbe0;font-size:10px}
+    @media(max-width:520px){.rpgV115DexGrid{grid-template-columns:1fr}.rpgV115DexStats{grid-template-columns:repeat(2,minmax(0,1fr))}.rpgV115DexTools{grid-template-columns:1fr}.rpgV115DexCard{min-height:72px}}
+    @media(prefers-reduced-motion:reduce){.rpgV115DexTrack i,.rpgV115Toast{transition:none!important}.rpgV115DexCard:active{transform:none}}
+  `;
+  document.head.appendChild(KEY_STYLE);
+
+  const isTyping = el => {
+    if(!el)return false;
+    const tag=String(el.tagName||'').toUpperCase();
+    return tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||!!el.isContentEditable;
+  };
+  const isActionable = el => !!(el&&el.matches&&el.matches('button:not(:disabled),a[href],[role="button"],input:not(:disabled),select:not(:disabled),textarea:not(:disabled)'));
+  function visibleFocusable(scope){
+    return Array.from((scope||document).querySelectorAll('button:not(:disabled),a[href],[role="button"],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])'))
+      .filter(el=>!el.hidden&&el.getAttribute('aria-hidden')!=='true'&&el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden');
+  }
+  function focusDirectional(current,key){
+    const scope=current.closest('#rpgV87PhoneMenu,#overlayPanel,#menu,#pad,#lobby,.rpgV115DexGrid,.rpgV115DexTools')||document;
+    const list=visibleFocusable(scope).filter(el=>el!==current);
+    if(!list.length)return false;
+    const a=current.getBoundingClientRect(),ax=a.left+a.width/2,ay=a.top+a.height/2;
+    const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]},d=dirs[key];
+    let best=null,bestScore=Infinity;
+    for(const el of list){
+      const r=el.getBoundingClientRect(),dx=r.left+r.width/2-ax,dy=r.top+r.height/2-ay;
+      const primary=dx*d[0]+dy*d[1],cross=Math.abs(dx*d[1]-dy*d[0]);
+      if(primary<=2)continue;
+      const score=primary+cross*1.7+(cross*cross)/(primary+1)*.15;
+      if(score<bestScore){bestScore=score;best=el;}
+    }
+    if(!best){
+      const all=visibleFocusable(scope),i=all.indexOf(current);best=all[(i+1)%all.length]||null;
+    }
+    if(best){best.focus({preventScroll:true});return true;}
+    return false;
+  }
+  function ensureDexButton(){
+    const menu=$('menu'),quest=$('btnQuest');
+    if(menu&&!$('btnDex')){
+      const b=document.createElement('button');b.id='btnDex';b.type='button';b.textContent='📖 도감';b.title='몬스터 도감 · N';b.setAttribute('aria-label','몬스터 도감 (N)');
+      if(quest&&quest.parentNode===menu)quest.insertAdjacentElement('afterend',b);else menu.appendChild(b);
+    }
+    const phone=$('rpgV87PhoneMenu');
+    if(phone&&!phone.querySelector('[data-v115-dex]')){
+      const b=document.createElement('button');b.type='button';b.dataset.v115Dex='1';b.textContent='📖 몬스터 도감';b.title='몬스터 도감 · N';
+      const q=Array.from(phone.querySelectorAll('button')).find(x=>x.textContent.includes('퀘스트'));
+      if(q)q.insertAdjacentElement('afterend',b);else phone.appendChild(b);
+      b.addEventListener('click',()=>{renderMonsterDex();phone.classList.remove('open');$('rpgV87PhoneToggle')?.setAttribute('aria-expanded','false');});
+    }
+    const dex=$('btnDex');if(dex)dex.onclick=renderMonsterDex;
+  }
+
+  let keyboardRouterInstalled=false;
+  function installKeyboardRouter(){
+    if(keyboardRouterInstalled)return;keyboardRouterInstalled=true;
+    window.addEventListener('keydown',e=>{
+      const target=e.target||document.activeElement;
+      if(isTyping(target))return;
+      const key=e.key;
+      if(isActionable(target)){
+        if(key.startsWith('Arrow')){
+          if(focusDirectional(target,key)){e.preventDefault();e.stopImmediatePropagation();}
+          else e.stopImmediatePropagation();
+          return;
+        }
+        if(key===' '||key==='Enter'){
+          /* Native controls keep browser activation; custom role=button elements need an explicit click. */
+          if(target.matches('[role="button"]')&&!target.matches('button')){
+            e.preventDefault();e.stopImmediatePropagation();target.click();
+          }else{
+            e.stopImmediatePropagation();
+          }
+          return;
+        }
+      }
+      if(key==='Escape'){
+        const modal=$('rpgV67Modal');
+        if(modal&&modal.classList.contains('open'))return;
+        const phone=$('rpgV87PhoneMenu');
+        if(phone&&phone.classList.contains('open')){phone.classList.remove('open');$('rpgV87PhoneToggle')?.setAttribute('aria-expanded','false');}
+        if($('overlayPanel')?.classList.contains('open'))safeCall(()=>closePanel());
+        e.preventDefault();e.stopImmediatePropagation();return;
+      }
+      if(!S.started)return;
+      const k=String(key||'').toLowerCase();
+      if(k==='n'){
+        e.preventDefault();e.stopImmediatePropagation();renderMonsterDex();return;
+      }
+      if(['1','2','3'].includes(k)){
+        const index=Number(k)-1;
+        const button=document.querySelectorAll('#skillBarV29 [data-skill]:not(:disabled)')[index];
+        if(button){e.preventDefault();e.stopImmediatePropagation();button.click();return;}
+      }
+    },true);
+    document.addEventListener('keydown',e=>{
+      const target=e.target;
+      if(target&&target.matches&&target.matches('[role="button"]')&&!target.matches('button')){
+        if(e.key==='Enter'||e.key===' '){e.preventDefault();target.click();}
+      }
+    },true);
+    document.addEventListener('keyup',e=>{
+      const target=e.target;
+      if(target&&target.matches&&target.matches('[role="button"]')&&!target.matches('button')&&e.key===' '){e.preventDefault();}
+    },true);
+    /* Dynamic panel buttons stay naturally keyboard-focusable and labelled. */
+    const observer=new MutationObserver(records=>{
+      for(const record of records)for(const node of record.addedNodes){
+        if(node.nodeType!==1)continue;
+        const selector='button,[role="button"],[onclick],[data-action]';
+        const all=[];if(node.matches?.(selector))all.push(node);all.push(...node.querySelectorAll?.(selector)||[]);
+        all.forEach(el=>{
+          if(el.hasAttribute('disabled')||el.closest('[hidden],[aria-hidden="true"]'))return;
+          const native=el.matches('button,a[href],input,select,textarea');
+          if(!native&&!el.hasAttribute('tabindex'))el.tabIndex=0;
+          if(!native&&!el.hasAttribute('role')&&(el.hasAttribute('onclick')||el.hasAttribute('data-action')))el.setAttribute('role','button');
+        });
+      }
+    });
+    observer.observe(document.body,{childList:true,subtree:true});
+  }
+  installKeyboardRouter();
+  const oldBindV115=typeof bindInput==='function'?bindInput:null;
+  if(oldBindV115&&!window.__rpgV115BindWrapped){
+    window.__rpgV115BindWrapped=true;
+    bindInput=function(){installKeyboardRouter();return oldBindV115.apply(this,arguments);};
+    try{window.bindInput=bindInput;}catch(_){}
+  }
+
+  /* ---------------- Monster encyclopedia ---------------- */
+  const DEX_META={
+    '🦠':{name:'초원 슬라임',rank:'일반',maps:['field','forest','dungeon'],style:'근접 · 도약',lore:'물기와 바람이 모이는 곳에 나타나는 말랑한 마물. 위협은 작지만 초보 모험가에게는 첫 전투 상대가 된다.'},
+    '👺':{name:'붉은 도깨비',rank:'일반',maps:['field','forest','dungeon','catacombs'],style:'근접 · 돌진',lore:'낡은 무기를 들고 사냥꾼을 쫓는 숲의 마물. 방심하면 빠르게 거리를 좁힌다.'},
+    '🐉':{name:'어린 화염룡',rank:'정예',maps:['field','dungeon','canyon','abyss'],style:'원거리 · 화염',lore:'아직 완전히 성장하지 않았지만 불꽃을 뿜는 용족. 거리를 두고 화염 공격을 시도한다.'},
+    '👹':{name:'광산 군주 모르그',rank:'보스',maps:['dungeon'],style:'보스 · 포효',lore:'잊힌 광산 심층을 지배하는 거대한 군주. 강력한 광역 공격과 높은 생명력을 지녔다.'},
+    '🐺':{name:'달빛숲 늑대',rank:'일반',maps:['forest','canyon'],style:'근접 · 추적',lore:'무리를 이루는 숲의 포식자. 사냥감을 발견하면 끈질기게 추적한다.'},
+    '🦇':{name:'핏빛 박쥐',rank:'일반',maps:['forest','canyon','catacombs','abyss'],style:'원거리 · 급습',lore:'어두운 동굴과 폐허에 서식한다. 짧은 간격으로 급습하며 모험가를 괴롭힌다.'},
+    '🪨':{name:'바위 골렘',rank:'정예',maps:['canyon','abyss'],style:'근접 · 강타',lore:'붉은 협곡의 바위가 생명을 얻은 존재. 움직임은 느리지만 한 번의 타격이 무겁다.'},
+    '🧟':{name:'광산 망자',rank:'정예',maps:['catacombs'],style:'근접 · 집요한 추격',lore:'오래전 광산에서 길을 잃은 망자. 고대 지하묘지의 기운에 이끌려 계속 움직인다.'},
+    '🦂':{name:'심연 독전갈',rank:'정예',maps:['abyss'],style:'원거리 · 독침',lore:'심연의 틈에서 나타나는 독성 마물. 독침을 이용해 안전한 거리에서 공격한다.'},
+    '💀':{name:'망령왕 아즈락',rank:'보스',maps:['catacombs'],style:'보스 · 망령의 포효',lore:'고대 지하묘지의 왕. 망령의 힘으로 침입자를 압도하며, 쓰러뜨리면 귀중한 유물을 남긴다.'},
+    '👿':{name:'심연군주 니르',rank:'보스',maps:['abyss'],style:'보스 · 심연의 숨결',lore:'심연의 둥지 가장 깊은 곳을 다스리는 군주. 강력한 숨결 공격으로 전장을 장악한다.'},
+    '🦉':{name:'달빛 수호자 루나',rank:'지역 보스',maps:['forest'],style:'지역 보스 · 달빛의 포효',lore:'달빛숲의 균형을 지키는 수호자. 숲의 정기를 모아 거대한 힘을 발휘한다.'},
+    '🗿':{name:'붉은 거신 가르',rank:'지역 보스',maps:['canyon'],style:'지역 보스 · 대지 강타',lore:'붉은 협곡의 고대 석상에 깃든 거신. 묵직한 강타로 넓은 전장을 흔든다.'}
+  };
+  const DEX_MAP_ORDER=['field','forest','canyon','dungeon','catacombs','abyss'];
+  let dexSelected=null;
+  let dexSearch='';
+  let dexFilter='all';
+  function bookKey(){
+    const p=S.players&&S.players[S.uid];
+    const fc=String(p&&p.friendCode||S.friendCode||'local').replace(/[^A-Z0-9]/gi,'').slice(0,12)||'local';
+    return 'emoji-rpg-monster-book-v115-'+fc;
+  }
+  function loadBook(){
+    if(S._rpgV115MonsterBook&&S._rpgV115MonsterBook.key===bookKey())return S._rpgV115MonsterBook.data;
+    let data={v:1,entries:{},totalKills:0,seen:[]};
+    try{const saved=JSON.parse(localStorage.getItem(bookKey())||'null');if(saved&&saved.v===1){data={...data,...saved,entries:saved.entries&&typeof saved.entries==='object'?saved.entries:{},seen:Array.isArray(saved.seen)?saved.seen:[]};}}catch(_){}
+    S._rpgV115MonsterBook={key:bookKey(),data};return data;
+  }
+  function saveBook(){const b=loadBook();try{localStorage.setItem(bookKey(),JSON.stringify(b));}catch(_){} }
+  function recordMonsterKill(ev){
+    if(!ev||String(ev.uid||'')!==String(S.uid||''))return;
+    const book=loadBook(),eid=String(ev.eid||'');
+    if(eid&&book.seen.includes(eid))return;
+    if(eid){book.seen.push(eid);if(book.seen.length>100)book.seen=book.seen.slice(-100);}
+    const icon=String(ev.monster||'');if(!MONS[icon])return;
+    const row=book.entries[icon]||(book.entries[icon]={kills:0,bossKills:0,eliteKills:0,lastMap:'',lastAt:0});
+    row.kills=Math.max(0,Number(row.kills)||0)+1;
+    if(ev.boss)row.bossKills=(Number(row.bossKills)||0)+1;
+    if(ev.elite)row.eliteKills=(Number(row.eliteKills)||0)+1;
+    row.lastMap=String(ev.map||'');row.lastAt=Number(ev.at)||Date.now();
+    book.totalKills=(Number(book.totalKills)||0)+1;
+    saveBook();
+    if($('overlayPanel')?.classList.contains('open')&&$('panelTitle')?.textContent.includes('몬스터 도감')){
+      setTimeout(()=>{if($('overlayPanel')?.classList.contains('open')&&$('panelTitle')?.textContent.includes('몬스터 도감'))renderMonsterDex();},0);
+    }
+  }
+
+  /* Broadcast wrapper: death_fx follows the lethal hit in the authoritative host event order. */
+  const originalBroadcastV115=window.broadcastEvent||broadcastEvent;
+  if(typeof originalBroadcastV115==='function'&&!window.__rpgV115BroadcastWrapped){
+    window.__rpgV115BroadcastWrapped=true;
+    function broadcastV115(ev){
+      if(ev&&ev.k==='hit'){
+        const attacker=S.players&&S.players[String(ev.id)];
+        const map=attacker&&attacker.map;
+        const monster=(S.mons||[]).find(m=>m&&m.hp<=0&&m.x===Number(ev.x)&&m.y===Number(ev.y)&&(!map||m.map===map));
+        if(monster)S._rpgV115LastLethal={uid:String(ev.id),id:monster.id,e:monster.e,x:Number(monster.x),y:Number(monster.y),map:String(monster.map||map||''),boss:!!monster.isBoss,elite:!!monster.isElite,at:Date.now()};
+      }
+      const result=originalBroadcastV115.apply(this,arguments);
+      if(ev&&ev.k==='death_fx'&&ev.kind==='monster'){
+        const h=S._rpgV115LastLethal;
+        if(h&&Date.now()-h.at<1800&&h.map===String(ev.map||h.map)&&h.x===Number(ev.x)&&h.y===Number(ev.y)){
+          /* Match the death against the exact lethal hit, not a nearby monster. */
+          if(String(h.e)===String(ev.icon||h.e)){
+            const dexEvent={t:'ev',k:'dex_kill',uid:h.uid,monster:h.e,map:h.map,boss:!!ev.boss||h.boss,elite:h.elite,eid:String(S.gen||0)+'-'+String(h.id)+'-'+String(h.at),at:Date.now()};
+            originalBroadcastV115.call(this,dexEvent);
+          }
+          S._rpgV115LastLethal=null;
+        }
+      }
+      return result;
+    }
+    window.broadcastEvent=broadcastV115;
+    try{broadcastEvent=broadcastV115;}catch(_){}
+  }
+  const oldHandleV115=window.handleEvent||handleEvent;
+  if(typeof oldHandleV115==='function'&&!window.__rpgV115HandleWrapped){
+    window.__rpgV115HandleWrapped=true;
+    function handleV115(ev){
+      if(ev&&ev.k==='dex_kill')recordMonsterKill(ev);
+      if(ev&&ev.k==='log'&&ev.s){
+        const msg=String(ev.s),name=String(S.name||'');
+        if(msg.includes('레벨업!')&&name&&msg.includes(name))showV115Toast('✨ LEVEL UP!','새로운 레벨에 도달했어.','level');
+        else if((msg.includes('보스')||msg.includes('군주'))&&msg.includes('쓰러뜨렸')&&name&&msg.includes(name))showV115Toast('🏆 BOSS DEFEATED','강력한 적을 쓰러뜨렸어!','boss');
+      }
+      return oldHandleV115.apply(this,arguments);
+    }
+    window.handleEvent=handleV115;
+    try{handleEvent=handleV115;}catch(_){}
+  }
+
+  const mapLabel=id=>{try{return typeof mapDef==='function'?mapDef(id).name:(RPG_MAPS[id]?.name||id);}catch(_){return id;}};
+  function monsterDropText(icon){
+    const d=MON_DROPS&&MON_DROPS[icon];if(!d)return '확인된 일반 드롭 없음';
+    const item=ITEMS[d.item];return item?(item.icon+' '+item.name+' · '+Math.round((Number(d.chance)||0)*100)+'%'):'일반 드롭 정보 없음';
+  }
+  function monsterMaps(icon){
+    const list=(DEX_META[icon]&&DEX_META[icon].maps)||[];
+    return list.map(mapLabel).join(' · ')||'기록된 출현 지역 없음';
+  }
+  function statHtml(label,value){return '<div class="rpgV115DexStat"><b>'+esc(value)+'</b>'+esc(label)+'</div>';}
+  function renderDexDetail(icon){
+    const box=$('rpgV115DexDetail');if(!box)return;
+    const def=MONS[icon],meta=DEX_META[icon]||{name:'미확인 몬스터',rank:def&&def.bossName?'보스':'몬스터',maps:[],style:'미확인',lore:'아직 조사 기록이 없어.'};
+    const row=loadBook().entries[icon],known=!!(row&&row.kills>0);
+    if(!known){box.innerHTML='<div class="rpgV115DexDetailHead"><div class="rpgV115DexDetailIcon">❔</div><div><b>미발견 몬스터</b><small>이 몬스터를 한 번 이상 처치하면 이름과 세부 정보가 해금돼.</small></div></div><div class="rpgV115DexLore">도감에 기록되지 않은 존재야. 출현 지역을 탐험하고 전투에서 승리해 정보를 밝혀내자.</div>';return;}
+    const boss=!!(def&&def.bossName),drop=monsterDropText(icon);
+    const stats=[statHtml('체력',Number(def&&def.hp)||0),statHtml('공격력',Number(def&&def.dmg)||0),statHtml('경험치',Number(def&&def.xp)||0),statHtml('골드',Number(def&&def.gold)||0)].join('');
+    const last=row.lastMap?mapLabel(row.lastMap):'기록 없음';
+    box.innerHTML='<div class="rpgV115DexDetailHead"><div class="rpgV115DexDetailIcon">'+esc(icon)+'</div><div><b>'+esc(meta.name)+'</b><small>'+esc(meta.rank)+(boss?' · '+esc(def.bossName):'')+'<br>'+esc(meta.style)+'</small></div></div>'+ (boss?'<div class="rpgV115DexBadge boss">👑 보스 몬스터</div>':'') +'<div class="rpgV115DexStats">'+stats+'</div><div class="rpgV115DexInfo"><b>🗺️ 출현 지역</b><br>'+esc(monsterMaps(icon))+'<br><b>📦 주요 드롭</b><br>'+esc(drop)+'<br><b>📍 마지막 발견</b> · '+esc(last)+'</div><div class="rpgV115DexLore">'+esc(meta.lore)+'</div><div class="rpgV115DexInfo">처치 '+(Number(row.kills)||0)+'회 · 정예 '+(Number(row.eliteKills)||0)+'회 · 보스 '+(Number(row.bossKills)||0)+'회</div>';
+  }
+  function renderDexEntries(){
+    const grid=$('rpgV115DexGrid');if(!grid)return;
+    const book=loadBook(),query=dexSearch.trim().toLowerCase();
+    const icons=Object.keys(MONS).filter(icon=>{
+      const meta=DEX_META[icon]||{},row=book.entries[icon],known=!!(row&&row.kills>0),boss=!!(MONS[icon]&&MONS[icon].bossName);
+      if(dexFilter==='known'&&!known)return false;
+      if(dexFilter==='unknown'&&known)return false;
+      if(dexFilter==='boss'&&!boss)return false;
+      if(dexFilter.startsWith('map:')&&!(meta.maps||[]).includes(dexFilter.slice(4)))return false;
+      return !query||[meta.name,icon,meta.rank].join(' ').toLowerCase().includes(query);
+    });
+    if(!icons.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">조건에 맞는 몬스터가 없어.</div>';return;}
+    grid.innerHTML=icons.map(icon=>{
+      const row=book.entries[icon],known=!!(row&&row.kills>0),meta=DEX_META[icon]||{},boss=!!(MONS[icon]&&MONS[icon].bossName);
+      const label=known?(meta.name||'몬스터'):'미발견 몬스터';
+      return '<button type="button" class="rpgV115DexCard '+(boss?'boss ':'')+(dexSelected===icon?'selected':'')+'" data-v115-dex-entry="'+esc(icon)+'" aria-label="'+esc(label)+' 도감 상세 보기"><span class="rpgV115DexIcon '+(!known?'unknown':'')+'">'+(known?esc(icon):'❔')+'</span><span><b class="rpgV115DexName">'+esc(label)+'</b><small class="rpgV115DexMeta">'+(known?esc(meta.rank)+' · 처치 '+(Number(row.kills)||0)+'회':'아직 발견하지 못했어')+'</small><span class="rpgV115DexBadge '+(boss?'boss':'')+'">'+(boss?'BOSS':known?'DISCOVERED':'LOCKED')+'</span></span></button>';
+    }).join('');
+    grid.querySelectorAll('[data-v115-dex-entry]').forEach(b=>b.addEventListener('click',()=>{dexSelected=b.dataset.v115DexEntry;renderDexEntries();renderDexDetail(dexSelected);}));
+  }
+  function renderMonsterDex(){
+    ensureDexButton();
+    const book=loadBook(),total=Object.keys(MONS).length,known=Object.keys(MONS).filter(e=>Number(book.entries[e]?.kills||0)>0).length;
+    dexSelected=dexSelected&&MONS[dexSelected]?dexSelected:Object.keys(MONS).find(e=>book.entries[e]?.kills>0)||Object.keys(MONS)[0]||null;
+    const p=S.players&&S.players[S.uid];
+    let html='<div class="rpgV115DexHero"><div class="rpgV115DexHeroTop"><div><div class="rpgV115DexHeroTitle">📖 루미나 몬스터 도감</div><div class="rpgV115DexHeroSub">월드를 탐험하고 몬스터를 처치해 생태 기록을 완성해 봐.</div></div><div class="rpgV115DexCount">'+known+'<small style="font-size:10px;color:var(--sub)"> / '+total+'</small></div></div><div class="rpgV115DexTrack"><i style="width:'+Math.round(known/Math.max(1,total)*100)+'%"></i></div><div class="rpgV115DexHeroSub">발견 '+known+'/'+total+'종 · 누적 처치 '+(Number(book.totalKills)||0)+'회 · '+esc(p&&p.name||S.name||'모험가')+'의 기록</div></div>';
+    html+='<div class="rpgV115DexTools"><input id="rpgV115DexSearch" type="search" maxlength="30" placeholder="몬스터 이름 검색" aria-label="몬스터 이름 검색" value="'+esc(dexSearch)+'"><select id="rpgV115DexFilter" aria-label="도감 필터"><option value="all">전체 몬스터</option><option value="known">발견한 몬스터</option><option value="unknown">미발견 몬스터</option><option value="boss">보스 몬스터</option>'+DEX_MAP_ORDER.map(id=>'<option value="map:'+id+'">'+esc(mapLabel(id))+'</option>').join('')+'</select></div>';
+    html+='<div id="rpgV115DexGrid" class="rpgV115DexGrid"></div><div id="rpgV115DexDetail" class="rpgV115DexDetail" aria-live="polite"></div>';
+    html+='<div class="rpgV115KeyHint" style="margin-top:10px">⌨️ 키보드: <b>N</b> 도감 열기 · <b>Tab</b> 버튼 이동 · <b>Enter / Space</b> 선택 · <b>Esc</b> 닫기<br>전투: <b>WASD / 방향키</b> 이동 · <b>Space</b> 공격 · <b>1~3</b> 스킬</div>';
+    openPanel('📖 몬스터 도감',html);
+    const search=$('rpgV115DexSearch'),filter=$('rpgV115DexFilter');
+    if(filter)filter.value=dexFilter;
+    if(search)search.addEventListener('input',()=>{dexSearch=search.value;renderDexEntries();});
+    if(filter)filter.addEventListener('change',()=>{dexFilter=filter.value;renderDexEntries();});
+    renderDexEntries();if(dexSelected)renderDexDetail(dexSelected);
+  }
+  window.renderMonsterDex=renderMonsterDex;
+  ensureDexButton();
+  setTimeout(ensureDexButton,200);
+
+  /* ---------------- Visual polish FX ---------------- */
+  S._rpgV115Particles=S._rpgV115Particles||[];
+  S._rpgV115Rings=S._rpgV115Rings||[];
+  S._rpgV115Flash=S._rpgV115Flash||null;
+  function spawnV115Burst(x,y,map,color,count=10,scale=1){
+    const arr=S._rpgV115Particles;
+    for(let i=0;i<count;i++){
+      const a=Math.random()*Math.PI*2,speed=(.16+Math.random()*.75)*scale,life=380+Math.random()*520;
+      arr.push({x:Number(x)||0,y:Number(y)||0,map:String(map||S.players?.[S.uid]?.map||'town'),vx:Math.cos(a)*speed,vy:Math.sin(a)*speed-.12*scale,size:1.5+Math.random()*3.2,color,life,t0:Date.now(),gravity:.18+Math.random()*.22});
+    }
+    const particleCap=window.matchMedia&&window.matchMedia('(max-width: 720px)').matches?100:190;
+    if(arr.length>particleCap)arr.splice(0,arr.length-particleCap);
+    S._rpgV115Rings.push({x:Number(x)||0,y:Number(y)||0,map:String(map||S.players?.[S.uid]?.map||'town'),color,t0:Date.now(),life:bossLife(count)});
+    if(S._rpgV115Rings.length>30)S._rpgV115Rings.shift();
+  }
+  function bossLife(count){return count>=24?760:430;}
+  function showV115Toast(title,sub,type){
+    let el=$('rpgV115Toast');if(!el){el=document.createElement('div');el.id='rpgV115Toast';el.className='rpgV115Toast';el.setAttribute('role','status');document.body.appendChild(el);}
+    el.innerHTML='<b>'+esc(title)+'</b><small>'+esc(sub||'')+'</small>';
+    el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
+    clearTimeout(S._rpgV115ToastTimer);S._rpgV115ToastTimer=setTimeout(()=>el.classList.remove('show'),type==='boss'?2300:1700);
+  }
+  function drawV115WorldFx(){
+    if(!S.started||!ctx)return;
+    const player=S.players&&S.players[S.uid];if(!player)return;
+    const map=player.map||'town',m=boardMetrics(),now=Date.now();
+    /* Light ambient motes: restrained by biome and kept cheap for phones. */
+    const ambient=(map==='forest'||map==='field')?'#e8ffd0':(map==='abyss'||map==='catacombs'||map==='dungeon')?'#ffc078':'#d9efff';
+    ctx.save();ctx.globalAlpha=.12;ctx.fillStyle=ambient;
+    for(let i=0;i<9;i++){
+      const phase=now/1700+i*71.3,px=((i*97+Math.sin(phase)*22)%Math.max(1,m.w)+m.w)%m.w,py=((i*61+Math.cos(phase*.83)*17)%Math.max(1,m.h)+m.h)%m.h;
+      ctx.beginPath();ctx.arc(px,py,1.1+(i%3)*.45,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+    S._rpgV115Particles=S._rpgV115Particles.filter(f=>now-f.t0<f.life);
+    for(const f of S._rpgV115Particles){
+      if(f.map!==map)continue;
+      const age=Math.max(0,(now-f.t0)/1000),fade=Math.max(0,1-age*1000/f.life),wx=f.x+f.vx*age,wy=f.y+f.vy*age+f.gravity*age*age;
+      const q=worldToScreen(wx,wy,m),cx=q.x+m.tw/2,cy=q.y+m.th/2;
+      ctx.save();ctx.globalAlpha=fade*.9;ctx.fillStyle=f.color;ctx.shadowColor=f.color;ctx.shadowBlur=7;ctx.beginPath();ctx.arc(cx,cy,Math.max(1,f.size*m.unit*.055),0,Math.PI*2);ctx.fill();ctx.restore();
+    }
+    S._rpgV115Rings=S._rpgV115Rings.filter(f=>now-f.t0<f.life);
+    for(const f of S._rpgV115Rings){
+      if(f.map!==map)continue;
+      const age=(now-f.t0)/f.life, q=worldToScreen(f.x,f.y,m),r=m.unit*(.15+age*.95);
+      ctx.save();ctx.globalAlpha=(1-age)*.7;ctx.strokeStyle=f.color;ctx.shadowColor=f.color;ctx.shadowBlur=10;ctx.lineWidth=Math.max(1.4,m.unit*.035*(1-age));ctx.beginPath();ctx.arc(q.x+m.tw/2,q.y+m.th/2,r,0,Math.PI*2);ctx.stroke();ctx.restore();
+    }
+    if(S._rpgV115Flash){
+      const a=1-(now-S._rpgV115Flash.t0)/S._rpgV115Flash.life;
+      if(a>0){ctx.save();ctx.globalAlpha=Math.max(0,a)*.10;ctx.fillStyle=S._rpgV115Flash.color;ctx.fillRect(0,0,m.w,m.h);ctx.restore();}else S._rpgV115Flash=null;
+    }
+  }
+  const originalHandleFxV115=window.handleEvent||handleEvent;
+  if(typeof originalHandleFxV115==='function'&&!window.__rpgV115FxHandleWrapped){
+    window.__rpgV115FxHandleWrapped=true;
+    function handleFxV115(ev){
+      if(ev){
+        const localMap=S.players?.[S.uid]?.map||'town';
+        if(ev.k==='hit')spawnV115Burst(ev.x,ev.y,localMap,'#ffe08a',7,.55);
+        else if(ev.k==='monster_fx'&&ev.x!=null&&ev.y!=null)spawnV115Burst(ev.x,ev.y,localMap,ev.c||'#b7a7ff',5,.42);
+        else if(ev.k==='death_fx'&&ev.kind==='monster'){
+          const big=!!ev.boss;spawnV115Burst(ev.x,ev.y,ev.map||localMap,big?'#ffd166':'#a8f0bd',big?34:17,big?1.5:1);
+          if(big){S._rpgV115Flash={t0:Date.now(),life:250,color:'#ffd166'};showV115Toast('👑 BOSS DEFEATED',String(ev.icon||'몬스터')+' 토벌 성공!','boss');}
+        }
+      }
+      return originalHandleFxV115.apply(this,arguments);
+    }
+    window.handleEvent=handleFxV115;
+    try{handleEvent=handleFxV115;}catch(_){}
+  }
+  const oldDrawV115=typeof drawScene==='function'?drawScene:(window.drawScene||window.drawSceneRpg);
+  if(typeof oldDrawV115==='function'&&!window.__rpgV115DrawWrapped){
+    window.__rpgV115DrawWrapped=true;
+    function drawSceneV115(){const out=oldDrawV115.apply(this,arguments);safeCall(drawV115WorldFx);return out;}
+    try{drawScene=drawSceneV115;}catch(_){}
+    try{drawSceneRpg=drawSceneV115;}catch(_){}
+    window.drawScene=drawSceneV115;window.drawSceneRpg=drawSceneV115;
+  }
+
+  /* Update build tag and expose test hooks. */
+  const meta=document.querySelector('meta[name="rpg-build-version"]');if(meta)meta.content='115';
+  document.documentElement.dataset.rpgBuild='115';
+  window.__RPG_BUILD_VERSION__='115';
+  window.__rpgV115KeyboardReady=true;
+  window.__rpgV115DexDebug=()=>({known:Object.keys(loadBook().entries).filter(k=>loadBook().entries[k]?.kills>0).length,total:Object.keys(MONS).length,kills:loadBook().totalKills,keys:Object.keys(MONS)});
+})();
+</script>
+
+</script>
 </body>
 
 
